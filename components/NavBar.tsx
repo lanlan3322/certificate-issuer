@@ -9,12 +9,10 @@ export default function NavBar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const BASE_PATH = "/certificate-issuer";
-
   const navItems = [
-    { href: `${BASE_PATH}/`, label: "Issue", icon: FileText },
-    { href: `${BASE_PATH}/verify`, label: "Verify", icon: CheckCircle },
-    { href: `${BASE_PATH}/gallery`, label: "Gallery", icon: Shield },
+    { href: "/", label: "Issue", icon: FileText },
+    { href: "/verify", label: "Verify", icon: CheckCircle },
+    { href: "/gallery", label: "Gallery", icon: Shield },
   ];
 
   return (
@@ -22,7 +20,7 @@ export default function NavBar() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href={`${BASE_PATH}/`} className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center space-x-2">
             <Shield className="w-8 h-8 text-secondary" />
             <div>
               <span className="font-bold text-lg">TrustVC</span>
@@ -66,11 +64,16 @@ export default function NavBar() {
           <div className="md:hidden pb-4">
             {navItems.map((item) => {
               const Icon = item.icon;
+              const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center space-x-2 px-3 py-3 rounded-lg hover:bg-white/10"
+                  className={`flex items-center space-x-2 px-3 py-3 rounded-lg ${
+                    isActive
+                      ? "bg-secondary text-primary"
+                      : "hover:bg-white/10"
+                  }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Icon className="w-4 h-4" />
