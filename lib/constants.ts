@@ -8,7 +8,7 @@ export const TRUSTVC_CONFIG = {
 
   // Document Store (OpenCerts pattern on Sepolia)
   // This is a demo document store - replace with your own after deployment
-  documentStoreAddress: "0x4B506057A2b1Ac5C3c5E4B4A4d2eD3b6f1a3C4e5",
+  documentStoreAddress: "0x4B30674f8F77C0b1aB4c8A34B2a85C295A3aE2D4",
 
   // DID Configuration - using did:web
   // Replace with your own DID after deployment
@@ -19,7 +19,7 @@ export const TRUSTVC_CONFIG = {
   demoIssuer: {
     name: "IMDA Training Academy",
     url: "https://www.imda.gov.sg",
-    documentStore: "0x4B506057A2b1Ac5C3c5E4B4A4d2eD3b6f1a3C4e5",
+    documentStore: "0x4B30674f8F77C0b1aB4c8A34B2a85C295A3aE2D4",
     identityProof: {
       type: "DNS-TXT" as const,
       location: "certificate-issuer.vercel.app",
