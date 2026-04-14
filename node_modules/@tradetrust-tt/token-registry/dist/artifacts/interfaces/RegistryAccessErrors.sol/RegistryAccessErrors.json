@@ -1,0 +1,16 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "RegistryAccessErrors",
+  "sourceName": "contracts/interfaces/RegistryAccessErrors.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "InvalidAdminAddress",
+      "type": "error"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

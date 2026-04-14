@@ -1,0 +1,16 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "TitleEscrowFactoryErrors",
+  "sourceName": "contracts/interfaces/TitleEscrowFactoryErrors.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "CreateCallerNotContract",
+      "type": "error"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

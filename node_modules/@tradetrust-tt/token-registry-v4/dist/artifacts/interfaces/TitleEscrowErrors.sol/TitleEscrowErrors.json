@@ -1,0 +1,109 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "TitleEscrowErrors",
+  "sourceName": "contracts/interfaces/TitleEscrowErrors.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "CallerNotBeneficiary",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CallerNotHolder",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "EmptyReceivingData",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InactiveTitleEscrow",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidNominee",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "registry",
+          "type": "address"
+        }
+      ],
+      "name": "InvalidRegistry",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "InvalidTokenId",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "beneficiary",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "holder",
+          "type": "address"
+        }
+      ],
+      "name": "InvalidTokenTransferToZeroAddressOwners",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidTransferToZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NomineeAlreadyNominated",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "RecipientAlreadyHolder",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "RegistryContractPaused",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TargetNomineeAlreadyBeneficiary",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TitleEscrowNotHoldingToken",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TokenNotSurrendered",
+      "type": "error"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

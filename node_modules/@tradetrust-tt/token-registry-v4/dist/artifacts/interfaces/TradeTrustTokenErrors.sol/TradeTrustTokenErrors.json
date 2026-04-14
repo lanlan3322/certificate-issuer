@@ -1,0 +1,31 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "TradeTrustTokenErrors",
+  "sourceName": "contracts/interfaces/TradeTrustTokenErrors.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "InvalidTokenId",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TokenExists",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TokenNotSurrendered",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TransferFailure",
+      "type": "error"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

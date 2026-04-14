@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --primary: #1e3a5f;
+  --secondary: #c9a227;
+  --accent: #2d5a87;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white px-6 py-3 rounded-lg font-medium 
+           hover:bg-opacity-90 transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-primary px-6 py-3 rounded-lg font-medium 
+           hover:bg-opacity-90 transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-lg p-6 border border-gray-100;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 border border-gray-300 rounded-lg 
+           focus:ring-2 focus:ring-primary focus:border-transparent
+           transition-all duration-200 outline-none;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  .certificate-preview {
+    @apply bg-gradient-to-br from-primary to-accent text-white 
+           rounded-xl p-8 shadow-xl;
+  }
+}
+
+/* Certificate specific styles */
+.certificate-border {
+  border: 3px solid var(--secondary);
+}
+
+.gold-accent {
+  color: var(--secondary);
+}
+
+.bg-gold {
+  background-color: var(--secondary);
+}
+
+/* Verification badge animation */
+.verification-badge {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* QR code styling */
+.qr-container {
+  @apply bg-white p-4 rounded-lg shadow-md;
+}

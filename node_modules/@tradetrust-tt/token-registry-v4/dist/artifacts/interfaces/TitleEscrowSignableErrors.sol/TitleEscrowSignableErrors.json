@@ -1,0 +1,69 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "TitleEscrowSignableErrors",
+  "sourceName": "contracts/interfaces/TitleEscrowSignableErrors.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "CallerNotEndorser",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidEndorsement",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidSignature",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "endorsedBeneficiary",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "currentBeneficiary",
+          "type": "address"
+        }
+      ],
+      "name": "MismatchedEndorsedBeneficiaryAndCurrentBeneficiary",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "endorsedNominee",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "onChainNominee",
+          "type": "address"
+        }
+      ],
+      "name": "MismatchedEndorsedNomineeAndOnChainNominee",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "currentTimestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "SignatureExpired",
+      "type": "error"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
