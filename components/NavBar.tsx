@@ -9,10 +9,12 @@ export default function NavBar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const BASE_PATH = "/certificate-issuer";
+
   const navItems = [
-    { href: "/", label: "Issue", icon: FileText },
-    { href: "/verify", label: "Verify", icon: CheckCircle },
-    { href: "/gallery", label: "Gallery", icon: Shield },
+    { href: `${BASE_PATH}/`, label: "Issue", icon: FileText },
+    { href: `${BASE_PATH}/verify`, label: "Verify", icon: CheckCircle },
+    { href: `${BASE_PATH}/gallery`, label: "Gallery", icon: Shield },
   ];
 
   return (
@@ -20,7 +22,7 @@ export default function NavBar() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href={`${BASE_PATH}/`} className="flex items-center space-x-2">
             <Shield className="w-8 h-8 text-secondary" />
             <div>
               <span className="font-bold text-lg">TrustVC</span>
