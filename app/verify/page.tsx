@@ -57,15 +57,19 @@ export default function VerifyPage() {
         "certificateType": "Professional Certificate",
       },
       "issuer": {
-        "id": "did:web:example.com",
+        "id": "did:web:lanlan3322.github.io:certificate-issuer",
         "type": "OpenAttestationIssuer",
         "name": "IMDA Training Academy",
+        "identityProof": {
+          "identityProofType": "DNS-DID",
+          "identifier": "did:web:lanlan3322.github.io:certificate-issuer",
+        },
       },
       "validFrom": "2026-01-01T00:00:00Z",
       "proof": {
         "type": "DataIntegrityProof",
         "proofValue": "sample-proof-value",
-        "verificationMethod": "did:web:example.com#multikey-1",
+        "verificationMethod": "did:web:lanlan3322.github.io:certificate-issuer#keys-1",
         "cryptosuite": "ecdsa-sd-2023",
       },
     };

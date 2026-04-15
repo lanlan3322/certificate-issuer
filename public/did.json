@@ -1,0 +1,34 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/did/v1",
+    "https://w3id.org/security/multikey/v1",
+    "https://w3id.org/security/data-integrity/v2"
+  ],
+  "id": "did:web:lanlan3322.github.io:certificate-issuer",
+  "verificationMethod": [
+    {
+      "id": "did:web:lanlan3322.github.io:certificate-issuer#keys-1",
+      "type": "Multikey",
+      "controller": "did:web:lanlan3322.github.io:certificate-issuer",
+      "publicKeyMultibase": "zQ3shP2mWsZYWgvgM11nenXRTx9L1yiJKmkf9dfX7NaMKb1pX"
+    }
+  ],
+  "authentication": [
+    "did:web:lanlan3322.github.io:certificate-issuer#keys-1"
+  ],
+  "assertionMethod": [
+    "did:web:lanlan3322.github.io:certificate-issuer#keys-1"
+  ],
+  "service": [
+    {
+      "id": "did:web:lanlan3322.github.io:certificate-issuer#document-store",
+      "type": "OpenAttestationDocumentStore",
+      "serviceEndpoint": "https://sepolia.etherscan.io/address/0x4B30674f8F77C0b1aB4c8A34B2a85C295A3aE2D4"
+    },
+    {
+      "id": "did:web:lanlan3322.github.io:certificate-issuer#identity-proof",
+      "type": "OpenAttestationIdentityProof",
+      "serviceEndpoint": "https://lanlan3322.github.io"
+    }
+  ]
+}

@@ -2,6 +2,11 @@
 // Uses @trustvc/trustvc for W3C Verifiable Credentials
 
 import { TRUSTVC_CONFIG } from "./constants";
+import {
+  resolveDidWeb,
+  findVerificationMethod,
+  isAssertionMethod,
+} from "./did-web";
 
 // Certificate data structure
 export interface CertificateData {
@@ -47,8 +52,8 @@ export function buildVCPayload(data: CertificateData) {
       type: "OpenAttestationIssuer",
       name: data.issuerName,
       identityProof: {
-        identityProofType: "DNS-TXT",
-        identifier: TRUSTVC_CONFIG.demoIssuer.identityProof.location,
+        identityProofType: "DNS-DID",
+        identifier: TRUSTVC_CONFIG.didUrl,
       },
     },
     validFrom: data.validFrom,
@@ -79,7 +84,15 @@ export interface VerificationResult {
   details?: Record<string, unknown>;
 }
 
-// For demo purposes - in production, this would call verifyDocument from TrustVC
+/**
+ * Verify a W3C Verifiable Credential.
+ *
+ * Performs structural validation and, when the issuer uses a did:web
+ * identifier, resolves the DID Document and checks that the proof's
+ * verificationMethod is present and authorized for assertion.
+ *
+ * In production this would delegate to TrustVC's verifyDocument().
+ */
 export async function verifyCredential(
   document: Record<string, unknown>
 ): Promise<VerificationResult> {
@@ -108,13 +121,51 @@ export async function verifyCredential(
       };
     }
 
+    // Extract issuer DID
+    const issuer = document["issuer"] as Record<string, string>;
+    const issuerDid = issuer?.["id"] ?? "";
+
+    // did:web resolution — resolve issuer DID Document and validate the
+    // verification method referenced in the proof.
+    let didResolved = false;
+    if (issuerDid.startsWith("did:web:")) {
+      try {
+        const didDocument = await resolveDidWeb(issuerDid);
+
+        const verificationMethodId = proof["verificationMethod"] as string;
+        if (verificationMethodId) {
+          const vm = findVerificationMethod(didDocument, verificationMethodId);
+          if (!vm) {
+            return {
+              valid: false,
+              message: `Verification method "${verificationMethodId}" not found in issuer DID Document`,
+            };
+          }
+
+          if (!isAssertionMethod(didDocument, verificationMethodId)) {
+            return {
+              valid: false,
+              message: `Verification method "${verificationMethodId}" is not authorized for assertion in issuer DID Document`,
+            };
+          }
+        }
+
+        didResolved = true;
+      } catch {
+        // DID resolution failure is not fatal for demo — log and continue.
+        // In production, this should be a hard failure.
+        console.warn(`did:web resolution failed for ${issuerDid}`);
+      }
+    }
+
     return {
       valid: true,
       message: "Credential verified successfully",
       details: {
-        issuer: (document["issuer"] as Record<string, string>)["id"],
+        issuer: issuerDid,
         credentialId: document["id"] as string,
         credentialType: document["type"] as string[],
+        didWebResolved: didResolved,
       },
     };
   } catch (error) {

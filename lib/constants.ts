@@ -124,6 +124,30 @@ export const DEMO_CERTIFICATES = [
   },
 ];
 
+// TrustVC / did:web Configuration
+// The DID for issuing credentials is hosted at the deployment domain.
+// For GitHub Pages at lanlan3322.github.io/certificate-issuer:
+//   did:web:lanlan3322.github.io:certificate-issuer → https://lanlan3322.github.io/certificate-issuer/did.json
+export const TRUSTVC_CONFIG = {
+  // did:web identifier for this issuer
+  didUrl: "did:web:lanlan3322.github.io:certificate-issuer",
+  // The verification method ID referenced in proofs
+  verificationMethodId:
+    "did:web:lanlan3322.github.io:certificate-issuer#keys-1",
+  // Cryptosuite used for signing
+  cryptosuite: "ecdsa-sd-2023",
+  // Key type
+  keyType: "Multikey" as const,
+  // The curve used
+  curve: "secp256k1",
+  // Demo issuer configuration (matches ISSUER_CONFIG)
+  demoIssuer: {
+    name: ISSUER_CONFIG.name,
+    documentStore: DOCUMENT_STORE_CONFIG.address,
+    identityProof: DOCUMENT_STORE_CONFIG.identityProof,
+  },
+};
+
 // Deployment steps for TradeTrust compliance
 export const DEPLOYMENT_STEPS = [
   {
