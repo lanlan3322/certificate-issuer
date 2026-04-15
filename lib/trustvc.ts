@@ -151,10 +151,10 @@ export async function verifyCredential(
         }
 
         didResolved = true;
-      } catch {
+      } catch (resolveError) {
         // DID resolution failure is not fatal for demo — log and continue.
         // In production, this should be a hard failure.
-        console.warn(`did:web resolution failed for ${issuerDid}`);
+        console.warn(`did:web resolution failed for ${issuerDid}:`, resolveError);
       }
     }
 
@@ -165,7 +165,7 @@ export async function verifyCredential(
         issuer: issuerDid,
         credentialId: document["id"] as string,
         credentialType: document["type"] as string[],
-        didWebResolved: didResolved,
+        didDocumentResolved: didResolved,
       },
     };
   } catch (error) {
