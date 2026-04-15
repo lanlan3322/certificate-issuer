@@ -126,7 +126,7 @@ export const DEMO_CERTIFICATES = [
 
 // TrustVC SDK Configuration
 export const TRUSTVC_CONFIG = {
-  didUrl: `did:ethr:${DOCUMENT_STORE_CONFIG.address}`,
+  didUrl: `did:ethr:${CURRENT_NETWORK.name}:${DOCUMENT_STORE_CONFIG.address}`,
   demoIssuer: {
     identityProof: {
       type: DOCUMENT_STORE_CONFIG.identityProof.type,
