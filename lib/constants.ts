@@ -124,6 +124,17 @@ export const DEMO_CERTIFICATES = [
   },
 ];
 
+// TrustVC SDK Configuration
+export const TRUSTVC_CONFIG = {
+  didUrl: `did:ethr:${DOCUMENT_STORE_CONFIG.address}`,
+  demoIssuer: {
+    identityProof: {
+      type: DOCUMENT_STORE_CONFIG.identityProof.type,
+      location: DOCUMENT_STORE_CONFIG.identityProof.location,
+    },
+  },
+};
+
 // Deployment steps for TradeTrust compliance
 export const DEPLOYMENT_STEPS = [
   {
