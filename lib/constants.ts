@@ -41,6 +41,16 @@ export const DOCUMENT_STORE_CONFIG = {
   },
 };
 
+// TrustVC Configuration
+export const TRUSTVC_CONFIG = {
+  didUrl: `did:web:${DOCUMENT_STORE_CONFIG.identityProof.location}`,
+  demoIssuer: {
+    identityProof: {
+      location: DOCUMENT_STORE_CONFIG.identityProof.location,
+    },
+  },
+};
+
 // Issuer Configuration
 export const ISSUER_CONFIG = {
   name: "Certificate Issuer",
