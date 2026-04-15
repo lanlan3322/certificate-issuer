@@ -24,6 +24,7 @@ import {
   CertificateData,
   generateCertificateId,
   buildVCPayload,
+  signCredential,
 } from "../lib/trustvc";
 import {
   formatDate,
@@ -116,9 +117,21 @@ export default function HomePage() {
 
       const credential = buildVCPayload(certData);
 
-      // For demo purposes - in production, this would call TrustVC SDK
+      // Attempt to sign using TrustVC SDK
+      // In production, provide a secretKeyMultibase for real signing
+      let txHash = "unsigned-" + Math.random().toString(36).substr(2, 9);
+      try {
+        const signingResult = await signCredential(credential);
+        if (signingResult.signed) {
+          txHash = "signed-" + Math.random().toString(36).substr(2, 9);
+        }
+      } catch {
+        // Signing may fail without a valid secret key (expected in demo mode)
+        // The unsigned credential is still valid for demonstration
+      }
+
       setIssuedCert(certData);
-      setIssuedTxHash("demo-tx-hash-" + Math.random().toString(36).substr(2, 9));
+      setIssuedTxHash(txHash);
     } catch (err) {
       setErrors([`Failed to issue certificate: ${(err as Error).message}`]);
     } finally {

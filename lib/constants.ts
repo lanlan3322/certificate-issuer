@@ -124,6 +124,35 @@ export const DEMO_CERTIFICATES = [
   },
 ];
 
+// TrustVC SDK Configuration
+export const TRUSTVC_CONFIG = {
+  // DID for this issuer
+  didUrl: "did:web:lanlan3322.github.io:certificate-issuer",
+
+  // Demo issuer configuration
+  demoIssuer: {
+    name: ISSUER_CONFIG.name,
+    identityProof: DOCUMENT_STORE_CONFIG.identityProof,
+  },
+
+  // Demo key pair for signing (ECDSA-SD-2023)
+  // In production, secret keys should be stored securely server-side
+  demoKeyPair: {
+    "@context": "https://w3id.org/security/multikey/v1" as const,
+    id: "did:web:lanlan3322.github.io:certificate-issuer#multikey-1",
+    type: "Multikey" as const,
+    controller: "did:web:lanlan3322.github.io:certificate-issuer",
+    // Demo public key only - signing will require a real secret key
+    publicKeyMultibase: "zDnaemDNwi4G5eTzGfRooFFu5Kns3be6yfyVNtiaMhWkZbwtc",
+  },
+
+  // RPC provider URL for on-chain verification
+  rpcProviderUrl: CURRENT_NETWORK.rpcUrl,
+
+  // Default crypto suite for W3C VC signing
+  cryptoSuite: "ecdsa-sd-2023" as const,
+};
+
 // Deployment steps for TradeTrust compliance
 export const DEPLOYMENT_STEPS = [
   {
