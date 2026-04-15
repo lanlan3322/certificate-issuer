@@ -124,6 +124,17 @@ export const DEMO_CERTIFICATES = [
   },
 ];
 
+// TrustVC SDK Configuration
+// Used by trustvc.ts for building Verifiable Credentials
+export const TRUSTVC_CONFIG = {
+  didUrl: `did:web:${new URL(ISSUER_CONFIG.url).hostname}`,
+  demoIssuer: {
+    name: ISSUER_CONFIG.name,
+    documentStore: ISSUER_CONFIG.documentStore,
+    identityProof: ISSUER_CONFIG.identityProof,
+  },
+};
+
 // Deployment steps for TradeTrust compliance
 export const DEPLOYMENT_STEPS = [
   {
