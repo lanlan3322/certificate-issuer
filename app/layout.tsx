@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "IMDA Certificate Issuer | TrustVC",
+  title: "Verifiable Certificates",
   description:
     "Issue verifiable certificates using TrustVC, managed by IMDA. W3C Verifiable Credentials with on-chain verification.",
   keywords: [

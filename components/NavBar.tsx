@@ -23,8 +23,7 @@ export default function NavBar() {
           <Link href="/" className="flex items-center space-x-2">
             <Shield className="w-8 h-8 text-secondary" />
             <div>
-              <span className="font-bold text-lg">TrustVC</span>
-              <span className="text-secondary text-xs block">by IMDA</span>
+              <span className="font-bold text-lg">Verifiable Certificates</span>
             </div>
           </Link>
 
@@ -37,11 +36,8 @@ export default function NavBar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                    isActive
-                      ? "bg-secondary text-primary"
-                      : "hover:bg-white/10"
-                  }`}
+                  aria-current={isActive ? "page" : undefined}
+                  className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors hover:bg-white/10"
                 >
                   <Icon className="w-4 h-4" />
                   <span>{item.label}</span>
@@ -69,11 +65,8 @@ export default function NavBar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center space-x-2 px-3 py-3 rounded-lg ${
-                    isActive
-                      ? "bg-secondary text-primary"
-                      : "hover:bg-white/10"
-                  }`}
+                  aria-current={isActive ? "page" : undefined}
+                  className="flex items-center space-x-2 px-3 py-3 rounded-lg hover:bg-white/10"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Icon className="w-4 h-4" />

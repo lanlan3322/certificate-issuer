@@ -81,7 +81,7 @@ export default function HomePage() {
   const [issuing, setIssuing] = useState(false);
   const [issuedTxHash, setIssuedTxHash] = useState<string | null>(null);
   const [walletWarningDismissed, setWalletWarningDismissed] = useState(false);
-  const [showDeploymentGuide, setShowDeploymentGuide] = useState(true);
+  const [showDeploymentGuide, setShowDeploymentGuide] = useState(false);
   const [issueMode, setIssueMode] = useState<"single" | "batch">("single");
   const [issuingMethods, setIssuingMethods] = useState<IssuingMethod[]>(
     DEFAULT_ISSUING_METHODS
