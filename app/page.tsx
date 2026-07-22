@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
   FileText,
@@ -55,8 +55,11 @@ const MAX_VISIBLE_FAILED_FILES = 5;
 const MAX_FAILED_FILE_NAME_LENGTH = 40;
 
 function getCertificateUuid(certificateId: string): string {
-  const uuid = certificateId.split(":")[2];
-  return uuid || "credential";
+  if (certificateId.startsWith("urn:uuid:")) {
+    return certificateId.slice("urn:uuid:".length) || "credential";
+  }
+
+  return certificateId || "credential";
 }
 
 export default function HomePage() {
@@ -97,10 +100,15 @@ export default function HomePage() {
   const [batchIssuing, setBatchIssuing] = useState(false);
   const [downloadingBatchZip, setDownloadingBatchZip] = useState(false);
   const [batchDownloadError, setBatchDownloadError] = useState<string | null>(null);
-  const currentCredential = issuedCert ? buildVCPayload(issuedCert) : null;
-  const currentCredentialHasProof = currentCredential
-    ? "proof" in currentCredential && Boolean(currentCredential.proof)
-    : false;
+  const currentCredential = useMemo(
+    () => (issuedCert ? buildVCPayload(issuedCert) : null),
+    [issuedCert]
+  );
+  const currentCredentialHasProof = !!(
+    currentCredential &&
+    "proof" in currentCredential &&
+    currentCredential.proof
+  );
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
