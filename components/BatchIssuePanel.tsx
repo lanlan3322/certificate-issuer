@@ -193,6 +193,13 @@ export default function BatchIssuePanel({
         </button>
       </div>
 
+      {parseError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
+          <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-red-700">{parseError}</p>
+        </div>
+      )}
+
       {/* File Upload Zone */}
       {rows.length === 0 && (
         <>
@@ -222,26 +229,12 @@ export default function BatchIssuePanel({
             />
           </div>
 
-          {/* Parse error below upload zone */}
-          {parseError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
-              <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-red-700">{parseError}</p>
-            </div>
-          )}
         </>
       )}
 
       {/* Parsed Rows Preview */}
       {rows.length > 0 && (
         <div>
-          {parseError && (
-            <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
-              <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-red-700">{parseError}</p>
-            </div>
-          )}
-
           {/* Row count badges */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-2 flex-wrap gap-y-1">

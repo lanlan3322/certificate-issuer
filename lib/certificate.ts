@@ -3,7 +3,7 @@
 import { CertificateData } from "./trustvc";
 import {
   CERTIFICATE_TEMPLATES,
-  formatIssuingMethods,
+  formatIssuingMethodLabels,
   IssuingMethod,
   SUPPORTED_ISSUING_METHODS,
 } from "./constants";
@@ -40,19 +40,6 @@ export function calculateValidUntil(
   return getISODateString(untilDate);
 }
 
-// Get certificate template info
-export function getTemplateInfo(certificateType: string) {
-  return (
-    Object.values(CERTIFICATE_TEMPLATES).find(
-      (t) => t.name === certificateType
-    ) ?? {
-      name: certificateType,
-      description: "Custom certificate",
-      validForYears: 1,
-    }
-  );
-}
-
 // Generate a printable certificate summary
 export function generateCertificateSummary(data: CertificateData): string[] {
   return [
@@ -64,7 +51,7 @@ export function generateCertificateSummary(data: CertificateData): string[] {
     `Valid Until: ${data.validUntil ? formatDate(data.validUntil) : "Lifetime"}`,
     `Description: ${data.description}`,
     `Issuer: ${data.issuerName}`,
-    `Issuing Methods: ${formatIssuingMethods(data.issuingMethods)}`,
+    `Issuing Methods: ${formatIssuingMethodLabels(data.issuingMethods)}`,
     `Certificate ID: ${data.id}`,
   ];
 }

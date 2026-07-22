@@ -2,7 +2,7 @@
 
 import {
   DEFAULT_ISSUING_METHODS,
-  formatIssuingMethods,
+  formatIssuingMethodLabels,
   IssuingMethod,
   SUPPORTED_ISSUING_METHODS,
 } from "../lib/constants";
@@ -16,7 +16,7 @@ interface IssuingMethodSelectorProps {
 export default function IssuingMethodSelector({
   selectedMethods,
   onToggle,
-  helperText = `${formatIssuingMethods(DEFAULT_ISSUING_METHODS)} are selected by default.`,
+  helperText = `${formatIssuingMethodLabels(DEFAULT_ISSUING_METHODS)} are selected by default.`,
 }: IssuingMethodSelectorProps) {
   return (
     <div>
@@ -24,9 +24,7 @@ export default function IssuingMethodSelector({
         <label className="label text-sm md:text-base">Issuing Methods</label>
         <span className="text-xs text-gray-500">
           Default:{" "}
-          {DEFAULT_ISSUING_METHODS.map(
-            (method) => SUPPORTED_ISSUING_METHODS[method].label
-          ).join(", ")}
+          {formatIssuingMethodLabels(DEFAULT_ISSUING_METHODS)}
         </span>
       </div>
       <div className="mt-2 flex flex-wrap gap-3">

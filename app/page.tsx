@@ -43,7 +43,7 @@ import {
   DOCUMENT_STORE_CONFIG,
   DEPLOYMENT_STEPS,
   CURRENT_NETWORK,
-  formatIssuingMethods as formatIssuingMethodLabels,
+  formatIssuingMethodLabels,
   IssuingMethod,
 } from "../lib/constants";
 
