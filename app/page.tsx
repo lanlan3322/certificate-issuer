@@ -37,6 +37,7 @@ import {
   calculateValidUntil,
   validateCertificateData,
   downloadCertificate,
+  downloadCertificatesZip,
   copyToClipboard,
   validateIssuingMethods,
 } from "../lib/certificate";
@@ -86,6 +87,8 @@ export default function HomePage() {
     IssuedCertificateItem[]
   >([]);
   const [batchIssuing, setBatchIssuing] = useState(false);
+  const [downloadingBatchZip, setDownloadingBatchZip] = useState(false);
+  const [batchDownloadError, setBatchDownloadError] = useState<string | null>(null);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -183,6 +186,39 @@ export default function HomePage() {
     a.download = item.fileName;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleBatchIssuedCertificatesChange = (certificates: IssuedCertificateItem[]) => {
+    setBatchIssuedCertificates(certificates);
+    setBatchDownloadError(null);
+  };
+
+  const handleDownloadAllBatchCertificates = async () => {
+    if (batchIssuedCertificates.length === 0 || downloadingBatchZip) return;
+
+    setBatchDownloadError(null);
+    setDownloadingBatchZip(true);
+
+    try {
+      const result = await downloadCertificatesZip(
+        batchIssuedCertificates,
+        "batch-issued-certificates.zip"
+      );
+
+      if (result.failedFiles.length > 0) {
+        setBatchDownloadError(
+          `Downloaded ${result.added}/${result.total} certificates. Failed: ${result.failedFiles.join(
+            ", "
+          )}`
+        );
+      }
+    } catch (error) {
+      setBatchDownloadError(
+        `Unable to download ZIP: ${(error as Error).message}`
+      );
+    } finally {
+      setDownloadingBatchZip(false);
+    }
   };
 
   const truncateAddress = (addr: string) => {
@@ -480,7 +516,7 @@ export default function HomePage() {
                 connected={connected}
                 issuingMethods={issuingMethods}
                 onToggleIssuingMethod={handleToggleIssuingMethod}
-                onIssuedCertificatesChange={setBatchIssuedCertificates}
+                onIssuedCertificatesChange={handleBatchIssuedCertificatesChange}
                 onIssuingChange={setBatchIssuing}
               />
             )}
@@ -492,6 +528,9 @@ export default function HomePage() {
                 issuedCertificates={batchIssuedCertificates}
                 issuing={batchIssuing}
                 onDownloadCertificate={handleDownloadBatchCertificate}
+                onDownloadAllCertificates={handleDownloadAllBatchCertificates}
+                downloadingAllCertificates={downloadingBatchZip}
+                downloadAllError={batchDownloadError}
               />
             </div>
           ) : (

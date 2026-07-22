@@ -1,6 +1,7 @@
 // Certificate Utility Functions
 
 import { CertificateData } from "./trustvc";
+import JSZip from "jszip";
 import {
   CERTIFICATE_TEMPLATES,
   formatIssuingMethodLabels,
@@ -118,6 +119,82 @@ export function downloadCertificate(data: CertificateData): void {
   a.download = `certificate-${data.id.split(":")[2]}.json`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export interface BatchCertificateDownloadItem {
+  fileName: string;
+  certificate: unknown;
+}
+
+export interface BatchCertificateZipResult {
+  total: number;
+  added: number;
+  failedFiles: string[];
+}
+
+function getSafeZipFileName(fileName: string): string {
+  const normalized = fileName.trim().replace(/[^a-zA-Z0-9._-]+/g, "-");
+  if (!normalized) {
+    return "certificate.json";
+  }
+  return normalized.toLowerCase().endsWith(".json")
+    ? normalized
+    : `${normalized}.json`;
+}
+
+export async function downloadCertificatesZip(
+  items: BatchCertificateDownloadItem[],
+  zipName: string = "issued-certificates.zip"
+): Promise<BatchCertificateZipResult> {
+  const zip = new JSZip();
+  const fileNames = new Set<string>();
+  const failedFiles: string[] = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (!item?.fileName || typeof item.certificate === "undefined") {
+      failedFiles.push(item?.fileName || `certificate-${i + 1}`);
+      continue;
+    }
+
+    try {
+      let baseName = getSafeZipFileName(item.fileName);
+      let finalName = baseName;
+      let duplicateCount = 1;
+      while (fileNames.has(finalName)) {
+        finalName = baseName.replace(/\.json$/i, `-${duplicateCount}.json`);
+        duplicateCount += 1;
+      }
+      fileNames.add(finalName);
+
+      const content = JSON.stringify(item.certificate, null, 2);
+      zip.file(finalName, content);
+    } catch {
+      failedFiles.push(item.fileName);
+    }
+
+    if ((i + 1) % 25 === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
+
+  if (zip.files && Object.keys(zip.files).length === 0) {
+    throw new Error("No certificates could be prepared for ZIP download.");
+  }
+
+  const blob = await zip.generateAsync({ type: "blob" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = zipName;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  return {
+    total: items.length,
+    added: Object.keys(zip.files).length,
+    failedFiles,
+  };
 }
 
 // Copy to clipboard helper
