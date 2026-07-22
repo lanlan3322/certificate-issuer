@@ -84,6 +84,16 @@ export const CERTIFICATE_TEMPLATES = {
   },
 } as const;
 
+// TrustVC configuration used in VC payloads
+export const TRUSTVC_CONFIG = {
+  didUrl: `did:ethr:sepolia:${DOCUMENT_STORE_CONFIG.address}`,
+  demoIssuer: {
+    identityProof: {
+      location: DOCUMENT_STORE_CONFIG.identityProof.location,
+    },
+  },
+};
+
 // Demo certificates for gallery
 export const DEMO_CERTIFICATES = [
   {

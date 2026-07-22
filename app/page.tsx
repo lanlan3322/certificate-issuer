@@ -16,9 +16,11 @@ import {
   Loader2,
   Check,
   Info,
+  Layers,
 } from "lucide-react";
 import NavBar from "../components/NavBar";
 import DeploymentGuide from "../components/DeploymentGuide";
+import BatchIssuePanel from "../components/BatchIssuePanel";
 import { useWalletConnection } from "../hooks/useWalletConnection";
 import {
   CertificateData,
@@ -68,6 +70,7 @@ export default function HomePage() {
   const [issuedTxHash, setIssuedTxHash] = useState<string | null>(null);
   const [walletWarningDismissed, setWalletWarningDismissed] = useState(false);
   const [showDeploymentGuide, setShowDeploymentGuide] = useState(true);
+  const [issueMode, setIssueMode] = useState<"single" | "batch">("single");
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -197,6 +200,32 @@ export default function HomePage() {
               </h2>
             </div>
 
+            {/* Mode tabs */}
+            <div className="flex rounded-lg border border-gray-200 mb-4 md:mb-6 overflow-hidden">
+              <button
+                onClick={() => setIssueMode("single")}
+                className={`flex-1 flex items-center justify-center space-x-2 py-2 text-sm font-medium transition-colors ${
+                  issueMode === "single"
+                    ? "bg-primary text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                <span>Single</span>
+              </button>
+              <button
+                onClick={() => setIssueMode("batch")}
+                className={`flex-1 flex items-center justify-center space-x-2 py-2 text-sm font-medium transition-colors ${
+                  issueMode === "batch"
+                    ? "bg-primary text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <Layers className="w-4 h-4" />
+                <span>Batch (Excel / CSV)</span>
+              </button>
+            </div>
+
             {/* Wallet Connection */}
             <div className="mb-4 md:mb-6 p-3 md:p-4 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg border border-primary/20">
               {connected ? (
@@ -282,7 +311,7 @@ export default function HomePage() {
             </div>
 
             {/* Errors */}
-            {errors.length > 0 && (
+            {issueMode === "single" && errors.length > 0 && (
               <div className="mb-4 p-3 md:p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-start space-x-2">
                   <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-red-500 mt-0.5 flex-shrink-0" />
@@ -300,98 +329,108 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Form Fields */}
-            <div className="space-y-3 md:space-y-4">
-              <div>
-                <label className="label text-sm md:text-base">Recipient Name</label>
-                <input
-                  type="text"
-                  name="recipientName"
-                  value={formData.recipientName}
-                  onChange={handleInputChange}
-                  className="input-field text-sm md:text-base"
-                  placeholder="e.g., Ahmad bin Rahman"
-                />
-              </div>
-
-              <div>
-                <label className="label text-sm md:text-base">Recipient Email</label>
-                <input
-                  type="email"
-                  name="recipientEmail"
-                  value={formData.recipientEmail}
-                  onChange={handleInputChange}
-                  className="input-field text-sm md:text-base"
-                  placeholder="e.g., ahmad@company.sg"
-                />
-              </div>
-
-              <div>
-                <label className="label text-sm md:text-base">Certificate Type</label>
-                <select
-                  name="certificateType"
-                  value={formData.certificateType}
-                  onChange={handleInputChange}
-                  className="input-field text-sm md:text-base"
-                >
-                  {Object.values(CERTIFICATE_TEMPLATES).map((template) => (
-                    <option key={template.name} value={template.name}>
-                      {template.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="label text-sm md:text-base">Description / Achievement</label>
-                <input
-                  type="text"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  className="input-field text-sm md:text-base"
-                  placeholder="e.g., Certified in AI Governance"
-                />
-              </div>
-
-              <button
-                onClick={handleIssue}
-                disabled={!connected || issuing}
-                className="btn-primary w-full flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
-              >
-                {issuing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Shield className="w-4 h-4" />
-                )}
-                <span>{issuing ? "Issuing..." : "Issue Certificate"}</span>
-              </button>
-            </div>
-
-            {/* Transaction Info */}
-            {issuedTxHash && (
-              <div className="mt-3 md:mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-start space-x-2">
-                  <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="font-medium text-green-800 text-sm md:text-base">
-                      Certificate Issued!
-                    </p>
-                    <p className="text-xs text-green-600 mt-1">
-                      Store:{" "}
-                      <a
-                        href={`https://sepolia.etherscan.io/address/${DOCUMENT_STORE_CONFIG.address}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline inline-flex items-center space-x-1"
-                      >
-                        <span>{DOCUMENT_STORE_CONFIG.address.slice(0, 12)}...</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </p>
+            {/* Single certificate form */}
+            {issueMode === "single" && (
+              <>
+                {/* Form Fields */}
+                <div className="space-y-3 md:space-y-4">
+                  <div>
+                    <label className="label text-sm md:text-base">Recipient Name</label>
+                    <input
+                      type="text"
+                      name="recipientName"
+                      value={formData.recipientName}
+                      onChange={handleInputChange}
+                      className="input-field text-sm md:text-base"
+                      placeholder="e.g., Ahmad bin Rahman"
+                    />
                   </div>
+
+                  <div>
+                    <label className="label text-sm md:text-base">Recipient Email</label>
+                    <input
+                      type="email"
+                      name="recipientEmail"
+                      value={formData.recipientEmail}
+                      onChange={handleInputChange}
+                      className="input-field text-sm md:text-base"
+                      placeholder="e.g., ahmad@company.sg"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label text-sm md:text-base">Certificate Type</label>
+                    <select
+                      name="certificateType"
+                      value={formData.certificateType}
+                      onChange={handleInputChange}
+                      className="input-field text-sm md:text-base"
+                    >
+                      {Object.values(CERTIFICATE_TEMPLATES).map((template) => (
+                        <option key={template.name} value={template.name}>
+                          {template.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="label text-sm md:text-base">Description / Achievement</label>
+                    <input
+                      type="text"
+                      name="description"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      className="input-field text-sm md:text-base"
+                      placeholder="e.g., Certified in AI Governance"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleIssue}
+                    disabled={!connected || issuing}
+                    className="btn-primary w-full flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+                  >
+                    {issuing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Shield className="w-4 h-4" />
+                    )}
+                    <span>{issuing ? "Issuing..." : "Issue Certificate"}</span>
+                  </button>
                 </div>
-              </div>
+
+                {/* Transaction Info */}
+                {issuedTxHash && (
+                  <div className="mt-3 md:mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-start space-x-2">
+                      <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="font-medium text-green-800 text-sm md:text-base">
+                          Certificate Issued!
+                        </p>
+                        <p className="text-xs text-green-600 mt-1">
+                          Store:{" "}
+                          <a
+                            href={`https://sepolia.etherscan.io/address/${DOCUMENT_STORE_CONFIG.address}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline inline-flex items-center space-x-1"
+                          >
+                            <span>{DOCUMENT_STORE_CONFIG.address.slice(0, 12)}...</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Batch issue panel */}
+            {issueMode === "batch" && (
+              <BatchIssuePanel connected={connected} />
             )}
           </div>
 
