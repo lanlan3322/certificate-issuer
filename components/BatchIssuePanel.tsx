@@ -167,6 +167,7 @@ export default function BatchIssuePanel({
   const handleIssueAll = async () => {
     if (!connected || issuing) return;
     setIssuing(true);
+    onIssuingChange(true);
     onIssuedCertificatesChange([]);
 
     const updated = [...rows];
@@ -225,6 +226,7 @@ export default function BatchIssuePanel({
     }
 
     onIssuedCertificatesChange(generatedCertificates);
+    onIssuingChange(false);
     setIssuing(false);
   };
 
@@ -243,6 +245,7 @@ export default function BatchIssuePanel({
     setRows([]);
     setFileName(null);
     setParseError(null);
+    onIssuingChange(false);
     onIssuedCertificatesChange([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
