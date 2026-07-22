@@ -37,6 +37,8 @@ import {
   calculateValidUntil,
   validateCertificateData,
   downloadCertificate,
+  downloadCertificatesZip,
+  sanitizeCertificateFileNameForZip,
   copyToClipboard,
   validateIssuingMethods,
 } from "../lib/certificate";
@@ -49,6 +51,9 @@ import {
   formatIssuingMethodLabels,
   IssuingMethod,
 } from "../lib/constants";
+
+const MAX_VISIBLE_FAILED_FILES = 5;
+const MAX_FAILED_FILE_NAME_LENGTH = 40;
 
 export default function HomePage() {
   const {
@@ -86,6 +91,8 @@ export default function HomePage() {
     IssuedCertificateItem[]
   >([]);
   const [batchIssuing, setBatchIssuing] = useState(false);
+  const [downloadingBatchZip, setDownloadingBatchZip] = useState(false);
+  const [batchDownloadError, setBatchDownloadError] = useState<string | null>(null);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -183,6 +190,51 @@ export default function HomePage() {
     a.download = item.fileName;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleBatchIssuedCertificatesChange = (certificates: IssuedCertificateItem[]) => {
+    setBatchIssuedCertificates(certificates);
+    setBatchDownloadError(null);
+  };
+
+  const handleDownloadAllBatchCertificates = async () => {
+    if (batchIssuedCertificates.length === 0 || downloadingBatchZip) return;
+
+    setBatchDownloadError(null);
+    setDownloadingBatchZip(true);
+
+    try {
+      const result = await downloadCertificatesZip(
+        batchIssuedCertificates,
+        "batch-issued-certificates.zip"
+      );
+
+      if (result.failedFiles.length > 0) {
+        const visibleFailedFiles = result.failedFiles
+          .slice(0, MAX_VISIBLE_FAILED_FILES)
+          .map((file) => {
+            const safeName = sanitizeCertificateFileNameForZip(file);
+            return safeName.length <= MAX_FAILED_FILE_NAME_LENGTH
+              ? safeName
+              : `${safeName.slice(0, MAX_FAILED_FILE_NAME_LENGTH - 3)}...`;
+          });
+        const hiddenFailedCount = result.failedFiles.length - visibleFailedFiles.length;
+        const failedSummary =
+          hiddenFailedCount > 0
+            ? `${visibleFailedFiles.join(", ")}, and ${hiddenFailedCount} more`
+            : visibleFailedFiles.join(", ");
+
+        setBatchDownloadError(
+          `Downloaded ${result.added}/${result.total} certificates. Failed: ${failedSummary}`
+        );
+      }
+    } catch (error) {
+      setBatchDownloadError(
+        `Unable to download ZIP: ${(error as Error).message}`
+      );
+    } finally {
+      setDownloadingBatchZip(false);
+    }
   };
 
   const truncateAddress = (addr: string) => {
@@ -480,7 +532,7 @@ export default function HomePage() {
                 connected={connected}
                 issuingMethods={issuingMethods}
                 onToggleIssuingMethod={handleToggleIssuingMethod}
-                onIssuedCertificatesChange={setBatchIssuedCertificates}
+                onIssuedCertificatesChange={handleBatchIssuedCertificatesChange}
                 onIssuingChange={setBatchIssuing}
               />
             )}
@@ -492,6 +544,9 @@ export default function HomePage() {
                 issuedCertificates={batchIssuedCertificates}
                 issuing={batchIssuing}
                 onDownloadCertificate={handleDownloadBatchCertificate}
+                onDownloadAllCertificates={handleDownloadAllBatchCertificates}
+                downloadingAllCertificates={downloadingBatchZip}
+                downloadAllError={batchDownloadError}
               />
             </div>
           ) : (

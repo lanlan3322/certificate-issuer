@@ -9,6 +9,7 @@ A modern web application for issuing **W3C Verifiable Credentials** certificates
 ## Features
 
 - 📜 **Issue Certificates** — Generate W3C Verifiable Credentials with recipient info
+- 🗂️ **Batch ZIP Download** — Download all issued batch certificates in one ZIP
 - ✅ **Verify Certificates** — Paste JSON or upload file to verify authenticity
 - 🖼️ **Certificate Gallery** — Browse sample certificates
 - 📱 **QR Code Verification** — Scan QR code to verify certificate

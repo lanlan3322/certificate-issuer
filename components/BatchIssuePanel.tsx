@@ -42,21 +42,47 @@ interface BatchIssuedCertificatesPanelProps {
   issuedCertificates: IssuedCertificateItem[];
   issuing: boolean;
   onDownloadCertificate: (item: IssuedCertificateItem) => void;
+  onDownloadAllCertificates: () => void;
+  downloadingAllCertificates: boolean;
+  downloadAllError: string | null;
 }
 
 export function BatchIssuedCertificatesPanel({
   issuedCertificates,
   issuing,
   onDownloadCertificate,
+  onDownloadAllCertificates,
+  downloadingAllCertificates,
+  downloadAllError,
 }: BatchIssuedCertificatesPanelProps) {
   return (
     <div className="border border-gray-200 rounded-lg bg-white">
       <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-800">Issued Certificates</h3>
-        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-          {issuedCertificates.length}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+            {issuedCertificates.length}
+          </span>
+          <button
+            onClick={onDownloadAllCertificates}
+            disabled={issuedCertificates.length === 0 || downloadingAllCertificates}
+            className="inline-flex items-center space-x-1 text-xs px-2 py-1 rounded bg-secondary text-white hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {downloadingAllCertificates ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Download className="w-3 h-3" />
+            )}
+            <span>Download All</span>
+          </button>
+        </div>
       </div>
+
+      {downloadAllError && (
+        <div className="px-3 py-2 text-xs text-red-700 bg-red-50 border-b border-red-100">
+          {downloadAllError}
+        </div>
+      )}
 
       <div className="max-h-72 overflow-auto">
         {issuing && issuedCertificates.length === 0 && (

@@ -1,6 +1,7 @@
 // Certificate Utility Functions
 
-import { CertificateData } from "./trustvc";
+import { buildVCPayload, CertificateData } from "./trustvc";
+import JSZip from "jszip";
 import {
   CERTIFICATE_TEMPLATES,
   formatIssuingMethodLabels,
@@ -118,6 +119,96 @@ export function downloadCertificate(data: CertificateData): void {
   a.download = `certificate-${data.id.split(":")[2]}.json`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export interface BatchCertificateDownloadItem {
+  fileName: string;
+  certificate: ReturnType<typeof buildVCPayload>;
+}
+
+export interface BatchCertificateZipResult {
+  total: number;
+  added: number;
+  failedFiles: string[];
+}
+
+// Yield to the browser event loop every N files; 25 keeps large batch downloads responsive
+// without adding noticeable overhead for small/medium batches.
+const ZIP_YIELD_INTERVAL = 25;
+
+export function sanitizeCertificateFileNameForZip(fileName: string): string {
+  const withoutPathSegments = fileName
+    .replace(/[\\/]+/g, "-")
+    .replace(/\.\.+/g, "-");
+  const normalized = withoutPathSegments
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!normalized) {
+    return "certificate.json";
+  }
+  return `${normalized}.json`;
+}
+
+export async function downloadCertificatesZip(
+  items: BatchCertificateDownloadItem[],
+  zipName: string = "issued-certificates.zip"
+): Promise<BatchCertificateZipResult> {
+  const zip = new JSZip();
+  const fileNames = new Set<string>();
+  const failedFiles: string[] = [];
+  let addedCount = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (
+      !item?.fileName ||
+      item.certificate === null ||
+      typeof item.certificate === "undefined"
+    ) {
+      failedFiles.push(item?.fileName || `certificate-${i + 1}`);
+      continue;
+    }
+
+    try {
+      let baseName = sanitizeCertificateFileNameForZip(item.fileName);
+      let finalName = baseName;
+      let duplicateCount = 1;
+      while (fileNames.has(finalName)) {
+        finalName = baseName.replace(/\.json$/i, `-${duplicateCount}.json`);
+        duplicateCount += 1;
+      }
+      fileNames.add(finalName);
+
+      const content = JSON.stringify(item.certificate, null, 2);
+      zip.file(finalName, content);
+      addedCount += 1;
+    } catch {
+      failedFiles.push(item.fileName);
+    }
+
+    if ((i + 1) % ZIP_YIELD_INTERVAL === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
+
+  if (addedCount === 0) {
+    throw new Error("No certificates could be prepared for ZIP download.");
+  }
+
+  const blob = await zip.generateAsync({ type: "blob" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = zipName;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  return {
+    total: items.length,
+  added: addedCount,
+    failedFiles,
+  };
 }
 
 // Copy to clipboard helper
