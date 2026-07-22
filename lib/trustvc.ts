@@ -1,7 +1,12 @@
 // TrustVC SDK Integration for Certificate Issuance
 // Uses @trustvc/trustvc for W3C Verifiable Credentials
 
-import { TRUSTVC_CONFIG } from "./constants";
+import {
+  DEFAULT_ISSUING_METHODS,
+  IssuingMethod,
+  SUPPORTED_ISSUING_METHODS,
+  TRUSTVC_CONFIG,
+} from "./constants";
 
 // Certificate data structure
 export interface CertificateData {
@@ -14,6 +19,7 @@ export interface CertificateData {
   description: string;
   validFrom: string;
   validUntil?: string;
+  issuingMethods?: IssuingMethod[];
 }
 
 // Generate a UUID for certificate
@@ -23,6 +29,11 @@ export function generateCertificateId(): string {
 
 // Build the W3C Verifiable Credential payload
 export function buildVCPayload(data: CertificateData) {
+  const issuingMethods =
+    data.issuingMethods && data.issuingMethods.length > 0
+      ? data.issuingMethods
+      : DEFAULT_ISSUING_METHODS;
+
   return {
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
@@ -46,6 +57,10 @@ export function buildVCPayload(data: CertificateData) {
       id: TRUSTVC_CONFIG.didUrl,
       type: "OpenAttestationIssuer",
       name: data.issuerName,
+      issuingMethods: issuingMethods.map((method) => ({
+        id: method,
+        label: SUPPORTED_ISSUING_METHODS[method].label,
+      })),
       identityProof: {
         identityProofType: "DNS-TXT",
         identifier: TRUSTVC_CONFIG.demoIssuer.identityProof.location,

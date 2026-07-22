@@ -21,6 +21,7 @@ import {
 import NavBar from "../components/NavBar";
 import DeploymentGuide from "../components/DeploymentGuide";
 import BatchIssuePanel from "../components/BatchIssuePanel";
+import IssuingMethodSelector from "../components/IssuingMethodSelector";
 import { useWalletConnection } from "../hooks/useWalletConnection";
 import {
   CertificateData,
@@ -34,12 +35,16 @@ import {
   validateCertificateData,
   downloadCertificate,
   copyToClipboard,
+  validateIssuingMethods,
 } from "../lib/certificate";
 import {
   CERTIFICATE_TEMPLATES,
+  DEFAULT_ISSUING_METHODS,
   DOCUMENT_STORE_CONFIG,
   DEPLOYMENT_STEPS,
   CURRENT_NETWORK,
+  IssuingMethod,
+  SUPPORTED_ISSUING_METHODS,
 } from "../lib/constants";
 
 export default function HomePage() {
@@ -71,6 +76,9 @@ export default function HomePage() {
   const [walletWarningDismissed, setWalletWarningDismissed] = useState(false);
   const [showDeploymentGuide, setShowDeploymentGuide] = useState(true);
   const [issueMode, setIssueMode] = useState<"single" | "batch">("single");
+  const [issuingMethods, setIssuingMethods] = useState<IssuingMethod[]>(
+    DEFAULT_ISSUING_METHODS
+  );
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -86,10 +94,23 @@ export default function HomePage() {
     }
   };
 
+  const handleToggleIssuingMethod = (method: IssuingMethod) => {
+    setIssuingMethods((prev) =>
+      prev.includes(method)
+        ? prev.filter((selectedMethod) => selectedMethod !== method)
+        : [...prev, method]
+    );
+  };
+
   const handleIssue = async () => {
     const validation = validateCertificateData(formData);
+    const issuingMethodValidation = validateIssuingMethods(issuingMethods);
     if (!validation.valid) {
       setErrors(validation.errors);
+      return;
+    }
+    if (!issuingMethodValidation.valid) {
+      setErrors(issuingMethodValidation.errors);
       return;
     }
     setErrors([]);
@@ -115,6 +136,7 @@ export default function HomePage() {
         description: formData.description,
         validFrom: now,
         validUntil: calculateValidUntil(now, formData.certificateType),
+        issuingMethods,
       };
 
       const credential = buildVCPayload(certData);
@@ -386,6 +408,11 @@ export default function HomePage() {
                     />
                   </div>
 
+                  <IssuingMethodSelector
+                    selectedMethods={issuingMethods}
+                    onToggle={handleToggleIssuingMethod}
+                  />
+
                   <button
                     onClick={handleIssue}
                     disabled={!connected || issuing}
@@ -430,7 +457,11 @@ export default function HomePage() {
 
             {/* Batch issue panel */}
             {issueMode === "batch" && (
-              <BatchIssuePanel connected={connected} />
+              <BatchIssuePanel
+                connected={connected}
+                issuingMethods={issuingMethods}
+                onToggleIssuingMethod={handleToggleIssuingMethod}
+              />
             )}
           </div>
 
@@ -463,6 +494,12 @@ export default function HomePage() {
                     <p>
                       Valid: {formatDate(issuedCert.validFrom)} to{" "}
                       {formatDate(issuedCert.validUntil!)}
+                    </p>
+                    <p>
+                      Methods:{" "}
+                      {(issuedCert.issuingMethods ?? DEFAULT_ISSUING_METHODS)
+                        .map((method) => SUPPORTED_ISSUING_METHODS[method].label)
+                        .join(", ")}
                     </p>
                   </div>
                   <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-white/20">

@@ -22,6 +22,19 @@ export const NETWORKS = {
 // Current network - Sepolia for demo
 export const CURRENT_NETWORK = NETWORKS.sepolia;
 
+export const SUPPORTED_ISSUING_METHODS = {
+  ethereum: {
+    label: "Ethereum",
+  },
+  did: {
+    label: "DID",
+  },
+} as const;
+
+export type IssuingMethod = keyof typeof SUPPORTED_ISSUING_METHODS;
+
+export const DEFAULT_ISSUING_METHODS: IssuingMethod[] = ["ethereum", "did"];
+
 // Document Store Configuration
 // TODO: Replace with your own deployed document store
 // Deploy guide: https://docs.tradetrust.io/docs/how-tos/deployment
