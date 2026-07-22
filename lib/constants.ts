@@ -33,7 +33,7 @@ export const SUPPORTED_ISSUING_METHODS = {
 
 export type IssuingMethod = keyof typeof SUPPORTED_ISSUING_METHODS;
 
-export const DEFAULT_ISSUING_METHODS: IssuingMethod[] = ["ethereum", "did"];
+export const DEFAULT_ISSUING_METHODS: IssuingMethod[] = ["did"];
 
 export function formatIssuingMethodLabels(
   issuingMethods: IssuingMethod[] = DEFAULT_ISSUING_METHODS
