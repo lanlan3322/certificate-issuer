@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
   FileText,
@@ -54,6 +54,11 @@ import {
 const MAX_VISIBLE_FAILED_FILES = 5;
 const MAX_FAILED_FILE_NAME_LENGTH = 40;
 
+function getCertificateUuid(certificateId: string): string {
+  const uuid = certificateId.split(":")[2];
+  return uuid || "credential";
+}
+
 export default function HomePage() {
   const {
     connected,
@@ -92,17 +97,10 @@ export default function HomePage() {
   const [batchIssuing, setBatchIssuing] = useState(false);
   const [downloadingBatchZip, setDownloadingBatchZip] = useState(false);
   const [batchDownloadError, setBatchDownloadError] = useState<string | null>(null);
-  const currentCredential = useMemo(
-    () => (issuedCert ? buildVCPayload(issuedCert) : null),
-    [issuedCert]
-  );
-  const currentCredentialHasProof = useMemo(
-    () =>
-      currentCredential
-        ? "proof" in currentCredential && Boolean(currentCredential.proof)
-        : false,
-    [currentCredential]
-  );
+  const currentCredential = issuedCert ? buildVCPayload(issuedCert) : null;
+  const currentCredentialHasProof = currentCredential
+    ? "proof" in currentCredential && Boolean(currentCredential.proof)
+    : false;
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -182,7 +180,7 @@ export default function HomePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const uuid = issuedCert.id.split(":")[2] ?? "credential";
+    const uuid = getCertificateUuid(issuedCert.id);
     a.download = currentCredentialHasProof
       ? `certificate-${uuid}.json`
       : `certificate-${uuid}-unsigned.json`;
@@ -580,8 +578,10 @@ export default function HomePage() {
                       <p>
                         This credential is currently an unsigned draft. Downloaded JSON
                         will be saved with a{" "}
-                        <span className="font-semibold">-unsigned.json</span> filename
-                        and will fail verification until a cryptographic{" "}
+                        <span className="font-semibold">
+                          certificate-&lt;uuid&gt;-unsigned.json
+                        </span>{" "}
+                        filename and will fail verification until a cryptographic{" "}
                         <span className="font-semibold"> proof</span> is added during
                         signing.
                       </p>
@@ -616,7 +616,7 @@ export default function HomePage() {
                     </div>
                     <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-white/20">
                       <p className="text-xs text-white/60">
-                        ID: {issuedCert.id.split(":")[2]}
+                        ID: {getCertificateUuid(issuedCert.id)}
                       </p>
                       <div className="flex justify-center mt-3 md:mt-4">
                         <QRCodeSVG
