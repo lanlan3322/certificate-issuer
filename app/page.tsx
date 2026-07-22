@@ -53,13 +53,24 @@ import {
 
 const MAX_VISIBLE_FAILED_FILES = 5;
 const MAX_FAILED_FILE_NAME_LENGTH = 40;
+const URN_UUID_PREFIX = "urn:uuid:";
 
 function getCertificateUuid(certificateId: string): string {
-  if (certificateId.startsWith("urn:uuid:")) {
-    return certificateId.slice("urn:uuid:".length) || "credential";
+  if (certificateId.startsWith(URN_UUID_PREFIX)) {
+    return certificateId.slice(URN_UUID_PREFIX.length) || "credential";
   }
 
   return certificateId || "credential";
+}
+
+function getCertificateDownloadFileName(
+  certificateId: string,
+  hasProof: boolean
+): string {
+  const uuid = getCertificateUuid(certificateId);
+  return hasProof
+    ? `certificate-${uuid}.json`
+    : `certificate-${uuid}-unsigned.json`;
 }
 
 export default function HomePage() {
@@ -108,6 +119,10 @@ export default function HomePage() {
     currentCredential &&
     "proof" in currentCredential &&
     currentCredential.proof
+  );
+  const exampleUnsignedFileName = getCertificateDownloadFileName(
+    `${URN_UUID_PREFIX}<uuid>`,
+    false
   );
 
   const handleInputChange = (
@@ -188,10 +203,10 @@ export default function HomePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const uuid = getCertificateUuid(issuedCert.id);
-    a.download = currentCredentialHasProof
-      ? `certificate-${uuid}.json`
-      : `certificate-${uuid}-unsigned.json`;
+    a.download = getCertificateDownloadFileName(
+      issuedCert.id,
+      currentCredentialHasProof
+    );
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -587,7 +602,7 @@ export default function HomePage() {
                         This credential is currently an unsigned draft. Downloaded JSON
                         will be saved with a{" "}
                         <span className="font-semibold">
-                          certificate-&lt;uuid&gt;-unsigned.json
+                          {exampleUnsignedFileName}
                         </span>{" "}
                         filename and will fail verification until a cryptographic{" "}
                         <span className="font-semibold"> proof</span> is added during
