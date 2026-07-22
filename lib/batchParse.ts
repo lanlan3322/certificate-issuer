@@ -138,15 +138,13 @@ export async function parseExcel(file: File): Promise<BatchRow[]> {
   if (sheetRows.length < 2) return [];
 
   const headers = sheetRows[0].map((h) =>
-    (h == null ? "" : String(h))
-      .trim()
-      .toLowerCase()
+    (h == null ? "" : String(h)).trim().toLowerCase()
   );
 
   const result: BatchRow[] = [];
   for (let i = 1; i < sheetRows.length; i++) {
     const cells = sheetRows[i].map((c) =>
-      c == null ? "" : String(c)
+      (c == null ? "" : String(c)).trim()
     );
     result.push(cellsToRow(headers, cells, i));
   }

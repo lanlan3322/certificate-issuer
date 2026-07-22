@@ -113,7 +113,7 @@ export default function BatchIssuePanel({ connected }: BatchIssuePanelProps) {
         buildVCPayload(certData);
 
         const txHash =
-          "demo-tx-hash-" + Math.random().toString(36).substr(2, 9);
+          "demo-tx-hash-" + Math.random().toString(36).substring(2, 11);
         updated[i] = { ...updated[i], status: "success", txHash };
       } catch (err) {
         updated[i] = {
