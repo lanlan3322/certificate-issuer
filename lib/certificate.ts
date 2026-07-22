@@ -1,7 +1,12 @@
 // Certificate Utility Functions
 
 import { CertificateData } from "./trustvc";
-import { CERTIFICATE_TEMPLATES } from "./constants";
+import {
+  CERTIFICATE_TEMPLATES,
+  formatIssuingMethodLabels,
+  IssuingMethod,
+  SUPPORTED_ISSUING_METHODS,
+} from "./constants";
 
 // Format date for display
 export function formatDate(dateString: string): string {
@@ -35,22 +40,8 @@ export function calculateValidUntil(
   return getISODateString(untilDate);
 }
 
-// Get certificate template info
-export function getTemplateInfo(certificateType: string) {
-  return (
-    Object.values(CERTIFICATE_TEMPLATES).find(
-      (t) => t.name === certificateType
-    ) ?? {
-      name: certificateType,
-      description: "Custom certificate",
-      validForYears: 1,
-    }
-  );
-}
-
 // Generate a printable certificate summary
 export function generateCertificateSummary(data: CertificateData): string[] {
-  const template = getTemplateInfo(data.certificateType);
   return [
     `Certificate Type: ${data.certificateType}`,
     `Recipient: ${data.recipientName}`,
@@ -60,6 +51,7 @@ export function generateCertificateSummary(data: CertificateData): string[] {
     `Valid Until: ${data.validUntil ? formatDate(data.validUntil) : "Lifetime"}`,
     `Description: ${data.description}`,
     `Issuer: ${data.issuerName}`,
+    `Issuing Methods: ${formatIssuingMethodLabels(data.issuingMethods)}`,
     `Certificate ID: ${data.id}`,
   ];
 }
@@ -91,6 +83,25 @@ export function validateCertificateData(
 
   if (!data.description?.trim()) {
     errors.push("Description is required");
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+export function validateIssuingMethods(
+  issuingMethods?: IssuingMethod[]
+): ValidationResult {
+  const errors: string[] = [];
+
+  if (!issuingMethods || issuingMethods.length === 0) {
+    errors.push("Select at least one issuing method");
+  } else {
+    const invalidMethods = issuingMethods.filter(
+      (method) => !(method in SUPPORTED_ISSUING_METHODS)
+    );
+    if (invalidMethods.length > 0) {
+      errors.push(`Unsupported issuing method: ${invalidMethods.join(", ")}`);
+    }
   }
 
   return { valid: errors.length === 0, errors };

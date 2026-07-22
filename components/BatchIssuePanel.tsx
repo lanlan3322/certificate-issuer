@@ -11,6 +11,7 @@ import {
   X,
   FileSpreadsheet,
 } from "lucide-react";
+import IssuingMethodSelector from "./IssuingMethodSelector";
 import {
   BatchRow,
   parseExcel,
@@ -18,14 +19,24 @@ import {
   generateSampleCSV,
 } from "../lib/batchParse";
 import { CertificateData, generateCertificateId, buildVCPayload } from "../lib/trustvc";
-import { getISODateString, calculateValidUntil } from "../lib/certificate";
-import { CERTIFICATE_TEMPLATES } from "../lib/constants";
+import {
+  getISODateString,
+  calculateValidUntil,
+  validateIssuingMethods,
+} from "../lib/certificate";
+import { CERTIFICATE_TEMPLATES, IssuingMethod } from "../lib/constants";
 
 interface BatchIssuePanelProps {
   connected: boolean;
+  issuingMethods: IssuingMethod[];
+  onToggleIssuingMethod: (method: IssuingMethod) => void;
 }
 
-export default function BatchIssuePanel({ connected }: BatchIssuePanelProps) {
+export default function BatchIssuePanel({
+  connected,
+  issuingMethods,
+  onToggleIssuingMethod,
+}: BatchIssuePanelProps) {
   const [rows, setRows] = useState<BatchRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
@@ -82,6 +93,11 @@ export default function BatchIssuePanel({ connected }: BatchIssuePanelProps) {
 
   const handleIssueAll = async () => {
     if (!connected || issuing) return;
+    const methodValidation = validateIssuingMethods(issuingMethods);
+    if (!methodValidation.valid) {
+      setParseError(methodValidation.errors[0]);
+      return;
+    }
     setIssuing(true);
 
     const updated = [...rows];
@@ -108,6 +124,7 @@ export default function BatchIssuePanel({ connected }: BatchIssuePanelProps) {
           description: row.description,
           validFrom: now,
           validUntil: calculateValidUntil(now, row.certificateType),
+          issuingMethods,
         };
 
         buildVCPayload(certData);
@@ -149,6 +166,12 @@ export default function BatchIssuePanel({ connected }: BatchIssuePanelProps) {
 
   return (
     <div className="space-y-4">
+      <IssuingMethodSelector
+        selectedMethods={issuingMethods}
+        onToggle={onToggleIssuingMethod}
+        helperText="These methods apply to every certificate issued from this batch."
+      />
+
       {/* Instructions */}
       <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
         <p className="font-medium text-blue-800 mb-1">Expected columns:</p>
@@ -169,6 +192,13 @@ export default function BatchIssuePanel({ connected }: BatchIssuePanelProps) {
           <span>Download sample CSV template</span>
         </button>
       </div>
+
+      {parseError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
+          <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-red-700">{parseError}</p>
+        </div>
+      )}
 
       {/* File Upload Zone */}
       {rows.length === 0 && (
@@ -199,13 +229,6 @@ export default function BatchIssuePanel({ connected }: BatchIssuePanelProps) {
             />
           </div>
 
-          {/* Parse error below upload zone */}
-          {parseError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
-              <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-red-700">{parseError}</p>
-            </div>
-          )}
         </>
       )}
 
