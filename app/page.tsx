@@ -38,6 +38,7 @@ import {
   validateCertificateData,
   downloadCertificate,
   downloadCertificatesZip,
+  sanitizeCertificateFileNameForZip,
   copyToClipboard,
   validateIssuingMethods,
 } from "../lib/certificate";
@@ -50,6 +51,9 @@ import {
   formatIssuingMethodLabels,
   IssuingMethod,
 } from "../lib/constants";
+
+const MAX_VISIBLE_FAILED_FILES = 5;
+const MAX_FAILED_FILE_NAME_LENGTH = 40;
 
 export default function HomePage() {
   const {
@@ -206,10 +210,22 @@ export default function HomePage() {
       );
 
       if (result.failedFiles.length > 0) {
+        const visibleFailedFiles = result.failedFiles
+          .slice(0, MAX_VISIBLE_FAILED_FILES)
+          .map((file) => {
+            const safeName = sanitizeCertificateFileNameForZip(file);
+            return safeName.length <= MAX_FAILED_FILE_NAME_LENGTH
+              ? safeName
+              : `${safeName.slice(0, MAX_FAILED_FILE_NAME_LENGTH - 3)}...`;
+          });
+        const hiddenFailedCount = result.failedFiles.length - visibleFailedFiles.length;
+        const failedSummary =
+          hiddenFailedCount > 0
+            ? `${visibleFailedFiles.join(", ")}, and ${hiddenFailedCount} more`
+            : visibleFailedFiles.join(", ");
+
         setBatchDownloadError(
-          `Downloaded ${result.added}/${result.total} certificates. Failed: ${result.failedFiles.join(
-            ", "
-          )}`
+          `Downloaded ${result.added}/${result.total} certificates. Failed: ${failedSummary}`
         );
       }
     } catch (error) {

@@ -1,6 +1,6 @@
 // Certificate Utility Functions
 
-import { CertificateData } from "./trustvc";
+import { buildVCPayload, CertificateData } from "./trustvc";
 import JSZip from "jszip";
 import {
   CERTIFICATE_TEMPLATES,
@@ -123,7 +123,7 @@ export function downloadCertificate(data: CertificateData): void {
 
 export interface BatchCertificateDownloadItem {
   fileName: string;
-  certificate: unknown;
+  certificate: ReturnType<typeof buildVCPayload>;
 }
 
 export interface BatchCertificateZipResult {
@@ -132,14 +132,22 @@ export interface BatchCertificateZipResult {
   failedFiles: string[];
 }
 
-function getSafeZipFileName(fileName: string): string {
-  const normalized = fileName.trim().replace(/[^a-zA-Z0-9._-]+/g, "-");
+// Yield to the browser event loop every N files; 25 keeps large batch downloads responsive
+// without adding noticeable overhead for small/medium batches.
+const ZIP_YIELD_INTERVAL = 25;
+
+export function sanitizeCertificateFileNameForZip(fileName: string): string {
+  const withoutPathSegments = fileName
+    .replace(/[\\/]+/g, "-")
+    .replace(/\.\.+/g, "-");
+  const normalized = withoutPathSegments
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
   if (!normalized) {
     return "certificate.json";
   }
-  return normalized.toLowerCase().endsWith(".json")
-    ? normalized
-    : `${normalized}.json`;
+  return `${normalized}.json`;
 }
 
 export async function downloadCertificatesZip(
@@ -149,16 +157,21 @@ export async function downloadCertificatesZip(
   const zip = new JSZip();
   const fileNames = new Set<string>();
   const failedFiles: string[] = [];
+  let addedCount = 0;
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    if (!item?.fileName || typeof item.certificate === "undefined") {
+    if (
+      !item?.fileName ||
+      item.certificate === null ||
+      typeof item.certificate === "undefined"
+    ) {
       failedFiles.push(item?.fileName || `certificate-${i + 1}`);
       continue;
     }
 
     try {
-      let baseName = getSafeZipFileName(item.fileName);
+      let baseName = sanitizeCertificateFileNameForZip(item.fileName);
       let finalName = baseName;
       let duplicateCount = 1;
       while (fileNames.has(finalName)) {
@@ -169,16 +182,17 @@ export async function downloadCertificatesZip(
 
       const content = JSON.stringify(item.certificate, null, 2);
       zip.file(finalName, content);
+      addedCount += 1;
     } catch {
       failedFiles.push(item.fileName);
     }
 
-    if ((i + 1) % 25 === 0) {
+    if ((i + 1) % ZIP_YIELD_INTERVAL === 0) {
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
   }
 
-  if (zip.files && Object.keys(zip.files).length === 0) {
+  if (addedCount === 0) {
     throw new Error("No certificates could be prepared for ZIP download.");
   }
 
@@ -192,7 +206,7 @@ export async function downloadCertificatesZip(
 
   return {
     total: items.length,
-    added: Object.keys(zip.files).length,
+  added: addedCount,
     failedFiles,
   };
 }
