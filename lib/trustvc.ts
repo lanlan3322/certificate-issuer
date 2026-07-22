@@ -4,7 +4,6 @@
 import {
   DEFAULT_ISSUING_METHODS,
   IssuingMethod,
-  SUPPORTED_ISSUING_METHODS,
   TRUSTVC_CONFIG,
 } from "./constants";
 
@@ -57,15 +56,12 @@ export function buildVCPayload(data: CertificateData) {
       id: TRUSTVC_CONFIG.didUrl,
       type: "OpenAttestationIssuer",
       name: data.issuerName,
-      issuingMethods: issuingMethods.map((method) => ({
-        id: method,
-        label: SUPPORTED_ISSUING_METHODS[method].label,
-      })),
       identityProof: {
         identityProofType: "DNS-TXT",
         identifier: TRUSTVC_CONFIG.demoIssuer.identityProof.location,
       },
     },
+    issuanceMethods: issuingMethods,
     validFrom: data.validFrom,
     validUntil: data.validUntil,
     credentialStatus: {
