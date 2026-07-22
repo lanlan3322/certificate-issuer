@@ -2,6 +2,7 @@
 
 import {
   DEFAULT_ISSUING_METHODS,
+  formatIssuingMethods,
   IssuingMethod,
   SUPPORTED_ISSUING_METHODS,
 } from "../lib/constants";
@@ -15,7 +16,7 @@ interface IssuingMethodSelectorProps {
 export default function IssuingMethodSelector({
   selectedMethods,
   onToggle,
-  helperText = "Ethereum and DID are selected by default.",
+  helperText = `${formatIssuingMethods(DEFAULT_ISSUING_METHODS)} are selected by default.`,
 }: IssuingMethodSelectorProps) {
   return (
     <div>
