@@ -39,7 +39,7 @@ export default function NavBar() {
                   aria-current={isActive ? "page" : undefined}
                   className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
                     isActive
-                      ? "bg-white text-primary font-semibold shadow"
+                      ? "bg-white/20 text-white font-semibold ring-1 ring-white/30"
                       : "hover:bg-white/10"
                   }`}
                 >
@@ -72,7 +72,7 @@ export default function NavBar() {
                   aria-current={isActive ? "page" : undefined}
                   className={`flex items-center space-x-2 px-3 py-3 rounded-lg transition-colors ${
                     isActive
-                      ? "bg-white text-primary font-semibold shadow"
+                      ? "bg-white/20 text-white font-semibold ring-1 ring-white/30"
                       : "hover:bg-white/10"
                   }`}
                   onClick={() => setMobileMenuOpen(false)}
