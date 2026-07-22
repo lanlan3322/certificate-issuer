@@ -20,7 +20,10 @@ import {
 } from "lucide-react";
 import NavBar from "../components/NavBar";
 import DeploymentGuide from "../components/DeploymentGuide";
-import BatchIssuePanel from "../components/BatchIssuePanel";
+import BatchIssuePanel, {
+  BatchIssuedCertificatesPanel,
+  IssuedCertificateItem,
+} from "../components/BatchIssuePanel";
 import IssuingMethodSelector from "../components/IssuingMethodSelector";
 import { useWalletConnection } from "../hooks/useWalletConnection";
 import {
@@ -79,6 +82,10 @@ export default function HomePage() {
   const [issuingMethods, setIssuingMethods] = useState<IssuingMethod[]>(
     DEFAULT_ISSUING_METHODS
   );
+  const [batchIssuedCertificates, setBatchIssuedCertificates] = useState<
+    IssuedCertificateItem[]
+  >([]);
+  const [batchIssuing, setBatchIssuing] = useState(false);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -164,6 +171,18 @@ export default function HomePage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const handleDownloadBatchCertificate = (item: IssuedCertificateItem) => {
+    const blob = new Blob([JSON.stringify(item.certificate, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = item.fileName;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const truncateAddress = (addr: string) => {
@@ -461,93 +480,104 @@ export default function HomePage() {
                 connected={connected}
                 issuingMethods={issuingMethods}
                 onToggleIssuingMethod={handleToggleIssuingMethod}
+                onIssuedCertificatesChange={setBatchIssuedCertificates}
+                onIssuingChange={setBatchIssuing}
               />
             )}
           </div>
 
-          {/* Certificate Preview */}
-          <div>
-            <h3 className="text-base md:text-lg font-semibold text-gray-700 mb-3 md:mb-4">
-              Certificate Preview
-            </h3>
-            {issuedCert ? (
-              <div className="certificate-preview">
-                <div className="text-center border-2 border-secondary rounded-lg p-4 md:p-8">
-                  <div className="flex justify-center mb-3 md:mb-4">
-                    <FileText className="w-10 h-10 md:w-16 md:h-16 text-secondary" />
-                  </div>
-                  <p className="text-xs md:text-sm uppercase tracking-wider text-secondary mb-2">
-                    Certificate Issuer
-                  </p>
-                  <h2 className="text-lg md:text-3xl font-bold mb-3 md:mb-4">
-                    {issuedCert.certificateType}
-                  </h2>
-                  <p className="text-sm md:text-lg mb-4 md:mb-6">This certifies that</p>
-                  <p className="text-lg md:text-2xl font-bold text-secondary mb-4 md:mb-6">
-                    {issuedCert.recipientName}
-                  </p>
-                  <p className="text-xs md:text-sm italic mb-4 md:mb-6">
-                    &quot;{issuedCert.description}&quot;
-                  </p>
-                  <div className="text-xs md:text-sm space-y-1">
-                    <p>Issued: {formatDate(issuedCert.issueDate)}</p>
-                    <p>
-                      Valid: {formatDate(issuedCert.validFrom)} to{" "}
-                      {formatDate(issuedCert.validUntil!)}
-                    </p>
-                    <p>
-                      Methods: {formatIssuingMethodLabels(issuedCert.issuingMethods)}
-                    </p>
-                  </div>
-                  <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-white/20">
-                    <p className="text-xs text-white/60">
-                      ID: {issuedCert.id.split(":")[2]}
-                    </p>
-                    <div className="flex justify-center mt-3 md:mt-4">
-                      <QRCodeSVG
-                        value={JSON.stringify({ id: issuedCert.id })}
-                        size={60}
-                        bgColor="#ffffff"
-                        fgColor="#1e3a5f"
-                      />
+          {issueMode === "batch" ? (
+            <div>
+              <BatchIssuedCertificatesPanel
+                issuedCertificates={batchIssuedCertificates}
+                issuing={batchIssuing}
+                onDownloadCertificate={handleDownloadBatchCertificate}
+              />
+            </div>
+          ) : (
+            <div>
+              <h3 className="text-base md:text-lg font-semibold text-gray-700 mb-3 md:mb-4">
+                Certificate Preview
+              </h3>
+              {issuedCert ? (
+                <div className="certificate-preview">
+                  <div className="text-center border-2 border-secondary rounded-lg p-4 md:p-8">
+                    <div className="flex justify-center mb-3 md:mb-4">
+                      <FileText className="w-10 h-10 md:w-16 md:h-16 text-secondary" />
                     </div>
-                    <p className="text-xs text-white/60 mt-2">
-                      Scan to verify
+                    <p className="text-xs md:text-sm uppercase tracking-wider text-secondary mb-2">
+                      Certificate Issuer
                     </p>
+                    <h2 className="text-lg md:text-3xl font-bold mb-3 md:mb-4">
+                      {issuedCert.certificateType}
+                    </h2>
+                    <p className="text-sm md:text-lg mb-4 md:mb-6">This certifies that</p>
+                    <p className="text-lg md:text-2xl font-bold text-secondary mb-4 md:mb-6">
+                      {issuedCert.recipientName}
+                    </p>
+                    <p className="text-xs md:text-sm italic mb-4 md:mb-6">
+                      &quot;{issuedCert.description}&quot;
+                    </p>
+                    <div className="text-xs md:text-sm space-y-1">
+                      <p>Issued: {formatDate(issuedCert.issueDate)}</p>
+                      <p>
+                        Valid: {formatDate(issuedCert.validFrom)} to{" "}
+                        {formatDate(issuedCert.validUntil!)}
+                      </p>
+                      <p>
+                        Methods: {formatIssuingMethodLabels(issuedCert.issuingMethods)}
+                      </p>
+                    </div>
+                    <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-white/20">
+                      <p className="text-xs text-white/60">
+                        ID: {issuedCert.id.split(":")[2]}
+                      </p>
+                      <div className="flex justify-center mt-3 md:mt-4">
+                        <QRCodeSVG
+                          value={JSON.stringify({ id: issuedCert.id })}
+                          size={60}
+                          bgColor="#ffffff"
+                          fgColor="#1e3a5f"
+                        />
+                      </div>
+                      <p className="text-xs text-white/60 mt-2">
+                        Scan to verify
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-col sm:flex-row gap-2 md:gap-4 mt-4 md:mt-6">
+                    <button
+                      onClick={handleDownload}
+                      className="flex-1 bg-white text-primary px-3 md:px-4 py-2 rounded-lg font-medium flex items-center justify-center space-x-2 hover:bg-gray-100 text-sm md:text-base"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download JSON</span>
+                    </button>
+                    <button
+                      onClick={handleCopyCredential}
+                      className="flex-1 bg-white text-primary px-3 md:px-4 py-2 rounded-lg font-medium flex items-center justify-center space-x-2 hover:bg-gray-100 text-sm md:text-base"
+                    >
+                      {copied ? (
+                        <CheckCircle className="w-4 h-4" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                      <span>{copied ? "Copied!" : "Copy Credential"}</span>
+                    </button>
                   </div>
                 </div>
-
-                {/* Actions */}
-                <div className="flex flex-col sm:flex-row gap-2 md:gap-4 mt-4 md:mt-6">
-                  <button
-                    onClick={handleDownload}
-                    className="flex-1 bg-white text-primary px-3 md:px-4 py-2 rounded-lg font-medium flex items-center justify-center space-x-2 hover:bg-gray-100 text-sm md:text-base"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Download JSON</span>
-                  </button>
-                  <button
-                    onClick={handleCopyCredential}
-                    className="flex-1 bg-white text-primary px-3 md:px-4 py-2 rounded-lg font-medium flex items-center justify-center space-x-2 hover:bg-gray-100 text-sm md:text-base"
-                  >
-                    {copied ? (
-                      <CheckCircle className="w-4 h-4" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                    <span>{copied ? "Copied!" : "Copy Credential"}</span>
-                  </button>
+              ) : (
+                <div className="card bg-gray-100 flex items-center justify-center h-48 md:h-80">
+                  <div className="text-center text-gray-500">
+                    <FileText className="w-10 h-10 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 opacity-50" />
+                    <p className="text-sm md:text-base">Fill in the form to see preview</p>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="card bg-gray-100 flex items-center justify-center h-48 md:h-80">
-                <div className="text-center text-gray-500">
-                  <FileText className="w-10 h-10 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 opacity-50" />
-                  <p className="text-sm md:text-base">Fill in the form to see preview</p>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Info Cards - Responsive Grid */}

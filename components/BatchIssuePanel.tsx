@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Upload,
   Download,
@@ -29,23 +29,86 @@ interface BatchIssuePanelProps {
   connected: boolean;
   issuingMethods: IssuingMethod[];
   onToggleIssuingMethod: (method: IssuingMethod) => void;
+  onIssuedCertificatesChange: (certificates: IssuedCertificateItem[]) => void;
+  onIssuingChange: (issuing: boolean) => void;
 }
 
-interface IssuedCertificateItem {
+export interface IssuedCertificateItem {
   fileName: string;
   certificate: ReturnType<typeof buildVCPayload>;
+}
+
+interface BatchIssuedCertificatesPanelProps {
+  issuedCertificates: IssuedCertificateItem[];
+  issuing: boolean;
+  onDownloadCertificate: (item: IssuedCertificateItem) => void;
+}
+
+export function BatchIssuedCertificatesPanel({
+  issuedCertificates,
+  issuing,
+  onDownloadCertificate,
+}: BatchIssuedCertificatesPanelProps) {
+  return (
+    <div className="border border-gray-200 rounded-lg bg-white">
+      <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-800">Issued Certificates</h3>
+        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+          {issuedCertificates.length}
+        </span>
+      </div>
+
+      <div className="max-h-72 overflow-auto">
+        {issuing && issuedCertificates.length === 0 && (
+          <div className="px-3 py-4 text-xs text-gray-500 flex items-center space-x-2">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            <span>Issuing certificates...</span>
+          </div>
+        )}
+
+        {!issuing && issuedCertificates.length === 0 && (
+          <div className="px-3 py-4 text-xs text-gray-500">
+            No certificates yet. Issue a batch to see downloadable files here.
+          </div>
+        )}
+
+        {issuedCertificates.length > 0 && (
+          <ul className="divide-y divide-gray-100">
+            {issuedCertificates.map((item, index) => (
+              <li
+                key={`${item.fileName}-${index}`}
+                className="px-3 py-2 flex items-center justify-between gap-2"
+              >
+                <span className="text-xs text-gray-700 truncate" title={item.fileName}>
+                  {item.fileName}
+                </span>
+                <button
+                  onClick={() => onDownloadCertificate(item)}
+                  className="inline-flex items-center space-x-1 text-xs px-2 py-1 rounded bg-primary text-white hover:bg-primary/90"
+                >
+                  <Download className="w-3 h-3" />
+                  <span>Download</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function BatchIssuePanel({
   connected,
   issuingMethods,
   onToggleIssuingMethod,
+  onIssuedCertificatesChange,
+  onIssuingChange,
 }: BatchIssuePanelProps) {
   const [rows, setRows] = useState<BatchRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [issuedCertificates, setIssuedCertificates] = useState<IssuedCertificateItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validRows = rows.filter((r) => r.errors.length === 0);
@@ -57,10 +120,14 @@ export default function BatchIssuePanel({
     validRows.length > 0 &&
     issuedCount + failedCount === validRows.length;
 
+  useEffect(() => {
+    onIssuingChange(issuing);
+  }, [issuing, onIssuingChange]);
+
   const handleFile = async (file: File) => {
     setParseError(null);
     setRows([]);
-    setIssuedCertificates([]);
+    onIssuedCertificatesChange([]);
     setFileName(file.name);
 
     try {
@@ -100,7 +167,7 @@ export default function BatchIssuePanel({
   const handleIssueAll = async () => {
     if (!connected || issuing) return;
     setIssuing(true);
-    setIssuedCertificates([]);
+    onIssuedCertificatesChange([]);
 
     const updated = [...rows];
     const generatedCertificates: IssuedCertificateItem[] = [];
@@ -157,7 +224,7 @@ export default function BatchIssuePanel({
       setRows([...updated]);
     }
 
-    setIssuedCertificates(generatedCertificates);
+    onIssuedCertificatesChange(generatedCertificates);
     setIssuing(false);
   };
 
@@ -172,23 +239,11 @@ export default function BatchIssuePanel({
     URL.revokeObjectURL(url);
   };
 
-  const handleDownloadCertificate = (item: IssuedCertificateItem) => {
-    const blob = new Blob([JSON.stringify(item.certificate, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = item.fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const handleClear = () => {
     setRows([]);
     setFileName(null);
     setParseError(null);
-    setIssuedCertificates([]);
+    onIssuedCertificatesChange([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -262,207 +317,160 @@ export default function BatchIssuePanel({
 
       {/* Parsed Rows Preview */}
       {rows.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
-            {/* Row count badges */}
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                <span className="text-sm font-medium text-gray-700 truncate max-w-[160px]">
-                  {fileName}
+        <div>
+          {/* Row count badges */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+              <span className="text-sm font-medium text-gray-700 truncate max-w-[160px]">
+                {fileName}
+              </span>
+              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                {rows.length} row{rows.length !== 1 ? "s" : ""}
+              </span>
+              {validRows.length > 0 && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                  {validRows.length} valid
                 </span>
-                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                  {rows.length} row{rows.length !== 1 ? "s" : ""}
+              )}
+              {invalidRows.length > 0 && (
+                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                  {invalidRows.length} invalid
                 </span>
-                {validRows.length > 0 && (
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                    {validRows.length} valid
-                  </span>
-                )}
-                {invalidRows.length > 0 && (
-                  <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
-                    {invalidRows.length} invalid
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={handleClear}
-                className="text-gray-400 hover:text-gray-600 p-1 flex-shrink-0"
-                title="Clear and upload a different file"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              )}
             </div>
-
-            {/* Row table */}
-            <div className="border border-gray-200 rounded-lg overflow-auto max-h-64">
-              <table className="w-full text-xs min-w-[480px]">
-                <thead className="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-gray-500 font-medium w-8">
-                      #
-                    </th>
-                    <th className="px-3 py-2 text-left text-gray-500 font-medium">
-                      Name
-                    </th>
-                    <th className="px-3 py-2 text-left text-gray-500 font-medium">
-                      Email
-                    </th>
-                    <th className="px-3 py-2 text-left text-gray-500 font-medium">
-                      Type
-                    </th>
-                    <th className="px-3 py-2 text-left text-gray-500 font-medium">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr
-                      key={row.rowIndex}
-                      className={`border-t border-gray-100 ${
-                        row.errors.length > 0
-                          ? "bg-red-50"
-                          : row.status === "success"
-                          ? "bg-green-50"
-                          : ""
-                      }`}
-                    >
-                      <td className="px-3 py-2 text-gray-500">{row.rowIndex}</td>
-                      <td className="px-3 py-2">
-                        {row.recipientName || (
-                          <span className="text-red-400 italic">missing</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 max-w-[130px] truncate">
-                        {row.recipientEmail || (
-                          <span className="text-red-400 italic">missing</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 max-w-[120px] truncate">
-                        {row.certificateType || (
-                          <span className="text-red-400 italic">missing</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 max-w-[160px]">
-                        {row.status === "issuing" && (
-                          <Loader2 className="w-3 h-3 animate-spin text-primary" />
-                        )}
-                        {row.status === "success" && (
-                          <CheckCircle className="w-3 h-3 text-green-500" />
-                        )}
-                        {row.status === "error" && (
-                          <span className="text-red-500 flex items-center space-x-1">
-                            <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                            <span className="truncate">{row.issueError}</span>
-                          </span>
-                        )}
-                        {row.status === "pending" && row.errors.length > 0 && (
-                          <span className="text-red-500 truncate block">
-                            {row.errors[0]}
-                          </span>
-                        )}
-                        {row.status === "pending" && row.errors.length === 0 && (
-                          <span className="text-green-600">Ready</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Invalid rows notice */}
-            {invalidRows.length > 0 && (
-              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                {invalidRows.length} row(s) have validation errors and will be
-                skipped.
-              </div>
-            )}
-
-            {/* Completion summary */}
-            {isComplete && (
-              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start space-x-2">
-                <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-green-800">
-                  Batch complete: {issuedCount} issued
-                  {failedCount > 0 ? `, ${failedCount} failed` : ""}.
-                </p>
-              </div>
-            )}
-
-            {/* Issue button */}
-            {!isComplete && (
-              <button
-                onClick={handleIssueAll}
-                disabled={!connected || issuing || validRows.length === 0}
-                className="mt-3 btn-primary w-full flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
-              >
-                {issuing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Shield className="w-4 h-4" />
-                )}
-                <span>
-                  {issuing
-                    ? "Issuing..."
-                    : `Issue ${validRows.length} Certificate${
-                        validRows.length !== 1 ? "s" : ""
-                      }`}
-                </span>
-              </button>
-            )}
-
-            {!connected && rows.length > 0 && (
-              <p className="text-xs text-gray-500 mt-2 text-center">
-                Connect your wallet above to issue certificates.
-              </p>
-            )}
+            <button
+              onClick={handleClear}
+              className="text-gray-400 hover:text-gray-600 p-1 flex-shrink-0"
+              title="Clear and upload a different file"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          <div className="lg:col-span-1">
-            <div className="border border-gray-200 rounded-lg bg-white">
-              <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-800">Issued Certificates</h3>
-                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                  {issuedCertificates.length}
-                </span>
-              </div>
-
-              <div className="max-h-72 overflow-auto">
-                {issuing && issuedCertificates.length === 0 && (
-                  <div className="px-3 py-4 text-xs text-gray-500 flex items-center space-x-2">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    <span>Issuing certificates...</span>
-                  </div>
-                )}
-
-                {!issuing && issuedCertificates.length === 0 && (
-                  <div className="px-3 py-4 text-xs text-gray-500">
-                    No certificates yet. Issue a batch to see downloadable files here.
-                  </div>
-                )}
-
-                {issuedCertificates.length > 0 && (
-                  <ul className="divide-y divide-gray-100">
-                    {issuedCertificates.map((item, index) => (
-                      <li key={`${item.fileName}-${index}`} className="px-3 py-2 flex items-center justify-between gap-2">
-                        <span className="text-xs text-gray-700 truncate" title={item.fileName}>
-                          {item.fileName}
+          {/* Row table */}
+          <div className="border border-gray-200 rounded-lg overflow-auto max-h-64">
+            <table className="w-full text-xs min-w-[480px]">
+              <thead className="bg-gray-50 sticky top-0">
+                <tr>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium w-8">
+                    #
+                  </th>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium">
+                    Name
+                  </th>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium">
+                    Email
+                  </th>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium">
+                    Type
+                  </th>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr
+                    key={row.rowIndex}
+                    className={`border-t border-gray-100 ${
+                      row.errors.length > 0
+                        ? "bg-red-50"
+                        : row.status === "success"
+                        ? "bg-green-50"
+                        : ""
+                    }`}
+                  >
+                    <td className="px-3 py-2 text-gray-500">{row.rowIndex}</td>
+                    <td className="px-3 py-2">
+                      {row.recipientName || (
+                        <span className="text-red-400 italic">missing</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 max-w-[130px] truncate">
+                      {row.recipientEmail || (
+                        <span className="text-red-400 italic">missing</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 max-w-[120px] truncate">
+                      {row.certificateType || (
+                        <span className="text-red-400 italic">missing</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 max-w-[160px]">
+                      {row.status === "issuing" && (
+                        <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                      )}
+                      {row.status === "success" && (
+                        <CheckCircle className="w-3 h-3 text-green-500" />
+                      )}
+                      {row.status === "error" && (
+                        <span className="text-red-500 flex items-center space-x-1">
+                          <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{row.issueError}</span>
                         </span>
-                        <button
-                          onClick={() => handleDownloadCertificate(item)}
-                          className="inline-flex items-center space-x-1 text-xs px-2 py-1 rounded bg-primary text-white hover:bg-primary/90"
-                        >
-                          <Download className="w-3 h-3" />
-                          <span>Download</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
+                      )}
+                      {row.status === "pending" && row.errors.length > 0 && (
+                        <span className="text-red-500 truncate block">
+                          {row.errors[0]}
+                        </span>
+                      )}
+                      {row.status === "pending" && row.errors.length === 0 && (
+                        <span className="text-green-600">Ready</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+
+          {/* Invalid rows notice */}
+          {invalidRows.length > 0 && (
+            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+              {invalidRows.length} row(s) have validation errors and will be
+              skipped.
+            </div>
+          )}
+
+          {/* Completion summary */}
+          {isComplete && (
+            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start space-x-2">
+              <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-green-800">
+                Batch complete: {issuedCount} issued
+                {failedCount > 0 ? `, ${failedCount} failed` : ""}.
+              </p>
+            </div>
+          )}
+
+          {/* Issue button */}
+          {!isComplete && (
+            <button
+              onClick={handleIssueAll}
+              disabled={!connected || issuing || validRows.length === 0}
+              className="mt-3 btn-primary w-full flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+            >
+              {issuing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Shield className="w-4 h-4" />
+              )}
+              <span>
+                {issuing
+                  ? "Issuing..."
+                  : `Issue ${validRows.length} Certificate${
+                      validRows.length !== 1 ? "s" : ""
+                    }`}
+              </span>
+            </button>
+          )}
+
+          {!connected && rows.length > 0 && (
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              Connect your wallet above to issue certificates.
+            </p>
+          )}
         </div>
       )}
     </div>
