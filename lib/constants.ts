@@ -35,6 +35,14 @@ export type IssuingMethod = keyof typeof SUPPORTED_ISSUING_METHODS;
 
 export const DEFAULT_ISSUING_METHODS: IssuingMethod[] = ["ethereum", "did"];
 
+export function formatIssuingMethods(
+  issuingMethods: IssuingMethod[] = DEFAULT_ISSUING_METHODS
+): string {
+  return issuingMethods
+    .map((method) => SUPPORTED_ISSUING_METHODS[method].label)
+    .join(", ");
+}
+
 // Document Store Configuration
 // TODO: Replace with your own deployed document store
 // Deploy guide: https://docs.tradetrust.io/docs/how-tos/deployment

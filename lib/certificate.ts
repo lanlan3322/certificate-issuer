@@ -3,7 +3,7 @@
 import { CertificateData } from "./trustvc";
 import {
   CERTIFICATE_TEMPLATES,
-  DEFAULT_ISSUING_METHODS,
+  formatIssuingMethods,
   IssuingMethod,
   SUPPORTED_ISSUING_METHODS,
 } from "./constants";
@@ -55,10 +55,6 @@ export function getTemplateInfo(certificateType: string) {
 
 // Generate a printable certificate summary
 export function generateCertificateSummary(data: CertificateData): string[] {
-  const defaultIssuingMethods = DEFAULT_ISSUING_METHODS.map(
-    (method) => SUPPORTED_ISSUING_METHODS[method].label
-  ).join(", ");
-
   return [
     `Certificate Type: ${data.certificateType}`,
     `Recipient: ${data.recipientName}`,
@@ -68,10 +64,7 @@ export function generateCertificateSummary(data: CertificateData): string[] {
     `Valid Until: ${data.validUntil ? formatDate(data.validUntil) : "Lifetime"}`,
     `Description: ${data.description}`,
     `Issuer: ${data.issuerName}`,
-    `Issuing Methods: ${
-      data.issuingMethods?.map((method) => SUPPORTED_ISSUING_METHODS[method].label).join(", ") ??
-      defaultIssuingMethods
-    }`,
+    `Issuing Methods: ${formatIssuingMethods(data.issuingMethods)}`,
     `Certificate ID: ${data.id}`,
   ];
 }

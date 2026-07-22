@@ -43,8 +43,8 @@ import {
   DOCUMENT_STORE_CONFIG,
   DEPLOYMENT_STEPS,
   CURRENT_NETWORK,
+  formatIssuingMethods as formatIssuingMethodLabels,
   IssuingMethod,
-  SUPPORTED_ISSUING_METHODS,
 } from "../lib/constants";
 
 export default function HomePage() {
@@ -496,10 +496,7 @@ export default function HomePage() {
                       {formatDate(issuedCert.validUntil!)}
                     </p>
                     <p>
-                      Methods:{" "}
-                      {(issuedCert.issuingMethods ?? DEFAULT_ISSUING_METHODS)
-                        .map((method) => SUPPORTED_ISSUING_METHODS[method].label)
-                        .join(", ")}
+                      Methods: {formatIssuingMethodLabels(issuedCert.issuingMethods)}
                     </p>
                   </div>
                   <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-white/20">

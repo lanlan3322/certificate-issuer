@@ -61,7 +61,7 @@ export function buildVCPayload(data: CertificateData) {
         identifier: TRUSTVC_CONFIG.demoIssuer.identityProof.location,
       },
     },
-    issuanceMethods: issuingMethods,
+    issuingMethods,
     validFrom: data.validFrom,
     validUntil: data.validUntil,
     credentialStatus: {
