@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
   FileText,
@@ -92,10 +92,17 @@ export default function HomePage() {
   const [batchIssuing, setBatchIssuing] = useState(false);
   const [downloadingBatchZip, setDownloadingBatchZip] = useState(false);
   const [batchDownloadError, setBatchDownloadError] = useState<string | null>(null);
-  const currentCredential = issuedCert ? buildVCPayload(issuedCert) : null;
-  const currentCredentialHasProof = currentCredential
-    ? "proof" in currentCredential && Boolean(currentCredential.proof)
-    : false;
+  const currentCredential = useMemo(
+    () => (issuedCert ? buildVCPayload(issuedCert) : null),
+    [issuedCert]
+  );
+  const currentCredentialHasProof = useMemo(
+    () =>
+      currentCredential
+        ? "proof" in currentCredential && Boolean(currentCredential.proof)
+        : false,
+    [currentCredential]
+  );
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -175,7 +182,7 @@ export default function HomePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const uuid = issuedCert.id.split(":")[2] || "credential";
+    const uuid = issuedCert.id.split(":")[2] ?? "credential";
     a.download = currentCredentialHasProof
       ? `certificate-${uuid}.json`
       : `certificate-${uuid}-unsigned.json`;
@@ -574,7 +581,7 @@ export default function HomePage() {
                         This credential is currently an unsigned draft. Downloaded JSON
                         will be saved with a{" "}
                         <span className="font-semibold">-unsigned.json</span> filename
-                        and will fail verification until a cryptographic
+                        and will fail verification until a cryptographic{" "}
                         <span className="font-semibold"> proof</span> is added during
                         signing.
                       </p>
