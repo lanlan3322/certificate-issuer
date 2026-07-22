@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
   FileText,
@@ -36,7 +36,6 @@ import {
   getISODateString,
   calculateValidUntil,
   validateCertificateData,
-  downloadCertificate,
   downloadCertificatesZip,
   sanitizeCertificateFileNameForZip,
   copyToClipboard,
@@ -93,6 +92,17 @@ export default function HomePage() {
   const [batchIssuing, setBatchIssuing] = useState(false);
   const [downloadingBatchZip, setDownloadingBatchZip] = useState(false);
   const [batchDownloadError, setBatchDownloadError] = useState<string | null>(null);
+  const currentCredential = useMemo(
+    () => (issuedCert ? buildVCPayload(issuedCert) : null),
+    [issuedCert]
+  );
+  const currentCredentialHasProof = useMemo(
+    () =>
+      currentCredential
+        ? "proof" in currentCredential && Boolean(currentCredential.proof)
+        : false,
+    [currentCredential]
+  );
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -153,8 +163,6 @@ export default function HomePage() {
         issuingMethods,
       };
 
-      const credential = buildVCPayload(certData);
-
       // For demo purposes - in production, this would call TrustVC SDK
       setIssuedCert(certData);
       setIssuedTxHash("demo-tx-hash-" + Math.random().toString(36).substr(2, 9));
@@ -166,15 +174,25 @@ export default function HomePage() {
   };
 
   const handleDownload = () => {
-    if (issuedCert) {
-      downloadCertificate(issuedCert);
-    }
+    if (!issuedCert || !currentCredential) return;
+
+    const blob = new Blob([JSON.stringify(currentCredential, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const uuid = issuedCert.id.split(":")[2] ?? "credential";
+    a.download = currentCredentialHasProof
+      ? `certificate-${uuid}.json`
+      : `certificate-${uuid}-unsigned.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleCopyCredential = async () => {
-    if (issuedCert) {
-      const credential = buildVCPayload(issuedCert);
-      await copyToClipboard(JSON.stringify(credential, null, 2));
+    if (currentCredential) {
+      await copyToClipboard(JSON.stringify(currentCredential, null, 2));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -556,6 +574,19 @@ export default function HomePage() {
               </h3>
               {issuedCert ? (
                 <div className="certificate-preview">
+                  {!currentCredentialHasProof && (
+                    <div className="mb-3 md:mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 md:text-sm">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <p>
+                        This credential is currently an unsigned draft. Downloaded JSON
+                        will be saved with a{" "}
+                        <span className="font-semibold">-unsigned.json</span> filename
+                        and will fail verification until a cryptographic{" "}
+                        <span className="font-semibold"> proof</span> is added during
+                        signing.
+                      </p>
+                    </div>
+                  )}
                   <div className="text-center border-2 border-secondary rounded-lg p-4 md:p-8">
                     <div className="flex justify-center mb-3 md:mb-4">
                       <FileText className="w-10 h-10 md:w-16 md:h-16 text-secondary" />
