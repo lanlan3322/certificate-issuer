@@ -48,6 +48,64 @@ export default function GalleryPage() {
     );
   }
 
+  function mapVcToCertEntry(obj: unknown): CertEntry | null {
+    if (!obj || typeof obj !== "object") return null;
+    const vc = obj as Record<string, any>;
+    const subject = vc.credentialSubject as Record<string, any> | undefined;
+    const issuer = vc.issuer as Record<string, any> | undefined;
+
+    const id = typeof vc.id === "string" ? vc.id : undefined;
+    const recipientName = typeof subject?.name === "string" ? subject.name : undefined;
+    const recipientEmail = typeof subject?.email === "string" ? subject.email : undefined;
+    const certificateType =
+      typeof subject?.certificateType === "string" ? subject.certificateType : undefined;
+    const issuerName = typeof issuer?.name === "string" ? issuer.name : undefined;
+    const issueDate =
+      typeof subject?.issuedOn === "string"
+        ? subject.issuedOn
+        : typeof vc.validFrom === "string"
+          ? vc.validFrom
+          : undefined;
+    const description = typeof subject?.description === "string" ? subject.description : "";
+    const validFrom =
+      typeof subject?.validFrom === "string"
+        ? subject.validFrom
+        : typeof vc.validFrom === "string"
+          ? vc.validFrom
+          : undefined;
+    const validUntil =
+      typeof subject?.validUntil === "string"
+        ? subject.validUntil
+        : typeof vc.validUntil === "string"
+          ? vc.validUntil
+          : undefined;
+
+    if (
+      !id ||
+      !recipientName ||
+      !recipientEmail ||
+      !certificateType ||
+      !issuerName ||
+      !issueDate ||
+      !validFrom
+    ) {
+      return null;
+    }
+
+    return {
+      id,
+      recipientName,
+      recipientEmail,
+      certificateType,
+      issuerName,
+      issueDate,
+      description,
+      validFrom,
+      validUntil,
+      status: "valid",
+    };
+  }
+
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -57,7 +115,9 @@ export default function GalleryPage() {
         const text = event.target?.result as string;
         const parsed = JSON.parse(text);
         const arr: unknown[] = Array.isArray(parsed) ? parsed : [parsed];
-        const certs = arr.filter(isValidCertEntry);
+        const certs = arr
+          .map((item) => (isValidCertEntry(item) ? item : mapVcToCertEntry(item)))
+          .filter((c): c is CertEntry => c !== null);
         if (certs.length === 0) {
           setUploadError(
             "No valid certificate entries found. Each entry must include: id, recipientName, recipientEmail, certificateType, issuerName, issueDate, description, validFrom, and status."
@@ -118,7 +178,7 @@ export default function GalleryPage() {
               type="file"
               accept=".json,application/json"
               onChange={handleFileUpload}
-              className="block text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-accent cursor-pointer"
+              className="block text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-accent"
             />
             {uploadedCerts && (
               <button
