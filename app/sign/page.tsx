@@ -15,7 +15,8 @@ import {
   Loader2,
   Download,
 } from "lucide-react";
-import { downloadCertificatesZip } from "../../lib/certificate";
+import JSZip from "jszip";
+import { sanitizeCertificateFileNameForZip } from "../../lib/certificate";
 
 interface SingleSignResult {
   success: boolean;
@@ -33,7 +34,7 @@ interface BatchSignRow {
 
 interface BatchSignedItem {
   fileName: string;
-  certificate: Parameters<typeof downloadCertificatesZip>[0][number]["certificate"];
+  certificate: Record<string, unknown>;
 }
 
 export default function SignPage() {
@@ -48,9 +49,23 @@ export default function SignPage() {
   const [batchMessage, setBatchMessage] = useState<string | null>(null);
   const [signedBatchItems, setSignedBatchItems] = useState<BatchSignedItem[]>([]);
 
-  const signDocument = (doc: Record<string, unknown>) => {
+  const createPlaceholderProofValue = async (
+    doc: Record<string, unknown>,
+    key: string
+  ): Promise<string> => {
+    const payload = `${JSON.stringify(doc)}::${key}`;
+    const bytes = new TextEncoder().encode(payload);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const hex = Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    return `zplaceholder-${hex}`;
+  };
+
+  const signDocument = async (doc: Record<string, unknown>, key: string) => {
     // TODO: Replace with real cryptographic signing using the provided private key
     // (e.g. via @trustvc or a W3C Data Integrity proof library).
+    const proofValue = await createPlaceholderProofValue(doc, key);
     return {
       ...doc,
       proof: {
@@ -59,7 +74,7 @@ export default function SignPage() {
         created: new Date().toISOString(),
         verificationMethod: "did:example:issuer#key-1",
         proofPurpose: "assertionMethod",
-        proofValue: "<signature-placeholder>",
+        proofValue,
       },
     };
   };
@@ -77,7 +92,7 @@ export default function SignPage() {
     setLoading(true);
     try {
       const doc = JSON.parse(credentialJson) as Record<string, unknown>;
-      const signed = signDocument(doc);
+      const signed = await signDocument(doc, privateKey);
       setResult({
         success: true,
         message: "Certificate signed successfully.",
@@ -170,7 +185,7 @@ export default function SignPage() {
       setBatchRows([...updated]);
 
       try {
-        const signed = signDocument(row.document);
+        const signed = await signDocument(row.document, privateKey);
         const baseName = row.fileName.replace(/\.json$/i, "");
         updated[i] = {
           ...updated[i],
@@ -179,10 +194,7 @@ export default function SignPage() {
         };
         signedItems.push({
           fileName: `${baseName}-signed`,
-          certificate:
-            signed as unknown as Parameters<
-              typeof downloadCertificatesZip
-            >[0][number]["certificate"],
+          certificate: signed,
         });
       } catch (err) {
         updated[i] = {
@@ -219,7 +231,18 @@ export default function SignPage() {
   const handleDownloadAllSigned = async () => {
     if (signedBatchItems.length === 0) return;
     try {
-      await downloadCertificatesZip(signedBatchItems, "batch-signed-certificates.zip");
+      const zip = new JSZip();
+      signedBatchItems.forEach((item) => {
+        const safeName = sanitizeCertificateFileNameForZip(item.fileName);
+        zip.file(safeName, JSON.stringify(item.certificate, null, 2));
+      });
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "batch-signed-certificates.zip";
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (err) {
       setBatchMessage(`Unable to download ZIP: ${(err as Error).message}`);
     }
