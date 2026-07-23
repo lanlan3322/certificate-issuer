@@ -67,10 +67,12 @@ const getReceiverNameFromCredential = (credential: Record<string, unknown>) => {
 };
 
 const createSingleSignedDownloadFileName = (receiverName?: string) => {
-  const fileNameSegment = receiverName
+  const sanitizedReceiverName = receiverName
     ? toSafeFileNameSegment(receiverName)
-    : DEFAULT_SINGLE_SIGN_FILE_FALLBACK;
-  return `${fileNameSegment || DEFAULT_SINGLE_SIGN_FILE_FALLBACK}-signed.json`;
+    : "";
+  const fileNameSegment =
+    sanitizedReceiverName || DEFAULT_SINGLE_SIGN_FILE_FALLBACK;
+  return `${fileNameSegment}-signed.json`;
 };
 
 export default function SignPage() {
