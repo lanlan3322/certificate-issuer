@@ -254,6 +254,20 @@ export default function SignPage() {
     }
   };
 
+  const handleDownloadSingleSigned = () => {
+    if (!result?.signed) return;
+
+    const blob = new Blob([result.signed], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "signed-credential.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar />
@@ -516,13 +530,22 @@ export default function SignPage() {
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold text-gray-700">Signed Credential</h4>
-                      <button
-                        onClick={handleCopy}
-                        className="flex items-center space-x-1 px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
-                      >
-                        <FileJson className="w-3 h-3" />
-                        <span>Copy</span>
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={handleDownloadSingleSigned}
+                          className="flex items-center space-x-1 px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>Download JSON</span>
+                        </button>
+                        <button
+                          onClick={handleCopy}
+                          className="flex items-center space-x-1 px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
+                        >
+                          <FileJson className="w-3 h-3" />
+                          <span>Copy</span>
+                        </button>
+                      </div>
                     </div>
                     <pre className="p-4 bg-white rounded-lg text-xs font-mono overflow-auto max-h-64 border border-gray-200">
                       {result.signed}
