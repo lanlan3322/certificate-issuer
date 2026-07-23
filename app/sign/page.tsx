@@ -22,6 +22,7 @@ interface SingleSignResult {
   success: boolean;
   message: string;
   signed?: string;
+  downloadFileName?: string;
 }
 
 interface BatchSignRow {
@@ -36,6 +37,11 @@ interface BatchSignedItem {
   fileName: string;
   certificate: Record<string, unknown>;
 }
+
+const BLOB_URL_REVOKE_DELAY_MS = 1000;
+
+const createSingleSignedDownloadFileName = () =>
+  `signed-credential-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
 
 export default function SignPage() {
   const [signMode, setSignMode] = useState<"single" | "batch">("single");
@@ -97,6 +103,7 @@ export default function SignPage() {
         success: true,
         message: "Certificate signed successfully.",
         signed: JSON.stringify(signed, null, 2),
+        downloadFileName: createSingleSignedDownloadFileName(),
       });
     } catch (e) {
       setResult({
@@ -252,6 +259,22 @@ export default function SignPage() {
     if (result?.signed) {
       navigator.clipboard.writeText(result.signed);
     }
+  };
+
+  const handleDownloadSingleSigned = () => {
+    if (!result?.signed) return;
+
+    const blob = new Blob([result.signed], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = result.downloadFileName || "signed-credential.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.setTimeout(() => URL.revokeObjectURL(url), BLOB_URL_REVOKE_DELAY_MS);
   };
 
   return (
@@ -516,13 +539,22 @@ export default function SignPage() {
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold text-gray-700">Signed Credential</h4>
-                      <button
-                        onClick={handleCopy}
-                        className="flex items-center space-x-1 px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
-                      >
-                        <FileJson className="w-3 h-3" />
-                        <span>Copy</span>
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={handleDownloadSingleSigned}
+                          className="flex items-center space-x-1 px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>Download JSON</span>
+                        </button>
+                        <button
+                          onClick={handleCopy}
+                          className="flex items-center space-x-1 px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
+                        >
+                          <FileJson className="w-3 h-3" />
+                          <span>Copy</span>
+                        </button>
+                      </div>
                     </div>
                     <pre className="p-4 bg-white rounded-lg text-xs font-mono overflow-auto max-h-64 border border-gray-200">
                       {result.signed}
