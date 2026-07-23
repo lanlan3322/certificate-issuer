@@ -22,6 +22,7 @@ interface SingleSignResult {
   success: boolean;
   message: string;
   signed?: string;
+  downloadFileName?: string;
 }
 
 interface BatchSignRow {
@@ -93,10 +94,14 @@ export default function SignPage() {
     try {
       const doc = JSON.parse(credentialJson) as Record<string, unknown>;
       const signed = await signDocument(doc, privateKey);
+      const downloadFileName = `signed-credential-${new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")}.json`;
       setResult({
         success: true,
         message: "Certificate signed successfully.",
         signed: JSON.stringify(signed, null, 2),
+        downloadFileName,
       });
     } catch (e) {
       setResult({
@@ -263,13 +268,11 @@ export default function SignPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `signed-credential-${new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")}.json`;
+    a.download = result.downloadFileName || "signed-credential.json";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   return (
