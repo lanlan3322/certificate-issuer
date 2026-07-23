@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Shield, FileText, CheckCircle, Menu, X } from "lucide-react";
+import { Shield, FileText, CheckCircle, PenLine, Menu, X } from "lucide-react";
 import { useState } from "react";
 
 export default function NavBar() {
@@ -11,6 +11,7 @@ export default function NavBar() {
 
   const navItems = [
     { href: "/", label: "Issue", icon: FileText },
+    { href: "/sign", label: "Sign", icon: PenLine },
     { href: "/verify", label: "Verify", icon: CheckCircle },
     { href: "/gallery", label: "Gallery", icon: Shield },
   ];
