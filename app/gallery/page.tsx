@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useMemo, useState } from "react";
 import NavBar from "../../components/NavBar";
 import { Shield, FileText, CheckCircle, ExternalLink, Upload, X as XIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
@@ -27,6 +27,10 @@ export default function GalleryPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const certificates: CertEntry[] = uploadedCerts ?? DEMO_CERTIFICATES;
+  const certTypeCount = useMemo(
+    () => new Set(certificates.map((c) => c.certificateType)).size,
+    [certificates]
+  );
 
   function isValidCertEntry(obj: unknown): obj is CertEntry {
     if (!obj || typeof obj !== "object") return false;
@@ -154,7 +158,7 @@ export default function GalleryPage() {
           </div>
           <div className="card text-center">
             <p className="text-3xl font-bold text-secondary">
-              {new Set(certificates.map((c) => c.certificateType)).size}
+              {certTypeCount}
             </p>
             <p className="text-sm text-gray-600">Certificate Types</p>
           </div>
