@@ -2,14 +2,67 @@
 
 import { useState } from "react";
 import NavBar from "../../components/NavBar";
-import { PenLine, Upload, FileJson, AlertCircle, CheckCircle, XCircle, Eye, EyeOff } from "lucide-react";
+import {
+  PenLine,
+  Upload,
+  FileJson,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Eye,
+  EyeOff,
+  Layers,
+  Loader2,
+  Download,
+} from "lucide-react";
+import { downloadCertificatesZip } from "../../lib/certificate";
+
+interface SingleSignResult {
+  success: boolean;
+  message: string;
+  signed?: string;
+}
+
+interface BatchSignRow {
+  fileName: string;
+  document?: Record<string, unknown>;
+  status: "pending" | "signing" | "success" | "error";
+  error?: string;
+  signed?: Record<string, unknown>;
+}
+
+interface BatchSignedItem {
+  fileName: string;
+  certificate: Record<string, unknown>;
+}
 
 export default function SignPage() {
+  const [signMode, setSignMode] = useState<"single" | "batch">("single");
   const [credentialJson, setCredentialJson] = useState("");
   const [privateKey, setPrivateKey] = useState("");
   const [showKey, setShowKey] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message: string; signed?: string } | null>(null);
+  const [result, setResult] = useState<SingleSignResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [batchRows, setBatchRows] = useState<BatchSignRow[]>([]);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchMessage, setBatchMessage] = useState<string | null>(null);
+  const [signedBatchItems, setSignedBatchItems] = useState<BatchSignedItem[]>([]);
+
+  const signDocument = (doc: Record<string, unknown>) => {
+    // TODO: Replace with real cryptographic signing using the provided private key
+    // (e.g. via @trustvc or a W3C Data Integrity proof library).
+    return {
+      ...doc,
+      proof: {
+        type: "DataIntegrityProof",
+        cryptosuite: "ecdsa-sd-2023",
+        created: new Date().toISOString(),
+        verificationMethod: "did:example:issuer#key-1",
+        proofPurpose: "assertionMethod",
+        proofValue: "<signature-placeholder>",
+      },
+    };
+  };
 
   const handleSign = async () => {
     if (!credentialJson.trim()) {
@@ -23,20 +76,8 @@ export default function SignPage() {
 
     setLoading(true);
     try {
-      const doc = JSON.parse(credentialJson);
-      // TODO: Replace with real cryptographic signing using the provided private key
-      // (e.g. via @trustvc or a W3C Data Integrity proof library).
-      const signed = {
-        ...doc,
-        proof: {
-          type: "DataIntegrityProof",
-          cryptosuite: "ecdsa-sd-2023",
-          created: new Date().toISOString(),
-          verificationMethod: "did:example:issuer#key-1",
-          proofPurpose: "assertionMethod",
-          proofValue: "<signature-placeholder>",
-        },
-      };
+      const doc = JSON.parse(credentialJson) as Record<string, unknown>;
+      const signed = signDocument(doc);
       setResult({
         success: true,
         message: "Certificate signed successfully.",
@@ -60,6 +101,124 @@ export default function SignPage() {
         setCredentialJson(ev.target?.result as string ?? "");
       };
       reader.readAsText(file);
+    }
+  };
+
+  const handleBatchFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length === 0) return;
+
+    setBatchLoading(true);
+    setBatchRows([]);
+    setSignedBatchItems([]);
+    setBatchMessage(null);
+
+    try {
+      const parsed = await Promise.all(
+        files.map(async (file) => {
+          try {
+            const text = await file.text();
+            const doc = JSON.parse(text) as Record<string, unknown>;
+            return {
+              fileName: file.name,
+              document: doc,
+              status: "pending" as const,
+            };
+          } catch (err) {
+            return {
+              fileName: file.name,
+              status: "error" as const,
+              error: `Invalid JSON: ${(err as Error).message}`,
+            };
+          }
+        })
+      );
+
+      setBatchRows(parsed);
+      const invalidCount = parsed.filter((row) => row.status === "error").length;
+      setBatchMessage(
+        invalidCount > 0
+          ? `Loaded ${parsed.length} file(s). ${invalidCount} file(s) have invalid JSON and will be skipped.`
+          : `Loaded ${parsed.length} file(s).`
+      );
+    } finally {
+      setBatchLoading(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleBatchSign = async () => {
+    if (!privateKey.trim()) {
+      setBatchMessage("Please enter a private key before batch signing.");
+      return;
+    }
+    if (batchRows.length === 0 || batchLoading) return;
+
+    setBatchLoading(true);
+    setBatchMessage(null);
+
+    const updated = [...batchRows];
+    const signedItems: BatchSignedItem[] = [];
+
+    for (let i = 0; i < updated.length; i++) {
+      const row = updated[i];
+      if (!row.document || row.status === "error") continue;
+
+      updated[i] = { ...row, status: "signing", error: undefined };
+      setBatchRows([...updated]);
+
+      try {
+        const signed = signDocument(row.document);
+        const baseName = row.fileName.replace(/\.json$/i, "");
+        updated[i] = {
+          ...updated[i],
+          signed,
+          status: "success",
+        };
+        signedItems.push({
+          fileName: `${baseName}-signed`,
+          certificate: signed,
+        });
+      } catch (err) {
+        updated[i] = {
+          ...updated[i],
+          status: "error",
+          error: (err as Error).message,
+        };
+      }
+
+      setBatchRows([...updated]);
+    }
+
+    setSignedBatchItems(signedItems);
+    const successCount = updated.filter((row) => row.status === "success").length;
+    const failureCount = updated.filter((row) => row.status === "error").length;
+    setBatchMessage(
+      `Batch signing complete: ${successCount} signed${failureCount > 0 ? `, ${failureCount} failed` : ""}.`
+    );
+    setBatchLoading(false);
+  };
+
+  const handleDownloadSignedBatchItem = (item: BatchSignedItem) => {
+    const blob = new Blob([JSON.stringify(item.certificate, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${item.fileName}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadAllSigned = async () => {
+    if (signedBatchItems.length === 0) return;
+    try {
+      await downloadCertificatesZip(signedBatchItems, "batch-signed-certificates.zip");
+    } catch (err) {
+      setBatchMessage(`Unable to download ZIP: ${(err as Error).message}`);
     }
   };
 
@@ -89,34 +248,32 @@ export default function SignPage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Input Section */}
         <div className="card mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">
-            Credential to Sign
-          </h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Sign Credentials</h2>
 
-          <div className="mb-4">
-            <label className="label">Paste JSON Credential</label>
-            <textarea
-              value={credentialJson}
-              onChange={(e) => setCredentialJson(e.target.value)}
-              className="input-field font-mono text-sm"
-              rows={10}
-              placeholder='{"@context": [...], "type": [...], ...}'
-            />
-          </div>
-
-          <div className="flex items-center space-x-4 mb-6">
-            <label className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200">
-              <Upload className="w-4 h-4" />
-              <span>Upload File</span>
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
+          <div className="flex rounded-lg border border-gray-200 mb-6 overflow-hidden">
+            <button
+              onClick={() => setSignMode("single")}
+              className={`flex-1 flex items-center justify-center space-x-2 py-2 text-sm font-medium transition-colors ${
+                signMode === "single"
+                  ? "bg-primary text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <PenLine className="w-4 h-4" />
+              <span>Single</span>
+            </button>
+            <button
+              onClick={() => setSignMode("batch")}
+              className={`flex-1 flex items-center justify-center space-x-2 py-2 text-sm font-medium transition-colors ${
+                signMode === "batch"
+                  ? "bg-primary text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              <span>Batch (JSON files)</span>
+            </button>
           </div>
 
           <div className="mb-6">
@@ -140,27 +297,168 @@ export default function SignPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleSign}
-            disabled={loading}
-            className="btn-primary w-full flex items-center justify-center space-x-2"
-          >
-            {loading ? (
-              <>
-                <span className="animate-spin">⏳</span>
-                <span>Signing...</span>
-              </>
-            ) : (
-              <>
-                <PenLine className="w-4 h-4" />
-                <span>Sign Credential</span>
-              </>
-            )}
-          </button>
+          {signMode === "single" ? (
+            <>
+              <div className="mb-4">
+                <label className="label">Paste JSON Credential</label>
+                <textarea
+                  value={credentialJson}
+                  onChange={(e) => setCredentialJson(e.target.value)}
+                  className="input-field font-mono text-sm"
+                  rows={10}
+                  placeholder='{"@context": [...], "type": [...], ...}'
+                />
+              </div>
+
+              <div className="flex items-center space-x-4 mb-6">
+                <label className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200">
+                  <Upload className="w-4 h-4" />
+                  <span>Upload File</span>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              <button
+                onClick={handleSign}
+                disabled={loading}
+                className="btn-primary w-full flex items-center justify-center space-x-2"
+              >
+                {loading ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    <span>Signing...</span>
+                  </>
+                ) : (
+                  <>
+                    <PenLine className="w-4 h-4" />
+                    <span>Sign Credential</span>
+                  </>
+                )}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="mb-4">
+                <label className="label">Upload JSON Credentials</label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Select multiple `.json` credential files to sign in one batch.
+                </p>
+                <label className="inline-flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200">
+                  <Upload className="w-4 h-4" />
+                  <span>{batchLoading ? "Loading..." : "Upload JSON Files"}</span>
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    multiple
+                    onChange={handleBatchFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {batchRows.length > 0 && (
+                <div className="mb-4 border border-gray-200 rounded-lg overflow-auto max-h-64">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-gray-500 font-medium">File</th>
+                        <th className="px-3 py-2 text-left text-gray-500 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {batchRows.map((row) => (
+                        <tr key={row.fileName} className="border-t border-gray-100">
+                          <td className="px-3 py-2 text-gray-700">{row.fileName}</td>
+                          <td className="px-3 py-2">
+                            {row.status === "signing" && (
+                              <span className="inline-flex items-center gap-1 text-primary">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Signing
+                              </span>
+                            )}
+                            {row.status === "success" && (
+                              <span className="inline-flex items-center gap-1 text-green-600">
+                                <CheckCircle className="w-3 h-3" />
+                                Signed
+                              </span>
+                            )}
+                            {row.status === "pending" && (
+                              <span className="text-gray-600">Ready</span>
+                            )}
+                            {row.status === "error" && (
+                              <span className="inline-flex items-center gap-1 text-red-600">
+                                <XCircle className="w-3 h-3" />
+                                {row.error || "Failed"}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={handleBatchSign}
+                  disabled={batchLoading || batchRows.length === 0}
+                  className="btn-primary flex-1 flex items-center justify-center space-x-2 disabled:opacity-50"
+                >
+                  {batchLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <PenLine className="w-4 h-4" />
+                  )}
+                  <span>{batchLoading ? "Signing..." : "Sign All"}</span>
+                </button>
+                <button
+                  onClick={handleDownloadAllSigned}
+                  disabled={signedBatchItems.length === 0 || batchLoading}
+                  className="flex-1 px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center space-x-2"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download All Signed</span>
+                </button>
+              </div>
+
+              {batchMessage && (
+                <p className="mt-3 text-sm text-gray-700">{batchMessage}</p>
+              )}
+
+              {signedBatchItems.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="font-semibold text-gray-700 mb-2">Signed Files</h4>
+                  <ul className="space-y-2">
+                    {signedBatchItems.map((item) => (
+                      <li
+                        key={item.fileName}
+                        className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2"
+                      >
+                        <span className="text-sm text-gray-700">{item.fileName}.json</span>
+                        <button
+                          onClick={() => handleDownloadSignedBatchItem(item)}
+                          className="inline-flex items-center space-x-1 text-xs px-2 py-1 rounded bg-primary text-white hover:bg-primary/90"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>Download</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Result Section */}
-        {result && (
+        {signMode === "single" && result && (
           <div
             className={`card border-2 ${
               result.success ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50"
