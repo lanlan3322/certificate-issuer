@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import JSZip from "jszip";
 import { sanitizeCertificateFileNameForZip } from "../../lib/certificate";
+import { signDocumentWithDID } from "../../lib/trustvc";
 
 interface SingleSignResult {
   success: boolean;
@@ -87,55 +88,28 @@ export default function SignPage() {
   const [batchMessage, setBatchMessage] = useState<string | null>(null);
   const [signedBatchItems, setSignedBatchItems] = useState<BatchSignedItem[]>([]);
 
-  const createPlaceholderProofValue = async (
-    doc: Record<string, unknown>,
-    key: string
-  ): Promise<string> => {
-    const payload = `${JSON.stringify(doc)}::${key}`;
-    const bytes = new TextEncoder().encode(payload);
-    const digest = await crypto.subtle.digest("SHA-256", bytes);
-    const hex = Array.from(new Uint8Array(digest))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    return `zplaceholder-${hex}`;
-  };
-
-  const signDocument = async (doc: Record<string, unknown>, key: string) => {
-    // TODO: Replace with real cryptographic signing using the provided private key
-    // (e.g. via @trustvc or a W3C Data Integrity proof library).
-    const proofValue = await createPlaceholderProofValue(doc, key);
-    return {
-      ...doc,
-      proof: {
-        type: "DataIntegrityProof",
-        cryptosuite: "ecdsa-sd-2023",
-        created: new Date().toISOString(),
-        verificationMethod: "did:example:issuer#key-1",
-        proofPurpose: "assertionMethod",
-        proofValue,
-      },
-    };
-  };
-
   const handleSign = async () => {
     if (!credentialJson.trim()) {
       setResult({ success: false, message: "Please paste a credential JSON to sign" });
-      return;
-    }
-    if (!privateKey.trim()) {
-      setResult({ success: false, message: "Please enter a private key" });
       return;
     }
 
     setLoading(true);
     try {
       const doc = JSON.parse(credentialJson) as Record<string, unknown>;
-      const signed = await signDocument(doc, privateKey);
-      const receiverName = getReceiverNameFromCredential(signed);
+      const signResult = await signDocumentWithDID(doc, privateKey || undefined);
+      if (!signResult.signed) {
+        setResult({
+          success: false,
+          message: signResult.error ?? "Signing failed — no details available.",
+        });
+        return;
+      }
+      const receiverName = getReceiverNameFromCredential(signResult.credential);
       setResult({
         success: true,
         message: "Certificate signed successfully.",
-        signed: JSON.stringify(signed, null, 2),
+        signed: JSON.stringify(signResult.credential, null, 2),
         downloadFileName: createSingleSignedDownloadFileName(receiverName),
       });
     } catch (e) {
@@ -205,10 +179,6 @@ export default function SignPage() {
   };
 
   const handleBatchSign = async () => {
-    if (!privateKey.trim()) {
-      setBatchMessage("Please enter a private key before batch signing.");
-      return;
-    }
     if (batchRows.length === 0 || batchLoading) return;
 
     setBatchLoading(true);
@@ -224,23 +194,23 @@ export default function SignPage() {
       updated[i] = { ...row, status: "signing", error: undefined };
       setBatchRows([...updated]);
 
-      try {
-        const signed = await signDocument(row.document, privateKey);
-        const baseName = row.fileName.replace(/\.json$/i, "");
+      const signResult = await signDocumentWithDID(row.document, privateKey || undefined);
+      const baseName = row.fileName.replace(/\.json$/i, "");
+      if (signResult.signed) {
         updated[i] = {
           ...updated[i],
-          signed,
+          signed: signResult.credential,
           status: "success",
         };
         signedItems.push({
           fileName: `${baseName}-signed`,
-          certificate: signed,
+          certificate: signResult.credential,
         });
-      } catch (err) {
+      } else {
         updated[i] = {
           ...updated[i],
           status: "error",
-          error: (err as Error).message,
+          error: signResult.error ?? "Signing failed.",
         };
       }
 
@@ -359,14 +329,14 @@ export default function SignPage() {
           </div>
 
           <div className="mb-6">
-            <label className="label">Private Key</label>
+            <label className="label">DID Private Key (secretKeyMultibase)</label>
             <div className="relative">
               <input
                 type={showKey ? "text" : "password"}
                 value={privateKey}
                 onChange={(e) => setPrivateKey(e.target.value)}
                 className="input-field pr-10"
-                placeholder="Enter your private key (hex or base64)"
+                placeholder="Multibase-encoded private key starting with 'z' (optional — uses NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE env var if blank)"
               />
               <button
                 type="button"
@@ -377,6 +347,11 @@ export default function SignPage() {
                 {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Signing uses the <code>NEXT_PUBLIC_DID_*</code> environment variables for the key ID,
+              controller, and public key. Only the private key can be overridden here.
+              Leave blank to use the configured <code>NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE</code>.
+            </p>
           </div>
 
           {signMode === "single" ? (

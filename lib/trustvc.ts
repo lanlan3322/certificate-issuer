@@ -3,7 +3,7 @@
 
 // Use the sub-path import to avoid pulling in Node.js-only utilities
 // (dotenv/config, core-js) from the @trustvc/trustvc main entry.
-import { signW3C, type PrivateKeyPair } from "@trustvc/trustvc/w3c";
+import { signW3C, verifyW3CSignature, type PrivateKeyPair } from "@trustvc/trustvc/w3c";
 import { ethers } from "ethers";
 import {
   DEFAULT_ISSUING_METHODS,
@@ -114,12 +114,21 @@ export interface VerificationResult {
   details?: Record<string, unknown>;
 }
 
-// For demo purposes - in production, this would call verifyDocument from TrustVC
+/**
+ * Verifies a W3C Verifiable Credential cryptographically using the TrustVC
+ * verification API (ecdsa-sd-2023 / Data Integrity Proof).
+ *
+ * Returns `{ valid: true }` only when the proof is a valid cryptographic
+ * signature over the credential. Structural errors, missing proof fields, and
+ * invalid signatures all produce `{ valid: false, message, details }` with
+ * meaningful failure descriptions.
+ */
 export async function verifyCredential(
   document: Record<string, unknown>
 ): Promise<VerificationResult> {
   try {
-    // Basic structural validation
+    // Fast structural pre-checks so we can return friendly messages before
+    // invoking the heavier cryptographic verifier.
     const required = [
       "@context",
       "type",
@@ -134,12 +143,37 @@ export async function verifyCredential(
       }
     }
 
-    // Check for proof presence (signature)
     const proof = document["proof"] as Record<string, unknown>;
     if (!proof || !proof["proofValue"]) {
       return {
         valid: false,
-        message: "Credential is not signed - missing proof",
+        message: "Credential is not signed — missing proofValue in proof block.",
+      };
+    }
+
+    // Perform real cryptographic verification via the TrustVC SDK.
+    // verifyW3CSignature resolves the DID document for the verificationMethod
+    // and checks the Data Integrity proof signature.
+    const vcResult = await verifyW3CSignature(
+      document as Parameters<typeof verifyW3CSignature>[0]
+    );
+
+    if (!vcResult.verified) {
+      const errorMsg = vcResult.error
+        ? String(vcResult.error)
+        : "Signature verification failed.";
+      return {
+        valid: false,
+        message: errorMsg,
+        details: {
+          issuer:
+            typeof document["issuer"] === "object" && document["issuer"] !== null
+              ? String((document["issuer"] as Record<string, unknown>)["id"] ?? document["issuer"])
+              : String(document["issuer"]),
+          credentialId: document["id"] as string,
+          cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
+          verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
+        },
       };
     }
 
@@ -147,15 +181,31 @@ export async function verifyCredential(
       valid: true,
       message: "Credential verified successfully",
       details: {
-        issuer: (document["issuer"] as Record<string, string>)["id"],
+        issuer:
+          typeof document["issuer"] === "object" && document["issuer"] !== null
+            ? String((document["issuer"] as Record<string, unknown>)["id"] ?? document["issuer"])
+            : String(document["issuer"]),
         credentialId: document["id"] as string,
         credentialType: document["type"] as string[],
+        cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
+        verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
       },
     };
   } catch (error) {
+    const msg = (error as Error).message ?? String(error);
+    // Surface network/DID-resolution errors with a specific hint.
+    if (msg.includes("fetch") || msg.includes("network") || msg.includes("ENOTFOUND")) {
+      return {
+        valid: false,
+        message:
+          "Could not resolve DID document for verification. " +
+          "Ensure the issuer DID is reachable and retry. " +
+          `(${msg})`,
+      };
+    }
     return {
       valid: false,
-      message: `Verification error: ${(error as Error).message}`,
+      message: `Verification error: ${msg}`,
     };
   }
 }
@@ -214,6 +264,80 @@ export interface DIDIssuanceResult {
   signed: boolean;
   /** Human-readable error/warning message */
   error?: string;
+}
+
+/**
+ * Signs an arbitrary credential document using the DID key pair configured
+ * via NEXT_PUBLIC_DID_* environment variables.
+ *
+ * The `secretKeyOverride` parameter can be used to supply the
+ * `secretKeyMultibase` value directly (e.g. entered by the user in the Sign
+ * page).  When provided it takes precedence over the env var.  The other
+ * three key fields (id, controller, publicKeyMultibase) are always read from
+ * environment variables so there is no hardcoded issuer DID in the signing
+ * flow.
+ *
+ * Returns `{ signed: true, credential }` on success or
+ * `{ signed: false, error }` with an actionable message on failure.
+ */
+export async function signDocumentWithDID(
+  credential: Record<string, unknown>,
+  secretKeyOverride?: string
+): Promise<DIDIssuanceResult> {
+  const id = process.env.NEXT_PUBLIC_DID_KEY_ID;
+  const controller = process.env.NEXT_PUBLIC_DID_CONTROLLER;
+  const publicKeyMultibase = process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE;
+  const secretKeyMultibase =
+    secretKeyOverride?.trim() || process.env.NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE;
+
+  const missing: string[] = [];
+  if (!id) missing.push("NEXT_PUBLIC_DID_KEY_ID");
+  if (!controller) missing.push("NEXT_PUBLIC_DID_CONTROLLER");
+  if (!publicKeyMultibase) missing.push("NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE");
+  if (!secretKeyMultibase)
+    missing.push("NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE (or provide private key above)");
+
+  if (missing.length > 0) {
+    return {
+      credential,
+      signed: false,
+      error:
+        `DID signing is not configured. The following are required: ${missing.join(", ")}. ` +
+        "Set them in .env.local (local) or as repository secrets (GitHub Pages). " +
+        "See the README for setup instructions.",
+    };
+  }
+
+  const keyPair: PrivateKeyPair = {
+    id: id!,
+    type: "Multikey",
+    controller: controller!,
+    publicKeyMultibase: publicKeyMultibase!,
+    secretKeyMultibase: secretKeyMultibase!,
+  } as PrivateKeyPair;
+
+  try {
+    const result = await signW3C(
+      credential as Parameters<typeof signW3C>[0],
+      keyPair
+    );
+    if (result.error) {
+      return { credential, signed: false, error: result.error };
+    }
+    if (!result.signed) {
+      return { credential, signed: false, error: "Signing returned no result." };
+    }
+    return {
+      credential: result.signed as unknown as Record<string, unknown>,
+      signed: true,
+    };
+  } catch (err) {
+    return {
+      credential,
+      signed: false,
+      error: `DID signing failed: ${(err as Error).message}`,
+    };
+  }
 }
 
 /**

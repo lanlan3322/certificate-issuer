@@ -10,10 +10,10 @@ A modern web application for issuing **W3C Verifiable Credentials** certificates
 
 ## Features
 
-- 📜 **Issue DID Certificates** — Sign W3C Verifiable Credentials with `ecdsa-sd-2023` using a configured `did:web` key pair
+- 📜 **Issue DID Certificates** — Sign W3C Verifiable Credentials with real `ecdsa-sd-2023` Data Integrity Proofs using a configured `did:web` key pair
 - ⛓️ **Issue Ethereum Certificates** — Hash credentials and issue them to an OpenAttestation Document Store on Sepolia testnet via MetaMask
 - 🗂️ **Batch ZIP Download** — Import from Excel / CSV and issue a whole batch at once
-- ✅ **Verify Certificates** — Paste JSON or upload file to verify authenticity
+- ✅ **Verify Certificates** — Paste JSON or upload file; performs cryptographic signature verification via TrustVC SDK
 - 🖼️ **Certificate Gallery** — Browse sample certificates
 - 📱 **QR Code Verification** — Scan QR code to verify certificate
 - 🔗 **On-Chain Verification** — Document hashes stored on Ethereum for tamper-proof records
@@ -72,11 +72,13 @@ Copy `.env.example` to `.env.local` and fill in the values.
 |----------|-------------|----------|
 | `NEXT_PUBLIC_DID_KEY_ID` | Full DID key URL, e.g. `did:web:example.com#key-1` | DID signing only |
 | `NEXT_PUBLIC_DID_CONTROLLER` | DID controller URI | DID signing only |
-| `NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE` | Base58btc-encoded ECDSA secp256k1 public key | DID signing only |
-| `NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE` | Base58btc-encoded ECDSA secp256k1 private key | DID signing only |
+| `NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE` | Base58btc-encoded ECDSA secp256k1 public key (starts with `z`) | DID signing only |
+| `NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE` | Base58btc-encoded ECDSA secp256k1 private key (starts with `z`) | DID signing only |
 | `NEXT_PUBLIC_DOCUMENT_STORE_ADDRESS` | Ethereum DocumentStore contract address | Ethereum issuance |
 
 > ⚠️ **Security note:** `NEXT_PUBLIC_*` variables are bundled into the static JS files served by GitHub Pages. Anyone who downloads the page can read them. **Only use demo or test key pairs here.** For a production issuer service, implement a backend signing API instead.
+
+All four `NEXT_PUBLIC_DID_*` variables must be set together. If any one is missing, signing attempts will return a clear error message listing the missing variables.
 
 ### Generating a DID Key Pair
 
@@ -94,7 +96,15 @@ generateKeyPair({ type: 'ecdsa-sd-2023' }).then(kp => {
 
 Replace `YOUR-USERNAME` with your GitHub username. Copy the output values into the corresponding `NEXT_PUBLIC_DID_*` variables in `.env.local`.
 
-After generating the key pair, update `public/.well-known/did.json` with the `publicKeyMultibase` value so verifiers can resolve the DID document.
+### Updating the DID Document
+
+After generating the key pair, update `public/.well-known/did.json`:
+
+1. Replace `"REPLACE_WITH_NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE"` with the value of `NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE`.
+2. If you changed `NEXT_PUBLIC_DID_KEY_ID` or `NEXT_PUBLIC_DID_CONTROLLER`, update the `id`, `controller`, and `verificationMethod[0].id` fields accordingly.
+3. Commit and push so the updated DID document is served at `https://YOUR-USERNAME.github.io/certificate-issuer/.well-known/did.json`.
+
+External verifiers resolve the issuer's `did:web` document from this URL to obtain the public key and check the `ecdsa-sd-2023` signature. If this file contains a placeholder or wrong key, verification will fail.
 
 ## How to Issue DID Certificates
 
@@ -252,9 +262,13 @@ NEXT_PUBLIC_DOCUMENT_STORE_ADDRESS=0xYourContractAddress
 
 2. **Demo document store:** The default document store contract (`0x4B30674...`) was deployed for demonstration purposes and the owner wallet is not publicly known. Ethereum issuance from outside wallets will fail the pre-check. Deploy your own store for real issuance.
 
-3. **DID document resolution:** Verifiers using `did:web` resolution will fetch `https://lanlan3322.github.io/certificate-issuer/.well-known/did.json`. This file must contain the correct `publicKeyMultibase` for verification to succeed.
+3. **DID document must be published:** Verifiers using `did:web` resolution will fetch `https://lanlan3322.github.io/certificate-issuer/.well-known/did.json`. This file **must** contain the correct `publicKeyMultibase` matching `NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE` for cryptographic verification to succeed. Replace the placeholder value before deploying.
 
-4. **No revocation backend:** Credential revocation via BitstringStatusList requires a hosted status list credential. The status list URL in the payload (`https://tradetrust.io/status/...`) is a placeholder.
+4. **Verification requires DID resolution:** The `/verify` page calls the TrustVC SDK to cryptographically verify the `ecdsa-sd-2023` proof. The SDK fetches the issuer's DID document to retrieve the public key. This means the issuer's `did:web` URL must be publicly accessible at verification time. Verification will fail (with a network error message) if the DID document is unreachable.
+
+5. **No revocation backend:** Credential revocation via BitstringStatusList requires a hosted status list credential. The status list URL in the payload (`https://tradetrust.io/status/...`) is a placeholder.
+
+6. **Placeholder signing removed:** Previous versions of this app generated `zplaceholder-*` proof values that were not real cryptographic signatures. All signing now uses `ecdsa-sd-2023` via the TrustVC SDK. Credentials signed with the old placeholder values will fail cryptographic verification.
 
 ## Troubleshooting
 
