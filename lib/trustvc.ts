@@ -192,7 +192,7 @@ export async function verifyCredential(
       },
     };
   } catch (error) {
-    const msg = (error as Error).message ?? String(error);
+    const msg = (error as Error).message || String(error);
     // Surface network/DID-resolution errors with a specific hint.
     if (msg.includes("fetch") || msg.includes("network") || msg.includes("ENOTFOUND")) {
       return {
@@ -309,11 +309,11 @@ export async function signDocumentWithDID(
   }
 
   const keyPair: PrivateKeyPair = {
-    id: id!,
+    id: id,
     type: "Multikey",
-    controller: controller!,
-    publicKeyMultibase: publicKeyMultibase!,
-    secretKeyMultibase: secretKeyMultibase!,
+    controller: controller,
+    publicKeyMultibase: publicKeyMultibase,
+    secretKeyMultibase: secretKeyMultibase,
   } as PrivateKeyPair;
 
   try {
