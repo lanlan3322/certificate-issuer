@@ -263,8 +263,12 @@ export default function SignPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "signed-credential.json";
+    a.download = `signed-credential-${new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")}.json`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
