@@ -33,7 +33,7 @@ interface BatchSignRow {
 
 interface BatchSignedItem {
   fileName: string;
-  certificate: Record<string, unknown>;
+  certificate: Parameters<typeof downloadCertificatesZip>[0][number]["certificate"];
 }
 
 export default function SignPage() {
@@ -179,7 +179,10 @@ export default function SignPage() {
         };
         signedItems.push({
           fileName: `${baseName}-signed`,
-          certificate: signed,
+          certificate:
+            signed as unknown as Parameters<
+              typeof downloadCertificatesZip
+            >[0][number]["certificate"],
         });
       } catch (err) {
         updated[i] = {
