@@ -1,17 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import NavBar from "../../components/NavBar";
-import { Shield, FileText, CheckCircle, ExternalLink } from "lucide-react";
+import { Shield, FileText, CheckCircle, ExternalLink, Upload, X as XIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { DEMO_CERTIFICATES } from "../../lib/constants";
 import { formatDate } from "../../lib/certificate";
-import { CertificateData } from "../../lib/trustvc";
+
+type CertEntry = {
+  id: string;
+  recipientName: string;
+  recipientEmail: string;
+  certificateType: string;
+  issuerName: string;
+  issueDate: string;
+  description: string;
+  validFrom: string;
+  validUntil?: string;
+  status: string;
+};
 
 export default function GalleryPage() {
-  const [selectedCert, setSelectedCert] = useState<typeof DEMO_CERTIFICATES[0] | null>(
-    null
-  );
+  const [selectedCert, setSelectedCert] = useState<CertEntry | null>(null);
+  const [uploadedCerts, setUploadedCerts] = useState<CertEntry[] | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const certificates: CertEntry[] = uploadedCerts ?? DEMO_CERTIFICATES;
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const parsed = JSON.parse(text);
+        const certs: CertEntry[] = Array.isArray(parsed) ? parsed : [parsed];
+        setUploadedCerts(certs);
+        setUploadError(null);
+        setSelectedCert(null);
+      } catch {
+        setUploadError("Invalid JSON file. Please upload a valid JSON file.");
+        setUploadedCerts(null);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function clearUpload() {
+    setUploadedCerts(null);
+    setUploadError(null);
+    setSelectedCert(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -33,22 +75,63 @@ export default function GalleryPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* JSON Upload */}
+        <div className="card mb-8">
+          <div className="flex items-center space-x-3 mb-3">
+            <Upload className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold text-gray-800">Upload JSON</h2>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Upload a JSON file (single certificate object or array) to render it in the gallery.
+          </p>
+          <div className="flex items-center space-x-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              onChange={handleFileUpload}
+              className="block text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-accent cursor-pointer"
+            />
+            {uploadedCerts && (
+              <button
+                onClick={clearUpload}
+                className="flex items-center space-x-1 text-sm text-red-600 hover:text-red-800"
+              >
+                <XIcon className="w-4 h-4" />
+                <span>Clear</span>
+              </button>
+            )}
+          </div>
+          {uploadError && (
+            <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+              {uploadError}
+            </p>
+          )}
+          {uploadedCerts && (
+            <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+              Loaded {uploadedCerts.length} certificate{uploadedCerts.length !== 1 ? "s" : ""} from file.
+            </p>
+          )}
+        </div>
+
         {/* Stats */}
         <div className="grid md:grid-cols-4 gap-4 mb-8">
           <div className="card text-center">
             <p className="text-3xl font-bold text-primary">
-              {DEMO_CERTIFICATES.length}
+              {certificates.length}
             </p>
             <p className="text-sm text-gray-600">Total Certificates</p>
           </div>
           <div className="card text-center">
             <p className="text-3xl font-bold text-green-600">
-              {DEMO_CERTIFICATES.filter((c) => c.status === "valid").length}
+              {certificates.filter((c) => c.status === "valid").length}
             </p>
             <p className="text-sm text-gray-600">Valid</p>
           </div>
           <div className="card text-center">
-            <p className="text-3xl font-bold text-secondary">3</p>
+            <p className="text-3xl font-bold text-secondary">
+              {new Set(certificates.map((c) => c.certificateType)).size}
+            </p>
             <p className="text-sm text-gray-600">Certificate Types</p>
           </div>
           <div className="card text-center">
@@ -59,9 +142,9 @@ export default function GalleryPage() {
 
         {/* Certificates Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {DEMO_CERTIFICATES.map((cert) => (
+          {certificates.map((cert, idx) => (
             <div
-              key={cert.id}
+              key={cert.id ?? idx}
               className="card hover:shadow-xl transition-shadow cursor-pointer"
               onClick={() => setSelectedCert(cert)}
             >
@@ -83,7 +166,7 @@ export default function GalleryPage() {
                         : "bg-red-500 text-white"
                     }`}
                   >
-                    {cert.status.toUpperCase()}
+                    {cert.status?.toUpperCase?.() ?? cert.status}
                   </div>
                 </div>
                 <h3 className="text-xl font-bold mb-2">{cert.recipientName}</h3>
