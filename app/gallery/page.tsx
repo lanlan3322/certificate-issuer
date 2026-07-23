@@ -28,6 +28,18 @@ export default function GalleryPage() {
 
   const certificates: CertEntry[] = uploadedCerts ?? DEMO_CERTIFICATES;
 
+  function isValidCertEntry(obj: unknown): obj is CertEntry {
+    if (!obj || typeof obj !== "object") return false;
+    const c = obj as Record<string, unknown>;
+    return (
+      typeof c.id === "string" &&
+      typeof c.recipientName === "string" &&
+      typeof c.certificateType === "string" &&
+      typeof c.issueDate === "string" &&
+      typeof c.status === "string"
+    );
+  }
+
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -36,7 +48,15 @@ export default function GalleryPage() {
       try {
         const text = event.target?.result as string;
         const parsed = JSON.parse(text);
-        const certs: CertEntry[] = Array.isArray(parsed) ? parsed : [parsed];
+        const arr: unknown[] = Array.isArray(parsed) ? parsed : [parsed];
+        const certs = arr.filter(isValidCertEntry);
+        if (certs.length === 0) {
+          setUploadError(
+            "No valid certificate entries found. Each entry must include id, recipientName, certificateType, issueDate, and status."
+          );
+          setUploadedCerts(null);
+          return;
+        }
         setUploadedCerts(certs);
         setUploadError(null);
         setSelectedCert(null);
@@ -142,9 +162,9 @@ export default function GalleryPage() {
 
         {/* Certificates Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {certificates.map((cert, idx) => (
+          {certificates.map((cert) => (
             <div
-              key={cert.id ?? idx}
+              key={cert.id}
               className="card hover:shadow-xl transition-shadow cursor-pointer"
               onClick={() => setSelectedCert(cert)}
             >
@@ -166,7 +186,7 @@ export default function GalleryPage() {
                         : "bg-red-500 text-white"
                     }`}
                   >
-                    {cert.status?.toUpperCase?.() ?? cert.status}
+                    {cert.status.toUpperCase()}
                   </div>
                 </div>
                 <h3 className="text-xl font-bold mb-2">{cert.recipientName}</h3>
