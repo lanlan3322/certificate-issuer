@@ -39,9 +39,37 @@ interface BatchSignedItem {
 }
 
 const BLOB_URL_REVOKE_DELAY_MS = 1000;
+const DEFAULT_SINGLE_SIGN_FILE_BASENAME = "certificate";
 
-const createSingleSignedDownloadFileName = () =>
-  `signed-credential-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+const toSafeFileNameSegment = (value: string) => {
+  const sanitized = value
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return sanitized || DEFAULT_SINGLE_SIGN_FILE_BASENAME;
+};
+
+const getStringValue = (value: unknown): string | undefined =>
+  typeof value === "string" && value.trim() ? value : undefined;
+
+const getReceiverNameFromCredential = (credential: Record<string, unknown>) => {
+  const credentialSubject = credential["credentialSubject"];
+  const credentialSubjectRecord =
+    credentialSubject && typeof credentialSubject === "object"
+      ? (credentialSubject as Record<string, unknown>)
+      : null;
+
+  return (
+    getStringValue(credentialSubjectRecord?.["name"]) ||
+    getStringValue(credentialSubjectRecord?.["receiverName"]) ||
+    getStringValue(credential["receiverName"]) ||
+    getStringValue(credential["recipientName"])
+  );
+};
+
+const createSingleSignedDownloadFileName = (receiverName?: string) =>
+  `${toSafeFileNameSegment(receiverName || "")}-signed.json`;
 
 export default function SignPage() {
   const [signMode, setSignMode] = useState<"single" | "batch">("single");
@@ -99,11 +127,12 @@ export default function SignPage() {
     try {
       const doc = JSON.parse(credentialJson) as Record<string, unknown>;
       const signed = await signDocument(doc, privateKey);
+      const receiverName = getReceiverNameFromCredential(signed);
       setResult({
         success: true,
         message: "Certificate signed successfully.",
         signed: JSON.stringify(signed, null, 2),
-        downloadFileName: createSingleSignedDownloadFileName(),
+        downloadFileName: createSingleSignedDownloadFileName(receiverName),
       });
     } catch (e) {
       setResult({
@@ -535,7 +564,7 @@ export default function SignPage() {
                   {result.message}
                 </p>
 
-                {result.signed && (
+                {result.success && result.signed && (
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold text-gray-700">Signed Credential</h4>
@@ -545,7 +574,7 @@ export default function SignPage() {
                           className="flex items-center space-x-1 px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
                         >
                           <Download className="w-3 h-3" />
-                          <span>Download JSON</span>
+                          <span>Download Signed JSON</span>
                         </button>
                         <button
                           onClick={handleCopy}
