@@ -42,12 +42,10 @@ const BLOB_URL_REVOKE_DELAY_MS = 1000;
 const DEFAULT_SINGLE_SIGN_FILE_FALLBACK = "certificate";
 
 const toSafeFileNameSegment = (value: string) => {
-  const sanitized = value
+  return value
     .trim()
     .replace(/[^a-zA-Z0-9_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
-
-  return sanitized || DEFAULT_SINGLE_SIGN_FILE_FALLBACK;
 };
 
 const getStringValue = (value: unknown): string | undefined =>
@@ -68,8 +66,12 @@ const getReceiverNameFromCredential = (credential: Record<string, unknown>) => {
   );
 };
 
-const createSingleSignedDownloadFileName = (receiverName?: string) =>
-  `${toSafeFileNameSegment(receiverName || "")}-signed.json`;
+const createSingleSignedDownloadFileName = (receiverName?: string) => {
+  const fileNameSegment = receiverName
+    ? toSafeFileNameSegment(receiverName)
+    : DEFAULT_SINGLE_SIGN_FILE_FALLBACK;
+  return `${fileNameSegment || DEFAULT_SINGLE_SIGN_FILE_FALLBACK}-signed.json`;
+};
 
 export default function SignPage() {
   const [signMode, setSignMode] = useState<"single" | "batch">("single");
