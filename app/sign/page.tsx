@@ -38,6 +38,11 @@ interface BatchSignedItem {
   certificate: Record<string, unknown>;
 }
 
+const BLOB_URL_REVOKE_DELAY_MS = 1000;
+
+const createSingleSignedDownloadFileName = () =>
+  `signed-credential-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+
 export default function SignPage() {
   const [signMode, setSignMode] = useState<"single" | "batch">("single");
   const [credentialJson, setCredentialJson] = useState("");
@@ -94,14 +99,11 @@ export default function SignPage() {
     try {
       const doc = JSON.parse(credentialJson) as Record<string, unknown>;
       const signed = await signDocument(doc, privateKey);
-      const downloadFileName = `signed-credential-${new Date()
-        .toISOString()
-        .replace(/[:.]/g, "-")}.json`;
       setResult({
         success: true,
         message: "Certificate signed successfully.",
         signed: JSON.stringify(signed, null, 2),
-        downloadFileName,
+        downloadFileName: createSingleSignedDownloadFileName(),
       });
     } catch (e) {
       setResult({
@@ -272,7 +274,7 @@ export default function SignPage() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    window.setTimeout(() => URL.revokeObjectURL(url), BLOB_URL_REVOKE_DELAY_MS);
   };
 
   return (
