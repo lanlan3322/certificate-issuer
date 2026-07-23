@@ -107,33 +107,49 @@ export default function GalleryPage() {
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const text = event.target?.result as string;
-        const parsed = JSON.parse(text);
-        const arr: unknown[] = Array.isArray(parsed) ? parsed : [parsed];
-        const certs = arr
-          .map((item) => (isValidCertEntry(item) ? item : mapVcToCertEntry(item)))
-          .filter((c): c is CertEntry => c !== null);
-        if (certs.length === 0) {
-          setUploadError(
-            "No valid certificate entries found. Each entry must include: id, recipientName, recipientEmail, certificateType, issuerName, issueDate, description, validFrom, and status."
-          );
-          setUploadedCerts(null);
-          return;
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length === 0) return;
+
+    let allCerts: CertEntry[] = [];
+    let filesRead = 0;
+    let hasError = false;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const text = event.target?.result as string;
+          const parsed = JSON.parse(text);
+          const arr: unknown[] = Array.isArray(parsed) ? parsed : [parsed];
+          const certs = arr
+            .map((item) => (isValidCertEntry(item) ? item : mapVcToCertEntry(item)))
+            .filter((c): c is CertEntry => c !== null);
+          allCerts = [...allCerts, ...certs];
+        } catch {
+          hasError = true;
         }
-        setUploadedCerts(certs);
-        setUploadError(null);
-        setSelectedCert(null);
-      } catch {
-        setUploadError("Invalid JSON file. Please upload a valid JSON file.");
-        setUploadedCerts(null);
-      }
-    };
-    reader.readAsText(file);
+        filesRead++;
+        if (filesRead === files.length) {
+          if (allCerts.length === 0) {
+            setUploadError(
+              hasError
+                ? "One or more files contained invalid JSON. No valid certificate entries were found."
+                : "No valid certificate entries found. Each entry must include: id, recipientName, recipientEmail, certificateType, issuerName, issueDate, description, validFrom, and status."
+            );
+            setUploadedCerts(null);
+          } else {
+            setUploadedCerts(allCerts);
+            setUploadError(
+              hasError
+                ? "Some files were skipped due to invalid JSON or missing required fields."
+                : null
+            );
+            setSelectedCert(null);
+          }
+        }
+      };
+      reader.readAsText(file);
+    });
   }
 
   function clearUpload() {
@@ -170,13 +186,14 @@ export default function GalleryPage() {
             <h2 className="text-lg font-semibold text-gray-800">Upload JSON</h2>
           </div>
           <p className="text-sm text-gray-500 mb-4">
-            Upload a JSON file (single certificate object or array) to render it in the view.
+            Upload one or more JSON files (single certificate object or array) to render them in the view.
           </p>
           <div className="flex items-center space-x-3">
             <input
               ref={fileInputRef}
               type="file"
               accept=".json,application/json"
+              multiple
               onChange={handleFileUpload}
               className="block text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-accent"
             />
@@ -197,7 +214,7 @@ export default function GalleryPage() {
           )}
           {uploadedCerts && (
             <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-              Loaded {uploadedCerts.length} certificate{uploadedCerts.length !== 1 ? "s" : ""} from file.
+              Loaded {uploadedCerts.length} certificate{uploadedCerts.length !== 1 ? "s" : ""} from file{uploadedCerts.length !== 1 ? "s" : ""}.
             </p>
           )}
         </div>
