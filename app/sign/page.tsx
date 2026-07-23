@@ -39,7 +39,7 @@ interface BatchSignedItem {
 }
 
 const BLOB_URL_REVOKE_DELAY_MS = 1000;
-const DEFAULT_SINGLE_SIGN_FILE_BASENAME = "certificate";
+const DEFAULT_SINGLE_SIGN_FILE_FALLBACK = "certificate";
 
 const toSafeFileNameSegment = (value: string) => {
   const sanitized = value
@@ -47,7 +47,7 @@ const toSafeFileNameSegment = (value: string) => {
     .replace(/[^a-zA-Z0-9_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  return sanitized || DEFAULT_SINGLE_SIGN_FILE_BASENAME;
+  return sanitized || DEFAULT_SINGLE_SIGN_FILE_FALLBACK;
 };
 
 const getStringValue = (value: unknown): string | undefined =>
