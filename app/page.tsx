@@ -30,6 +30,10 @@ import {
   CertificateData,
   generateCertificateId,
   buildVCPayload,
+  issueDIDCertificate,
+  issueCertificateToEthereum,
+  type DIDIssuanceResult,
+  type EthereumIssuanceResult,
 } from "../lib/trustvc";
 import {
   formatDate,
@@ -46,7 +50,6 @@ import {
   DEFAULT_ISSUING_METHODS,
   DOCUMENT_STORE_CONFIG,
   DEPLOYMENT_STEPS,
-  CURRENT_NETWORK,
   formatIssuingMethodLabels,
   IssuingMethod,
 } from "../lib/constants";
@@ -80,6 +83,9 @@ export default function HomePage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [issuing, setIssuing] = useState(false);
   const [issuedTxHash, setIssuedTxHash] = useState<string | null>(null);
+  const [didResult, setDIDResult] = useState<DIDIssuanceResult | null>(null);
+  const [ethereumResult, setEthereumResult] =
+    useState<EthereumIssuanceResult | null>(null);
   const [walletWarningDismissed, setWalletWarningDismissed] = useState(false);
   const [showDeploymentGuide, setShowDeploymentGuide] = useState(false);
   const [issueMode, setIssueMode] = useState<"single" | "batch">("single");
@@ -92,16 +98,16 @@ export default function HomePage() {
   const [batchIssuing, setBatchIssuing] = useState(false);
   const [downloadingBatchZip, setDownloadingBatchZip] = useState(false);
   const [batchDownloadError, setBatchDownloadError] = useState<string | null>(null);
-  const currentCredential = useMemo(
-    () => (issuedCert ? buildVCPayload(issuedCert) : null),
-    [issuedCert]
-  );
+  // Prefer the signed DID credential; fall back to the unsigned DID draft or
+  // the plain unsigned payload so the preview always shows something useful.
+  const currentCredential = useMemo(() => {
+    if (didResult?.signed && didResult.credential) return didResult.credential;
+    if (issuedCert) return buildVCPayload(issuedCert) as Record<string, unknown>;
+    return null;
+  }, [didResult, issuedCert]);
   const currentCredentialHasProof = useMemo(
-    () =>
-      currentCredential
-        ? "proof" in currentCredential && Boolean(currentCredential.proof)
-        : false,
-    [currentCredential]
+    () => didResult?.signed ?? false,
+    [didResult]
   );
 
   const handleInputChange = (
@@ -139,14 +145,17 @@ export default function HomePage() {
     }
     setErrors([]);
 
-    if (!connected) {
-      setErrors(["Please connect your wallet to issue the certificate."]);
+    // Ethereum issuance requires a connected wallet
+    if (issuingMethods.includes("ethereum") && !connected) {
+      setErrors(["Please connect your wallet to issue an Ethereum certificate."]);
       return;
     }
 
     setIssuing(true);
     setIssuedCert(null);
     setIssuedTxHash(null);
+    setDIDResult(null);
+    setEthereumResult(null);
 
     try {
       const now = getISODateString();
@@ -163,9 +172,41 @@ export default function HomePage() {
         issuingMethods,
       };
 
-      // For demo purposes - in production, this would call TrustVC SDK
+      // --- DID issuance ---
+      if (issuingMethods.includes("did")) {
+        const result = await issueDIDCertificate(certData);
+        setDIDResult(result);
+      }
+
+      // --- Ethereum issuance ---
+      if (issuingMethods.includes("ethereum")) {
+        try {
+          // Switch to Sepolia if needed
+          if (network !== "sepolia") {
+            await switchToSepolia();
+          }
+          const signer = await getSigner();
+          const unsignedCredential = buildVCPayload(certData) as Record<
+            string,
+            unknown
+          >;
+          const result = await issueCertificateToEthereum(
+            unsignedCredential,
+            DOCUMENT_STORE_CONFIG.address,
+            signer
+          );
+          setEthereumResult(result);
+          if (result.txHash) {
+            setIssuedTxHash(result.txHash);
+          }
+        } catch (err) {
+          setEthereumResult({
+            error: `Ethereum issuance failed: ${(err as Error).message}`,
+          });
+        }
+      }
+
       setIssuedCert(certData);
-      setIssuedTxHash("demo-tx-hash-" + Math.random().toString(36).substr(2, 9));
     } catch (err) {
       setErrors([`Failed to issue certificate: ${(err as Error).message}`]);
     } finally {
@@ -504,7 +545,10 @@ export default function HomePage() {
 
                   <button
                     onClick={handleIssue}
-                    disabled={!connected || issuing}
+                    disabled={
+                      issuing ||
+                      (issuingMethods.includes("ethereum") && !connected)
+                    }
                     className="btn-primary w-full flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
                   >
                     {issuing ? (
@@ -516,29 +560,116 @@ export default function HomePage() {
                   </button>
                 </div>
 
-                {/* Transaction Info */}
-                {issuedTxHash && (
-                  <div className="mt-3 md:mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-start space-x-2">
-                      <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1">
-                        <p className="font-medium text-green-800 text-sm md:text-base">
-                          Certificate Issued!
-                        </p>
-                        <p className="text-xs text-green-600 mt-1">
-                          Store:{" "}
-                          <a
-                            href={`https://sepolia.etherscan.io/address/${DOCUMENT_STORE_CONFIG.address}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline inline-flex items-center space-x-1"
-                          >
-                            <span>{DOCUMENT_STORE_CONFIG.address.slice(0, 12)}...</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </p>
+                {/* Issuance Results */}
+                {issuedCert && (didResult || ethereumResult) && (
+                  <div className="mt-3 md:mt-4 space-y-2">
+                    {/* DID result */}
+                    {didResult && (
+                      <div
+                        className={`p-3 rounded-lg border ${
+                          didResult.signed
+                            ? "bg-green-50 border-green-200"
+                            : didResult.error
+                            ? "bg-amber-50 border-amber-200"
+                            : "bg-gray-50 border-gray-200"
+                        }`}
+                      >
+                        <div className="flex items-start space-x-2">
+                          {didResult.signed ? (
+                            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className={`font-medium text-sm ${
+                                didResult.signed
+                                  ? "text-green-800"
+                                  : "text-amber-800"
+                              }`}
+                            >
+                              {didResult.signed
+                                ? "DID Credential Signed"
+                                : "DID Credential (Unsigned Draft)"}
+                            </p>
+                            {didResult.error && (
+                              <p className="text-xs text-amber-700 mt-1">
+                                {didResult.error}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
+
+                    {/* Ethereum result */}
+                    {ethereumResult && (
+                      <div
+                        className={`p-3 rounded-lg border ${
+                          ethereumResult.txHash
+                            ? "bg-green-50 border-green-200"
+                            : "bg-red-50 border-red-200"
+                        }`}
+                      >
+                        <div className="flex items-start space-x-2">
+                          {ethereumResult.txHash ? (
+                            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            {ethereumResult.txHash ? (
+                              <>
+                                <p className="font-medium text-green-800 text-sm">
+                                  Issued on Ethereum (Sepolia)
+                                </p>
+                                <p className="text-xs text-green-700 mt-1 font-mono break-all">
+                                  Tx:{" "}
+                                  <a
+                                    href={`https://sepolia.etherscan.io/tx/${ethereumResult.txHash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline inline-flex items-center space-x-1"
+                                  >
+                                    <span>
+                                      {ethereumResult.txHash.slice(0, 18)}…
+                                    </span>
+                                    <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                  </a>
+                                </p>
+                                <p className="text-xs text-green-600 mt-0.5">
+                                  Store:{" "}
+                                  <a
+                                    href={`https://sepolia.etherscan.io/address/${DOCUMENT_STORE_CONFIG.address}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline inline-flex items-center space-x-1"
+                                  >
+                                    <span>
+                                      {DOCUMENT_STORE_CONFIG.address.slice(
+                                        0,
+                                        12
+                                      )}
+                                      …
+                                    </span>
+                                    <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                  </a>
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="font-medium text-red-800 text-sm">
+                                  Ethereum Issuance Failed
+                                </p>
+                                <p className="text-xs text-red-700 mt-1">
+                                  {ethereumResult.error}
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
