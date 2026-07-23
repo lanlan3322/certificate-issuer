@@ -324,7 +324,7 @@ export default function GalleryPage() {
                       <p>Issued: {formatDate(selectedCert.issueDate)}</p>
                       <p>
                         Valid: {formatDate(selectedCert.validFrom)} to{" "}
-                        {formatDate(selectedCert.validUntil!)}
+                        {selectedCert.validUntil ? formatDate(selectedCert.validUntil) : "N/A"}
                       </p>
                     </div>
                   </div>
