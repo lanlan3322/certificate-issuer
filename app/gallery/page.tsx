@@ -34,8 +34,12 @@ export default function GalleryPage() {
     return (
       typeof c.id === "string" &&
       typeof c.recipientName === "string" &&
+      typeof c.recipientEmail === "string" &&
       typeof c.certificateType === "string" &&
+      typeof c.issuerName === "string" &&
       typeof c.issueDate === "string" &&
+      typeof c.description === "string" &&
+      typeof c.validFrom === "string" &&
       typeof c.status === "string"
     );
   }
@@ -52,7 +56,7 @@ export default function GalleryPage() {
         const certs = arr.filter(isValidCertEntry);
         if (certs.length === 0) {
           setUploadError(
-            "No valid certificate entries found. Each entry must include id, recipientName, certificateType, issueDate, and status."
+            "No valid certificate entries found. Each entry must include: id, recipientName, recipientEmail, certificateType, issuerName, issueDate, description, validFrom, and status."
           );
           setUploadedCerts(null);
           return;
