@@ -93,7 +93,7 @@ export default function GalleryPage() {
           <div className="flex items-center space-x-3">
             <Shield className="w-8 h-8 text-secondary" />
             <div>
-              <h1 className="text-3xl font-bold">Certificate Gallery</h1>
+              <h1 className="text-3xl font-bold">Certificate View</h1>
               <p className="text-white/80">
                 Browse sample certificates issued via TrustVC + OpenCerts
               </p>
@@ -110,7 +110,7 @@ export default function GalleryPage() {
             <h2 className="text-lg font-semibold text-gray-800">Upload JSON</h2>
           </div>
           <p className="text-sm text-gray-500 mb-4">
-            Upload a JSON file (single certificate object or array) to render it in the gallery.
+            Upload a JSON file (single certificate object or array) to render it in the view.
           </p>
           <div className="flex items-center space-x-3">
             <input
