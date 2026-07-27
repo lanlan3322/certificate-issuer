@@ -182,11 +182,29 @@ function ensureUniqueZipFileName(
 }
 
 export async function copyToClipboard(text: string): Promise<void> {
-  if (!navigator.clipboard?.writeText) {
-    throw new Error("Clipboard API is not available in this browser.");
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // writeText rejected (e.g. permission denied, insecure context, no user gesture);
+      // fall through to the execCommand fallback below.
+    }
   }
 
-  await navigator.clipboard.writeText(text);
+  // Fallback for browsers without the Clipboard API or where writeText rejects.
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  const success = document.execCommand("copy");
+  document.body.removeChild(textarea);
+  if (!success) {
+    throw new Error("Failed to copy text to clipboard");
+  }
 }
 
 // Download a ZIP containing multiple credential JSON files
@@ -206,7 +224,14 @@ export async function downloadCertificatesZip(
     let serializedCertificate: string;
 
     try {
-      serializedCertificate = JSON.stringify(certificate, null, 2);
+      const json = JSON.stringify(certificate, null, 2);
+      // JSON.stringify returns undefined for non-serializable values (undefined,
+      // functions, symbols) rather than throwing; treat those as failures.
+      if (json === undefined) {
+        result.failedFiles.push(fileName);
+        return;
+      }
+      serializedCertificate = json;
     } catch {
       result.failedFiles.push(fileName);
       return;
