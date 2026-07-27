@@ -129,9 +129,10 @@ export function downloadCertificate(data: CertificateData): void {
 
 // Sanitize a file name for use inside a ZIP archive
 export function sanitizeCertificateFileNameForZip(fileName: string): string {
-  // Replace any characters that are unsafe in ZIP entry names with underscores,
-  // and collapse consecutive unsafe characters into a single underscore.
-  return fileName.replace(/[^a-zA-Z0-9._\-]/g, "_").replace(/_+/g, "_");
+  // Remove path separators and null bytes to prevent path traversal issues in
+  // ZIP archives. Other printable characters (including spaces and parentheses)
+  // are preserved because ZIP supports them natively.
+  return fileName.replace(/[/\\:\0]/g, "_");
 }
 
 // Copy text to the system clipboard
@@ -147,8 +148,12 @@ export async function copyToClipboard(text: string): Promise<void> {
     document.body.appendChild(textarea);
     textarea.focus();
     textarea.select();
-    document.execCommand("copy");
+    // execCommand is deprecated but kept as a best-effort fallback
+    const success = document.execCommand("copy");
     document.body.removeChild(textarea);
+    if (!success) {
+      throw new Error("Failed to copy text to clipboard");
+    }
   }
 }
 
@@ -169,7 +174,8 @@ export async function downloadCertificatesZip(
   items.forEach(({ fileName, certificate }) => {
     try {
       zip.file(fileName, JSON.stringify(certificate, null, 2));
-    } catch {
+    } catch (err) {
+      console.error(`Failed to add "${fileName}" to ZIP:`, err);
       failedFiles.push(fileName);
     }
   });
