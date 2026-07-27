@@ -225,7 +225,7 @@ export async function downloadCertificatesZip(
 
     try {
       const json = JSON.stringify(certificate, null, 2);
-      // JSON.stringify returns undefined for non-serialisable values (undefined,
+      // JSON.stringify returns undefined for non-serializable values (undefined,
       // functions, symbols) rather than throwing; treat those as failures.
       if (json === undefined) {
         result.failedFiles.push(fileName);
