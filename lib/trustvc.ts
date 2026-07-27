@@ -64,6 +64,7 @@ export function buildVCPayload(data: CertificateData) {
       "https://trustvc.io/context/certificate-vocab.json",
     ],
     type: ["VerifiableCredential", "OpenCertsCertificate"],
+    id: data.id,
     credentialSubject: {
       id: `did:email:${data.recipientEmail}`,
       type: ["Person"],
