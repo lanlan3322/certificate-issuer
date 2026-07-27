@@ -65,6 +65,15 @@ export interface ValidationResult {
   errors: string[];
 }
 
+export interface DownloadCertificatesZipResult {
+  total: number;
+  added: number;
+  failedFiles: string[];
+}
+
+const ZIP_FILE_NAME_UNSAFE_CHARS_RE = /[<>:"/\\|?*\u0000-\u001F]+/g;
+const DEFAULT_ZIP_FILE_NAME = "certificate.json";
+
 export function validateCertificateData(
   data: Partial<CertificateData>
 ): ValidationResult {
@@ -127,16 +136,93 @@ export function downloadCertificate(data: CertificateData): void {
   URL.revokeObjectURL(url);
 }
 
+export function sanitizeCertificateFileNameForZip(fileName: string): string {
+  const trimmedName = fileName.trim();
+
+  if (!trimmedName) {
+    return DEFAULT_ZIP_FILE_NAME;
+  }
+
+  const extensionIndex = trimmedName.lastIndexOf(".");
+  const rawBaseName =
+    extensionIndex > 0 ? trimmedName.slice(0, extensionIndex) : trimmedName;
+  const rawExtension = extensionIndex > 0 ? trimmedName.slice(extensionIndex) : "";
+
+  const sanitizedBaseName = rawBaseName
+    .replace(ZIP_FILE_NAME_UNSAFE_CHARS_RE, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[.-]+|[.-]+$/g, "");
+
+  const sanitizedExtension = rawExtension.replace(ZIP_FILE_NAME_UNSAFE_CHARS_RE, "");
+  const safeBaseName = sanitizedBaseName || "certificate";
+
+  return sanitizedExtension
+    ? `${safeBaseName}${sanitizedExtension}`
+    : `${safeBaseName}.json`;
+}
+
+function ensureUniqueZipFileName(
+  fileName: string,
+  usedNames: Map<string, number>
+): string {
+  const extensionIndex = fileName.lastIndexOf(".");
+  const baseName =
+    extensionIndex > 0 ? fileName.slice(0, extensionIndex) : fileName;
+  const extension = extensionIndex > 0 ? fileName.slice(extensionIndex) : "";
+  const nextCount = (usedNames.get(fileName) ?? 0) + 1;
+
+  usedNames.set(fileName, nextCount);
+
+  if (nextCount === 1) {
+    return fileName;
+  }
+
+  return `${baseName}-${nextCount - 1}${extension}`;
+}
+
+export async function copyToClipboard(text: string): Promise<void> {
+  if (!navigator.clipboard?.writeText) {
+    throw new Error("Clipboard API is not available in this browser.");
+  }
+
+  await navigator.clipboard.writeText(text);
+}
+
 // Download a ZIP containing multiple credential JSON files
 export async function downloadCertificatesZip(
   items: Array<{ fileName: string; certificate: unknown }>,
   zipName = "issued-certificates.zip"
-): Promise<void> {
+): Promise<DownloadCertificatesZipResult> {
   const zip = new JSZip();
+  const result: DownloadCertificatesZipResult = {
+    total: items.length,
+    added: 0,
+    failedFiles: [],
+  };
+  const usedNames = new Map<string, number>();
 
   items.forEach(({ fileName, certificate }) => {
-    zip.file(fileName, JSON.stringify(certificate, null, 2));
+    let serializedCertificate: string;
+
+    try {
+      serializedCertificate = JSON.stringify(certificate, null, 2);
+    } catch {
+      result.failedFiles.push(fileName);
+      return;
+    }
+
+    const safeFileName = ensureUniqueZipFileName(
+      sanitizeCertificateFileNameForZip(fileName),
+      usedNames
+    );
+    zip.file(safeFileName, serializedCertificate);
+    result.added += 1;
   });
+
+  if (result.added === 0) {
+    return result;
+  }
 
   const content = await zip.generateAsync({ type: "blob" });
   const url = URL.createObjectURL(content);
@@ -147,4 +233,6 @@ export async function downloadCertificatesZip(
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+
+  return result;
 }
