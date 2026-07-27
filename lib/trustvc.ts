@@ -64,7 +64,6 @@ export function buildVCPayload(data: CertificateData) {
       "https://trustvc.io/context/certificate-vocab.json",
     ],
     type: ["VerifiableCredential", "OpenCertsCertificate"],
-    id: data.id,
     credentialSubject: {
       id: `did:email:${data.recipientEmail}`,
       type: ["Person"],
@@ -86,7 +85,6 @@ export function buildVCPayload(data: CertificateData) {
       },
     },
     issuingMethods,
-    validFrom: data.validFrom,
     validUntil: data.validUntil,
     credentialStatus: {
       id: `https://tradetrust.io/status/${data.id}#list`,
