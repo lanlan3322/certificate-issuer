@@ -183,20 +183,11 @@ function ensureUniqueZipFileName(
 }
 
 export async function copyToClipboard(text: string): Promise<void> {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
+  if (!navigator.clipboard?.writeText) {
+    throw new Error("Clipboard API is not available in this browser.");
   }
 
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.setAttribute("readonly", "");
-  textarea.style.position = "absolute";
-  textarea.style.left = "-9999px";
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand("copy");
-  document.body.removeChild(textarea);
+  await navigator.clipboard.writeText(text);
 }
 
 // Download a ZIP containing multiple credential JSON files
@@ -205,7 +196,11 @@ export async function downloadCertificatesZip(
   zipName = "issued-certificates.zip"
 ): Promise<DownloadCertificatesZipResult> {
   const zip = new JSZip();
-  const failedFiles: string[] = [];
+  const result: DownloadCertificatesZipResult = {
+    total: items.length,
+    added: 0,
+    failedFiles: [],
+  };
   const usedNames = new Map<string, number>();
 
   items.forEach(({ fileName, certificate }) => {
@@ -215,16 +210,13 @@ export async function downloadCertificatesZip(
         usedNames
       );
       zip.file(safeFileName, JSON.stringify(certificate, null, 2));
-    } catch {
-      failedFiles.push(fileName);
+    } catch (error) {
+      console.error("Failed to add certificate to ZIP", { fileName, error });
+      result.failedFiles.push(fileName);
     }
   });
 
-  const result: DownloadCertificatesZipResult = {
-    total: items.length,
-    added: items.length - failedFiles.length,
-    failedFiles,
-  };
+  result.added = result.total - result.failedFiles.length;
 
   if (result.added === 0) {
     return result;
