@@ -65,6 +65,15 @@ export interface ValidationResult {
   errors: string[];
 }
 
+export interface DownloadCertificatesZipResult {
+  total: number;
+  added: number;
+  failedFiles: string[];
+}
+
+const ZIP_FILE_NAME_UNSAFE_CHARS_RE = /[<>:"/\\|?*\u0000-\u001F]+/g;
+const DEFAULT_ZIP_FILE_NAME = "certificate.json";
+
 export function validateCertificateData(
   data: Partial<CertificateData>
 ): ValidationResult {
@@ -127,60 +136,118 @@ export function downloadCertificate(data: CertificateData): void {
   URL.revokeObjectURL(url);
 }
 
-// Sanitize a file name for use inside a ZIP archive
 export function sanitizeCertificateFileNameForZip(fileName: string): string {
-  // Remove path separators and null bytes to prevent path traversal issues in
-  // ZIP archives. Other printable characters (including spaces and parentheses)
-  // are preserved because ZIP supports them natively.
-  return fileName.replace(/[/\\:\0]/g, "_");
+  const trimmedName = fileName.trim();
+
+  if (!trimmedName) {
+    return DEFAULT_ZIP_FILE_NAME;
+  }
+
+  const extensionIndex = trimmedName.lastIndexOf(".");
+  const rawBaseName =
+    extensionIndex > 0 ? trimmedName.slice(0, extensionIndex) : trimmedName;
+  const rawExtension = extensionIndex > 0 ? trimmedName.slice(extensionIndex) : "";
+
+  const sanitizedBaseName = rawBaseName
+    .replace(ZIP_FILE_NAME_UNSAFE_CHARS_RE, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[.-]+|[.-]+$/g, "");
+
+  const sanitizedExtension = rawExtension.replace(ZIP_FILE_NAME_UNSAFE_CHARS_RE, "");
+  const safeBaseName = sanitizedBaseName || "certificate";
+
+  return sanitizedExtension
+    ? `${safeBaseName}${sanitizedExtension}`
+    : `${safeBaseName}.json`;
 }
 
-// Copy text to the system clipboard
+function ensureUniqueZipFileName(
+  fileName: string,
+  usedNames: Map<string, number>
+): string {
+  const extensionIndex = fileName.lastIndexOf(".");
+  const baseName =
+    extensionIndex > 0 ? fileName.slice(0, extensionIndex) : fileName;
+  const extension = extensionIndex > 0 ? fileName.slice(extensionIndex) : "";
+  const nextCount = (usedNames.get(fileName) ?? 0) + 1;
+
+  usedNames.set(fileName, nextCount);
+
+  if (nextCount === 1) {
+    return fileName;
+  }
+
+  return `${baseName}-${nextCount - 1}${extension}`;
+}
+
 export async function copyToClipboard(text: string): Promise<void> {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    await navigator.clipboard.writeText(text);
-  } else {
-    // Fallback for environments without the Clipboard API
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    // execCommand is deprecated but kept as a best-effort fallback
-    const success = document.execCommand("copy");
-    document.body.removeChild(textarea);
-    if (!success) {
-      throw new Error("Failed to copy text to clipboard");
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // writeText rejected (e.g. permission denied, insecure context, no user gesture);
+      // fall through to the execCommand fallback below.
     }
   }
-}
 
-export interface ZipDownloadResult {
-  added: number;
-  total: number;
-  failedFiles: string[];
+  // Fallback for browsers without the Clipboard API or where writeText rejects.
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  const success = document.execCommand("copy");
+  document.body.removeChild(textarea);
+  if (!success) {
+    throw new Error("Failed to copy text to clipboard");
+  }
 }
 
 // Download a ZIP containing multiple credential JSON files
 export async function downloadCertificatesZip(
   items: Array<{ fileName: string; certificate: unknown }>,
   zipName = "issued-certificates.zip"
-): Promise<ZipDownloadResult> {
+): Promise<DownloadCertificatesZipResult> {
   const zip = new JSZip();
-  const failedFiles: string[] = [];
+  const result: DownloadCertificatesZipResult = {
+    total: items.length,
+    added: 0,
+    failedFiles: [],
+  };
+  const usedNames = new Map<string, number>();
 
   items.forEach(({ fileName, certificate }) => {
+    let serializedCertificate: string;
+
     try {
-      zip.file(fileName, JSON.stringify(certificate, null, 2));
-    } catch (err) {
-      console.error(`Failed to add "${fileName}" to ZIP:`, err);
-      failedFiles.push(fileName);
+      const json = JSON.stringify(certificate, null, 2);
+      // JSON.stringify returns undefined for non-serialisable values (undefined,
+      // functions, symbols) rather than throwing; treat those as failures.
+      if (json === undefined) {
+        result.failedFiles.push(fileName);
+        return;
+      }
+      serializedCertificate = json;
+    } catch {
+      result.failedFiles.push(fileName);
+      return;
     }
+
+    const safeFileName = ensureUniqueZipFileName(
+      sanitizeCertificateFileNameForZip(fileName),
+      usedNames
+    );
+    zip.file(safeFileName, serializedCertificate);
+    result.added += 1;
   });
 
-  const added = items.length - failedFiles.length;
+  if (result.added === 0) {
+    return result;
+  }
 
   const content = await zip.generateAsync({ type: "blob" });
   const url = URL.createObjectURL(content);
@@ -192,5 +259,5 @@ export async function downloadCertificatesZip(
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  return { added, total: items.length, failedFiles };
+  return result;
 }
