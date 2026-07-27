@@ -204,19 +204,23 @@ export async function downloadCertificatesZip(
   const usedNames = new Map<string, number>();
 
   items.forEach(({ fileName, certificate }) => {
+    let serializedCertificate: string;
+
     try {
-      const safeFileName = ensureUniqueZipFileName(
-        sanitizeCertificateFileNameForZip(fileName),
-        usedNames
-      );
-      zip.file(safeFileName, JSON.stringify(certificate, null, 2));
+      serializedCertificate = JSON.stringify(certificate, null, 2);
     } catch (error) {
       console.error("Failed to add certificate to ZIP", { fileName, error });
       result.failedFiles.push(fileName);
+      return;
     }
-  });
 
-  result.added = result.total - result.failedFiles.length;
+    const safeFileName = ensureUniqueZipFileName(
+      sanitizeCertificateFileNameForZip(fileName),
+      usedNames
+    );
+    zip.file(safeFileName, serializedCertificate);
+    result.added += 1;
+  });
 
   if (result.added === 0) {
     return result;
