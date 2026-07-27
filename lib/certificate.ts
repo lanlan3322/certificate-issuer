@@ -127,16 +127,54 @@ export function downloadCertificate(data: CertificateData): void {
   URL.revokeObjectURL(url);
 }
 
+// Sanitize a file name for use inside a ZIP archive
+export function sanitizeCertificateFileNameForZip(fileName: string): string {
+  // Replace any characters that are unsafe in ZIP entry names with underscores,
+  // and collapse consecutive unsafe characters into a single underscore.
+  return fileName.replace(/[^a-zA-Z0-9._\-]/g, "_").replace(/_+/g, "_");
+}
+
+// Copy text to the system clipboard
+export async function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(text);
+  } else {
+    // Fallback for environments without the Clipboard API
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+  }
+}
+
+export interface ZipDownloadResult {
+  added: number;
+  total: number;
+  failedFiles: string[];
+}
+
 // Download a ZIP containing multiple credential JSON files
 export async function downloadCertificatesZip(
   items: Array<{ fileName: string; certificate: unknown }>,
   zipName = "issued-certificates.zip"
-): Promise<void> {
+): Promise<ZipDownloadResult> {
   const zip = new JSZip();
+  const failedFiles: string[] = [];
 
   items.forEach(({ fileName, certificate }) => {
-    zip.file(fileName, JSON.stringify(certificate, null, 2));
+    try {
+      zip.file(fileName, JSON.stringify(certificate, null, 2));
+    } catch {
+      failedFiles.push(fileName);
+    }
   });
+
+  const added = items.length - failedFiles.length;
 
   const content = await zip.generateAsync({ type: "blob" });
   const url = URL.createObjectURL(content);
@@ -147,4 +185,6 @@ export async function downloadCertificatesZip(
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+
+  return { added, total: items.length, failedFiles };
 }
