@@ -170,16 +170,15 @@ function ensureUniqueZipFileName(
   const baseName =
     extensionIndex > 0 ? fileName.slice(0, extensionIndex) : fileName;
   const extension = extensionIndex > 0 ? fileName.slice(extensionIndex) : "";
-  const currentCount = usedNames.get(fileName) ?? 0;
+  const nextCount = (usedNames.get(fileName) ?? 0) + 1;
 
-  if (currentCount === 0) {
-    usedNames.set(fileName, 1);
+  usedNames.set(fileName, nextCount);
+
+  if (nextCount === 1) {
     return fileName;
   }
 
-  const uniqueName = `${baseName}-${currentCount + 1}${extension}`;
-  usedNames.set(fileName, currentCount + 1);
-  return uniqueName;
+  return `${baseName}-${nextCount - 1}${extension}`;
 }
 
 export async function copyToClipboard(text: string): Promise<void> {
@@ -208,8 +207,7 @@ export async function downloadCertificatesZip(
 
     try {
       serializedCertificate = JSON.stringify(certificate, null, 2);
-    } catch (error) {
-      console.error("Failed to add certificate to ZIP", { fileName, error });
+    } catch {
       result.failedFiles.push(fileName);
       return;
     }
