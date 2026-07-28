@@ -74,15 +74,7 @@ export function buildVCPayload(data: CertificateData) {
       validFrom: data.validFrom,
       validUntil: data.validUntil,
     },
-    issuer: {
-      id: TRUSTVC_CONFIG.didUrl,
-      type: "OpenAttestationIssuer",
-      name: data.issuerName,
-      identityProof: {
-        identityProofType: "DNS-TXT",
-        identifier: TRUSTVC_CONFIG.demoIssuer.identityProof.location,
-      },
-    },
+    issuer: TRUSTVC_CONFIG.didUrl,
     issuingMethods,
     validUntil: data.validUntil,
     credentialStatus: {
