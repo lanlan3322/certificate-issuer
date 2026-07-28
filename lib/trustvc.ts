@@ -64,6 +64,7 @@ export function buildVCPayload(data: CertificateData) {
       "https://trustvc.io/context/certificate-vocab.json",
     ],
     type: ["VerifiableCredential", "OpenCertsCertificate"],
+    id: `urn:uuid:${data.id}`,
     credentialSubject: {
       certificateId: `did:email:${data.recipientEmail}`,
       type: ["Person"],
@@ -245,8 +246,7 @@ export function getDIDKeyPairFromEnv(): PrivateKeyPair | null {
   if (!id || !controller || !publicKeyMultibase || !secretKeyMultibase) {
     return null;
   }
-console.log("Public key:", publicKeyMultibase);
-console.log("Private key:", secretKeyMultibase?.slice(0, 10));
+
   return {
     id,
     type: "Multikey",
