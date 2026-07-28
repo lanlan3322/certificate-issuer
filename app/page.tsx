@@ -233,9 +233,13 @@ export default function HomePage() {
 
   const handleCopyCredential = async () => {
     if (currentCredential) {
-      await copyToClipboard(JSON.stringify(currentCredential, null, 2));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        await copyToClipboard(JSON.stringify(currentCredential, null, 2));
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (error) {
+        setErrors([`Unable to copy credential: ${(error as Error).message}`]);
+      }
     }
   };
 

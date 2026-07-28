@@ -86,7 +86,6 @@ export function buildVCPayload(data: CertificateData) {
       },
     },
     issuingMethods,
-    validFrom: data.validFrom,
     validUntil: data.validUntil,
     credentialStatus: {
       id: `https://tradetrust.io/status/${data.id}#list`,

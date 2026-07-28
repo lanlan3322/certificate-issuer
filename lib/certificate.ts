@@ -19,9 +19,9 @@ export function formatDate(dateString: string): string {
   });
 }
 
-// Format date for ISO string
+// Format date for RFC3339/ISO 8601 date-time (VC-compatible)
 export function getISODateString(date: Date = new Date()): string {
-  return date.toISOString().split("T")[0];
+  return date.toISOString();
 }
 
 // Calculate valid until date
@@ -38,7 +38,9 @@ export function calculateValidUntil(
   const untilDate = new Date(fromDate);
   untilDate.setFullYear(untilDate.getFullYear() + years);
 
-  return getISODateString(untilDate);
+  // Normalize expiry to end-of-day UTC on the computed date
+  untilDate.setUTCHours(23, 59, 59, 999);
+  return untilDate.toISOString();
 }
 
 // Generate a printable certificate summary
@@ -62,6 +64,15 @@ export interface ValidationResult {
   valid: boolean;
   errors: string[];
 }
+
+export interface DownloadCertificatesZipResult {
+  total: number;
+  added: number;
+  failedFiles: string[];
+}
+
+const ZIP_FILE_NAME_UNSAFE_CHARS_RE = /[<>:"/\\|?*\u0000-\u001F]+/g;
+const DEFAULT_ZIP_FILE_NAME = "certificate.json";
 
 export function validateCertificateData(
   data: Partial<CertificateData>
@@ -110,113 +121,143 @@ export function validateIssuingMethods(
 
 // Create a downloadable JSON file
 export function downloadCertificate(data: CertificateData): void {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
+  const credential = buildVCPayload(data);
+  const blob = new Blob([JSON.stringify(credential, null, 2)], {
     type: "application/json",
   });
+
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `certificate-${data.id.split(":")[2]}.json`;
+  a.download = `certificate-${data.id}.json`;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
-export interface BatchCertificateDownloadItem {
-  fileName: string;
-  certificate: ReturnType<typeof buildVCPayload>;
-}
-
-export interface BatchCertificateZipResult {
-  total: number;
-  added: number;
-  failedFiles: string[];
-}
-
-// Yield to the browser event loop every N files; 25 keeps large batch downloads responsive
-// without adding noticeable overhead for small/medium batches.
-const ZIP_YIELD_INTERVAL = 25;
-
 export function sanitizeCertificateFileNameForZip(fileName: string): string {
-  const withoutPathSegments = fileName
-    .replace(/[\\/]+/g, "-")
-    .replace(/\.\.+/g, "-");
-  const normalized = withoutPathSegments
-    .trim()
-    .replace(/[^a-zA-Z0-9_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  if (!normalized) {
-    return "certificate.json";
+  const trimmedName = fileName.trim();
+
+  if (!trimmedName) {
+    return DEFAULT_ZIP_FILE_NAME;
   }
-  return `${normalized}.json`;
+
+  const extensionIndex = trimmedName.lastIndexOf(".");
+  const rawBaseName =
+    extensionIndex > 0 ? trimmedName.slice(0, extensionIndex) : trimmedName;
+  const rawExtension = extensionIndex > 0 ? trimmedName.slice(extensionIndex) : "";
+
+  const sanitizedBaseName = rawBaseName
+    .replace(ZIP_FILE_NAME_UNSAFE_CHARS_RE, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[.-]+|[.-]+$/g, "");
+
+  const sanitizedExtension = rawExtension.replace(ZIP_FILE_NAME_UNSAFE_CHARS_RE, "");
+  const safeBaseName = sanitizedBaseName || "certificate";
+
+  return sanitizedExtension
+    ? `${safeBaseName}${sanitizedExtension}`
+    : `${safeBaseName}.json`;
 }
 
-export async function downloadCertificatesZip(
-  items: BatchCertificateDownloadItem[],
-  zipName: string = "issued-certificates.zip"
-): Promise<BatchCertificateZipResult> {
-  const zip = new JSZip();
-  const fileNames = new Set<string>();
-  const failedFiles: string[] = [];
-  let addedCount = 0;
+function ensureUniqueZipFileName(
+  fileName: string,
+  usedNames: Map<string, number>
+): string {
+  const extensionIndex = fileName.lastIndexOf(".");
+  const baseName =
+    extensionIndex > 0 ? fileName.slice(0, extensionIndex) : fileName;
+  const extension = extensionIndex > 0 ? fileName.slice(extensionIndex) : "";
+  const nextCount = (usedNames.get(fileName) ?? 0) + 1;
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    if (
-      !item?.fileName ||
-      item.certificate === null ||
-      typeof item.certificate === "undefined"
-    ) {
-      failedFiles.push(item?.fileName || `certificate-${i + 1}`);
-      continue;
+  usedNames.set(fileName, nextCount);
+
+  if (nextCount === 1) {
+    return fileName;
+  }
+
+  return `${baseName}-${nextCount - 1}${extension}`;
+}
+
+export async function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // writeText rejected (e.g. permission denied, insecure context, no user gesture);
+      // fall through to the execCommand fallback below.
     }
+  }
+
+  // Fallback for browsers without the Clipboard API or where writeText rejects.
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  const success = document.execCommand("copy");
+  document.body.removeChild(textarea);
+  if (!success) {
+    throw new Error("Failed to copy text to clipboard");
+  }
+}
+
+// Download a ZIP containing multiple credential JSON files
+export async function downloadCertificatesZip(
+  items: Array<{ fileName: string; certificate: unknown }>,
+  zipName = "issued-certificates.zip"
+): Promise<DownloadCertificatesZipResult> {
+  const zip = new JSZip();
+  const result: DownloadCertificatesZipResult = {
+    total: items.length,
+    added: 0,
+    failedFiles: [],
+  };
+  const usedNames = new Map<string, number>();
+
+  items.forEach(({ fileName, certificate }) => {
+    let serializedCertificate: string;
 
     try {
-      let baseName = sanitizeCertificateFileNameForZip(item.fileName);
-      let finalName = baseName;
-      let duplicateCount = 1;
-      while (fileNames.has(finalName)) {
-        finalName = baseName.replace(/\.json$/i, `-${duplicateCount}.json`);
-        duplicateCount += 1;
+      const json = JSON.stringify(certificate, null, 2);
+      // JSON.stringify returns undefined for non-serializable values (undefined,
+      // functions, symbols) rather than throwing; treat those as failures.
+      if (json === undefined) {
+        result.failedFiles.push(fileName);
+        return;
       }
-      fileNames.add(finalName);
-
-      const content = JSON.stringify(item.certificate, null, 2);
-      zip.file(finalName, content);
-      addedCount += 1;
+      serializedCertificate = json;
     } catch {
-      failedFiles.push(item.fileName);
+      result.failedFiles.push(fileName);
+      return;
     }
 
-    if ((i + 1) % ZIP_YIELD_INTERVAL === 0) {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
+    const safeFileName = ensureUniqueZipFileName(
+      sanitizeCertificateFileNameForZip(fileName),
+      usedNames
+    );
+    zip.file(safeFileName, serializedCertificate);
+    result.added += 1;
+  });
+
+  if (result.added === 0) {
+    return result;
   }
 
-  if (addedCount === 0) {
-    throw new Error("No certificates could be prepared for ZIP download.");
-  }
-
-  const blob = await zip.generateAsync({ type: "blob" });
-  const url = URL.createObjectURL(blob);
+  const content = await zip.generateAsync({ type: "blob" });
+  const url = URL.createObjectURL(content);
   const a = document.createElement("a");
   a.href = url;
   a.download = zipName;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  return {
-    total: items.length,
-  added: addedCount,
-    failedFiles,
-  };
-}
-
-// Copy to clipboard helper
-export async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
+  return result;
 }
