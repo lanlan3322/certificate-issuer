@@ -51,7 +51,7 @@ export default function VerifyPage() {
       "type": ["VerifiableCredential", "OpenCertsCertificate"],
       "id": "urn:uuid:0198e4a3-b601-7117-9d02-8c9a9a54ab5d",
       "credentialSubject": {
-        "id": "did:email:sample@example.com",
+        "certificateId": "did:email:sample@example.com",
         "type": ["Person"],
         "name": "Sample Recipient",
         "certificateType": "Professional Certificate",
