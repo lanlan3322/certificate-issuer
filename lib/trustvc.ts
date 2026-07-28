@@ -63,6 +63,7 @@ export function buildVCPayload(data: CertificateData) {
       "https://w3id.org/security/data-integrity/v2",
     ],
     type: ["VerifiableCredential", "OpenCertsCertificate"],
+    id: data.id,
     credentialSubject: {
       certificateId:data.id,
       type: ["Person"],
