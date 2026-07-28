@@ -107,7 +107,7 @@ export const CERTIFICATE_TEMPLATES = {
 
 // TrustVC configuration used in VC payloads
 export const TRUSTVC_CONFIG = {
-  didUrl: `did:ethr:sepolia:${DOCUMENT_STORE_CONFIG.address}`,
+  didUrl: `did:web:lanlan3322.github.io:certificate-issuer`,
   demoIssuer: {
     identityProof: {
       location: DOCUMENT_STORE_CONFIG.identityProof.location,

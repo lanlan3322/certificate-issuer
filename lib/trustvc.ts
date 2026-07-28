@@ -62,12 +62,36 @@ export function buildVCPayload(data: CertificateData) {
       "https://www.w3.org/ns/credentials/v2",
       "https://w3id.org/security/data-integrity/v2",
     ],
-    type: ["VerifiableCredential"],
-    issuer: TRUSTVC_CONFIG.didUrl,
-    validFrom: data.validFrom,
+    type: ["VerifiableCredential", "OpenCertsCertificate"],
     credentialSubject: {
+      certificateId:data.id,
       type: ["Person"],
       name: data.recipientName,
+      email: data.recipientEmail,
+      certificateType: data.certificateType,
+      description: data.description,
+      issuedOn: data.issueDate,
+      validFrom: data.validFrom,
+      validUntil: data.validUntil,
+    },
+    issuer: {
+      id: TRUSTVC_CONFIG.didUrl,
+      type: "OpenAttestationIssuer",
+      name: data.issuerName,
+      identityProof: {
+        identityProofType: "DNS-TXT",
+        identifier: TRUSTVC_CONFIG.demoIssuer.identityProof.location,
+      },
+    },
+    issuingMethods,
+    validUntil: data.validUntil,
+    credentialStatus: {
+      id: `https://tradetrust.io/status/${data.id}#list`,
+      type: "BitstringStatusListEntry",
+      statusPurpose: "revocation",
+      statusListIndex: "0",
+      statusListCredential:
+        "https://tradetrust.io/status/credentials/statuslist-1",
     },
   };
 }
