@@ -55,7 +55,7 @@ export function generateCertificateSummary(data: CertificateData): string[] {
     `Description: ${data.description}`,
     `Issuer: ${data.issuerName}`,
     `Issuing Methods: ${formatIssuingMethodLabels(data.issuingMethods)}`,
-    `Certificate ID: ${data.certificateId}`,
+    `Certificate ID: ${data.id}`,
   ];
 }
 
@@ -129,7 +129,7 @@ export function downloadCertificate(data: CertificateData): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `certificate-${data.certificateId}.json`;
+  a.download = `certificate-${data.id}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
