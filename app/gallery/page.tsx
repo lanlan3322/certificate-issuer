@@ -36,7 +36,6 @@ export default function GalleryPage() {
     if (!obj || typeof obj !== "object") return false;
     const c = obj as Record<string, unknown>;
     return (
-      typeof c.id === "string" &&
       typeof c.recipientName === "string" &&
       typeof c.recipientEmail === "string" &&
       typeof c.certificateType === "string" &&
