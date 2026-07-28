@@ -160,7 +160,7 @@ export default function HomePage() {
     try {
       const now = getISODateString();
       const certData: CertificateData = {
-        certificateId: generateCertificateId(),
+        id: generateCertificateId(),
         recipientName: formData.recipientName,
         recipientEmail: formData.recipientEmail,
         certificateType: formData.certificateType,
@@ -223,7 +223,7 @@ export default function HomePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const uuid = issuedCert.certificateId.split(":")[2] ?? "credential";
+    const uuid = issuedCert.id.split(":")[2] ?? "credential";
     a.download = currentCredentialHasProof
       ? `certificate-${uuid}.json`
       : `certificate-${uuid}-unsigned.json`;
@@ -751,11 +751,11 @@ export default function HomePage() {
                     </div>
                     <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-white/20">
                       <p className="text-xs text-white/60">
-                        ID: {issuedCert.certificateId.split(":")[2]}
+                        ID: {issuedCert.id.split(":")[2]}
                       </p>
                       <div className="flex justify-center mt-3 md:mt-4">
                         <QRCodeSVG
-                          value={JSON.stringify({ id: issuedCert.certificateId })}
+                          value={JSON.stringify({ id: issuedCert.id })}
                           size={60}
                           bgColor="#ffffff"
                           fgColor="#1e3a5f"

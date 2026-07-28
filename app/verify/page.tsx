@@ -49,7 +49,7 @@ export default function VerifyPage() {
         "https://w3id.org/security/data-integrity/v2",
       ],
       "type": ["VerifiableCredential", "OpenCertsCertificate"],
-      "certificateId": "urn:uuid:0198e4a3-b601-7117-9d02-8c9a9a54ab5d",
+      "id": "urn:uuid:0198e4a3-b601-7117-9d02-8c9a9a54ab5d",
       "credentialSubject": {
         "id": "did:email:sample@example.com",
         "type": ["Person"],
