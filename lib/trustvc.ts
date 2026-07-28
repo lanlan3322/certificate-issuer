@@ -62,21 +62,18 @@ export function buildVCPayload(data: CertificateData) {
       "https://www.w3.org/ns/credentials/v2",
       "https://w3id.org/security/data-integrity/v2",
     ],
-    type: ["VerifiableCredential"],
+    type: ["VerifiableCredential", "OpenCertsCertificate"],
     credentialSubject: {
       type: ["Person"],
       name: data.recipientName,
       email: data.recipientEmail,
+      certificateType: data.certificateType,
+      description: data.description,
+      issuedOn: data.issueDate,
+      validFrom: data.validFrom,
+      validUntil: data.validUntil,
     },
-    issuer: {
-      id: TRUSTVC_CONFIG.didUrl,
-      type: "OpenAttestationIssuer",
-      name: data.issuerName,
-      identityProof: {
-        identityProofType: "DNS-TXT",
-        identifier: TRUSTVC_CONFIG.demoIssuer.identityProof.location,
-      },
-    },
+    issuer:  TRUSTVC_CONFIG.didUrl,
     issuingMethods,
     validUntil: data.validUntil,
     credentialStatus: {
