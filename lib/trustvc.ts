@@ -33,7 +33,7 @@ const DOCUMENT_STORE_ABI = [
 
 // Certificate data structure
 export interface CertificateData {
-  id: string;
+  certificateId: string;
   recipientName: string;
   recipientEmail: string;
   certificateType: string;
@@ -64,7 +64,7 @@ export function buildVCPayload(data: CertificateData) {
       "https://trustvc.io/context/certificate-vocab.json",
     ],
     type: ["VerifiableCredential", "OpenCertsCertificate"],
-    id: data.id,
+    id: data.certificateId,
     credentialSubject: {
       id: `did:email:${data.recipientEmail}`,
       type: ["Person"],
@@ -89,7 +89,7 @@ export function buildVCPayload(data: CertificateData) {
     validFrom: data.validFrom,
     validUntil: data.validUntil,
     credentialStatus: {
-      id: `https://tradetrust.io/status/${data.id}#list`,
+      id: `https://tradetrust.io/status/${data.certificateId}#list`,
       type: "BitstringStatusListEntry",
       statusPurpose: "revocation",
       statusListIndex: "0",
