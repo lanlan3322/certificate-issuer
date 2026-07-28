@@ -212,7 +212,7 @@ export default function BatchIssuePanel({
 
         const now = getISODateString();
         const certData: CertificateData = {
-          id: generateCertificateId(),
+          certificateId: generateCertificateId(),
           recipientName: row.recipientName,
           recipientEmail: row.recipientEmail,
           certificateType: row.certificateType,
