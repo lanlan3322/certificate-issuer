@@ -64,15 +64,9 @@ export function buildVCPayload(data: CertificateData) {
     ],
     type: ["VerifiableCredential", "OpenCertsCertificate"],
     credentialSubject: {
-      certificateId:data.id,
       type: ["Person"],
       name: data.recipientName,
       email: data.recipientEmail,
-      certificateType: data.certificateType,
-      description: data.description,
-      issuedOn: data.issueDate,
-      validFrom: data.validFrom,
-      validUntil: data.validUntil,
     },
     issuer: {
       id: TRUSTVC_CONFIG.didUrl,
