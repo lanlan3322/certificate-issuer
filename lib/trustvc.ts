@@ -245,7 +245,8 @@ export function getDIDKeyPairFromEnv(): PrivateKeyPair | null {
   if (!id || !controller || !publicKeyMultibase || !secretKeyMultibase) {
     return null;
   }
-
+console.log("Public key:", publicKeyMultibase);
+console.log("Private key:", secretKeyMultibase?.slice(0, 10));
   return {
     id,
     type: "Multikey",
