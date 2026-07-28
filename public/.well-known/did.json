@@ -9,7 +9,7 @@
       "id": "did:web:lanlan3322.github.io:certificate-issuer#key-1",
       "type": "Multikey",
       "controller": "did:web:lanlan3322.github.io:certificate-issuer",
-      "publicKeyMultibase": "z7r8oqXEaVKc1krYGGnfAcXnyEYTuZAmki5gcptEm3qKdqyLxw2TPo4cDvrM71ZR1E4bSdeNF6bRiMJrmttdh85y38WbB"
+      "publicKeyMultibase": "zDnaepZZHFcKxZ9r1xgqMqMFELf67VEmhFUddFBt2LPajim5z"
     }
   ],
   "authentication": [
