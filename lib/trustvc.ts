@@ -61,7 +61,6 @@ export function buildVCPayload(data: CertificateData) {
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
       "https://w3id.org/security/data-integrity/v2",
-      "https://trustvc.io/context/certificate-vocab.json",
     ],
     type: ["VerifiableCredential", "OpenCertsCertificate"],
     credentialSubject: {
