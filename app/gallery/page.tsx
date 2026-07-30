@@ -8,7 +8,6 @@ import { DEMO_CERTIFICATES } from "../../lib/constants";
 import { formatDate } from "../../lib/certificate";
 
 type CertEntry = {
-  id: string;
   recipientName: string;
   recipientEmail: string;
   certificateType: string;
@@ -92,7 +91,6 @@ export default function GalleryPage() {
     }
 
     return {
-      id,
       recipientName,
       recipientEmail,
       certificateType,
@@ -248,7 +246,7 @@ export default function GalleryPage() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {certificates.map((cert) => (
             <div
-              key={cert.id}
+              key={cert.recipientEmail}
               className="card hover:shadow-xl transition-shadow cursor-pointer"
               onClick={() => setSelectedCert(cert)}
             >
@@ -350,7 +348,7 @@ export default function GalleryPage() {
                 <div className="flex items-center justify-center mb-6">
                   <div className="bg-white p-4 rounded-lg shadow-md text-center">
                     <QRCodeSVG
-                      value={JSON.stringify({ id: selectedCert.id })}
+                      value={JSON.stringify({ recipientName: selectedCert.recipientName })}
                       size={100}
                       bgColor="#ffffff"
                       fgColor="#1e3a5f"
@@ -365,7 +363,7 @@ export default function GalleryPage() {
                 <div className="grid md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-gray-500">Certificate ID</p>
-                    <p className="font-mono text-gray-800">{selectedCert.id}</p>
+                    <p className="font-mono text-gray-800">{selectedCert.recipientName}</p>
                   </div>
                   <div>
                     <p className="text-gray-500">Status</p>
