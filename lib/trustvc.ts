@@ -234,7 +234,7 @@ export { TRUSTVC_CONFIG };
  *   NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE – multibase-encoded private key (starts with "z")
  */
 export function getDIDKeyPairFromEnv(): PrivateKeyPair | null {
-  const id = process.env.NEXT_PUBLIC_DID_KEY_ID;
+  const id = "did:web:lanlan3322.github.io:certificate-issuer#key-1";//process.env.NEXT_PUBLIC_DID_KEY_ID;
   const controller = process.env.NEXT_PUBLIC_DID_CONTROLLER;
   const publicKeyMultibase = process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE;
   const secretKeyMultibase =
@@ -243,8 +243,6 @@ export function getDIDKeyPairFromEnv(): PrivateKeyPair | null {
   if (!id || !controller || !publicKeyMultibase || !secretKeyMultibase) {
     return null;
   }
-  console.log("DID KEYPAIR FROM ENV");
-  console.log("id:", id);
   return {
     id,
     type: "Multikey",
@@ -376,7 +374,6 @@ export async function issueDIDCertificate(
   }
 
   try {
-console.log(keyPair.id);
     const result = await signW3C(
       credential as Parameters<typeof signW3C>[0],
       keyPair
