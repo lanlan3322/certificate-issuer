@@ -243,8 +243,6 @@ export function getDIDKeyPairFromEnv(): PrivateKeyPair | null {
   if (!id || !controller || !publicKeyMultibase || !secretKeyMultibase) {
     return null;
   }
-console.log(publicKeyMultibase);
-console.log(secretKeyMultibase);
   return {
     id,
     type: "Multikey",
@@ -376,6 +374,9 @@ export async function issueDIDCertificate(
   }
 
   try {
+    console.log("KEYPAIR FULL");
+console.log(keyPair);
+console.log(Object.keys(keyPair));
     const result = await signW3C(
       credential as Parameters<typeof signW3C>[0],
       keyPair
