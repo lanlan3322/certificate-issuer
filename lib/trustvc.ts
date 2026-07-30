@@ -379,7 +379,6 @@ export async function issueDIDCertificate(
       keyPair
     );
     if (result.error) {
-      console.dir(result, { depth: null });
       return { credential, signed: false, error: result.error };
     }
     if (!result.signed) {
