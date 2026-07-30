@@ -379,7 +379,6 @@ export async function issueDIDCertificate(
       credential as Parameters<typeof signW3C>[0],
       keyPair
     );
-    console.log("SIGN RESULT", result);
     if (result.error) {
       return { credential, signed: false, error: result.error };
     }
@@ -391,7 +390,6 @@ export async function issueDIDCertificate(
       signed: true,
     };
   } catch (err) {
-    console.error("FULL TRUSTVC ERROR", err);
     return {
       credential,
       signed: false,
