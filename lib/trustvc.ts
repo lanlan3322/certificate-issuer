@@ -243,6 +243,8 @@ export function getDIDKeyPairFromEnv(): PrivateKeyPair | null {
   if (!id || !controller || !publicKeyMultibase || !secretKeyMultibase) {
     return null;
   }
+  console.log("DID KEYPAIR FROM ENV");
+  console.log("id:", id);
   return {
     id,
     type: "Multikey",
