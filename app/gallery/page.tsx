@@ -52,7 +52,6 @@ export default function GalleryPage() {
     const subject = vc.credentialSubject as Record<string, any> | undefined;
     const issuer = vc.issuer as Record<string, any> | undefined;
 
-    const id = typeof vc.id === "string" ? vc.id : undefined;
     const recipientName = typeof subject?.name === "string" ? subject.name : undefined;
     const recipientEmail = typeof subject?.email === "string" ? subject.email : undefined;
     const certificateType =
@@ -79,7 +78,6 @@ export default function GalleryPage() {
           : undefined;
 
     if (
-      !id ||
       !recipientName ||
       !recipientEmail ||
       !certificateType ||
