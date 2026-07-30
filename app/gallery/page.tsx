@@ -8,6 +8,7 @@ import { DEMO_CERTIFICATES } from "../../lib/constants";
 import { formatDate } from "../../lib/certificate";
 
 type CertEntry = {
+  id?: string;
   recipientName: string;
   recipientEmail: string;
   certificateType: string;
@@ -50,14 +51,21 @@ export default function GalleryPage() {
     if (!obj || typeof obj !== "object") return null;
     const vc = obj as Record<string, any>;
     const subject = vc.credentialSubject as Record<string, any> | undefined;
-    const issuer = vc.issuer as Record<string, any> | undefined;
-
+const id =
+  typeof subject?.certificateId === "string"
+    ? subject.certificateId
+    : undefined;
     const recipientName = typeof subject?.name === "string" ? subject.name : undefined;
     const recipientEmail = typeof subject?.email === "string" ? subject.email : undefined;
     const certificateType =
       typeof subject?.certificateType === "string" ? subject.certificateType : undefined;
-    const issuerName = typeof issuer?.name === "string" ? issuer.name : undefined;
-    const issueDate =
+  const issuerName =
+  typeof vc.issuer === "string"
+    ? vc.issuer
+    : typeof vc.issuer?.name === "string"
+      ? vc.issuer.name
+      : "Unknown Issuer";
+          const issueDate =
       typeof subject?.issuedOn === "string"
         ? subject.issuedOn
         : typeof vc.validFrom === "string"
@@ -81,7 +89,6 @@ export default function GalleryPage() {
       !recipientName ||
       !recipientEmail ||
       !certificateType ||
-      !issuerName ||
       !issueDate ||
       !validFrom
     ) {
@@ -89,6 +96,7 @@ export default function GalleryPage() {
     }
 
     return {
+      id,
       recipientName,
       recipientEmail,
       certificateType,
