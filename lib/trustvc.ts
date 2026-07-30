@@ -52,26 +52,22 @@ export function generateCertificateId(): string {
 
 // Build the W3C Verifiable Credential payload
 export function buildVCPayload(data: CertificateData) {
-
   return {
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
       "https://w3id.org/security/data-integrity/v2",
     ],
+
     type: ["VerifiableCredential"],
+
+    issuer: TRUSTVC_CONFIG.didUrl,
+
+    validFrom: data.validFrom,
+
     credentialSubject: {
-      certificateId:data.id,
       type: ["Person"],
       name: data.recipientName,
-      email: data.recipientEmail,
-      certificateType: data.certificateType,
-      description: data.description,
-      issuedOn: data.issueDate,
-      validFrom: data.validFrom,
-      validUntil: data.validUntil,
     },
-    issuer:  TRUSTVC_CONFIG.didUrl,
-    validUntil: data.validUntil,
   };
 }
 
@@ -354,6 +350,19 @@ export async function issueDIDCertificate(
   }
 
   try {
+    console.log(
+  "PAYLOAD",
+  JSON.stringify(credential, null, 2)
+);
+
+console.log(
+  "KEYPAIR",
+  {
+    id: keyPair.id,
+    controller: keyPair.controller,
+    publicKeyMultibase: keyPair,
+  }
+);
     const result = await signW3C(
       credential as Parameters<typeof signW3C>[0],
       keyPair
