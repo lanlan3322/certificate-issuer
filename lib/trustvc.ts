@@ -52,21 +52,46 @@ export function generateCertificateId(): string {
 
 // Build the W3C Verifiable Credential payload
 export function buildVCPayload(data: CertificateData) {
+  const issuingMethods =
+    data.issuingMethods && data.issuingMethods.length > 0
+      ? data.issuingMethods
+      : DEFAULT_ISSUING_METHODS;
+
   return {
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
       "https://w3id.org/security/data-integrity/v2",
     ],
-
-    type: ["VerifiableCredential"],
-
-    issuer: TRUSTVC_CONFIG.didUrl,
-
-    validFrom: data.validFrom,
-
+    type: ["VerifiableCredential", "OpenCertsCertificate"],
     credentialSubject: {
+      certificateId:data.id,
       type: ["Person"],
       name: data.recipientName,
+      email: data.recipientEmail,
+      certificateType: data.certificateType,
+      description: data.description,
+      issuedOn: data.issueDate,
+      validFrom: data.validFrom,
+      validUntil: data.validUntil,
+    },
+    issuer: {
+      id: TRUSTVC_CONFIG.didUrl,
+      type: "OpenAttestationIssuer",
+      name: data.issuerName,
+      identityProof: {
+        identityProofType: "DNS-TXT",
+        identifier: TRUSTVC_CONFIG.demoIssuer.identityProof.location,
+      },
+    },
+    issuingMethods,
+    validUntil: data.validUntil,
+    credentialStatus: {
+      id: `https://tradetrust.io/status/${data.id}#list`,
+      type: "BitstringStatusListEntry",
+      statusPurpose: "revocation",
+      statusListIndex: "0",
+      statusListCredential:
+        "https://tradetrust.io/status/credentials/statuslist-1",
     },
   };
 }
@@ -350,19 +375,7 @@ export async function issueDIDCertificate(
   }
 
   try {
-    console.log(
-  "PAYLOAD",
-  JSON.stringify(credential, null, 2)
-);
-
-console.log(
-  "KEYPAIR",
-  {
-    id: keyPair.id,
-    controller: keyPair.controller,
-    publicKeyMultibase: keyPair,
-  }
-);
+    console.log(typeof keyPair);
     const result = await signW3C(
       credential as Parameters<typeof signW3C>[0],
       keyPair
@@ -378,23 +391,12 @@ console.log(
       signed: true,
     };
   } catch (err) {
-  console.error("FULL TRUSTVC ERROR");
-  console.error(err);
-
-  if (err instanceof Error) {
-    console.error("MESSAGE:", err.message);
-    console.error("STACK:", err.stack);
+    return {
+      credential,
+      signed: false,
+      error: `DID signing failed: ${(err as Error).message}`,
+    };
   }
-
-  return {
-    credential,
-    signed: false,
-    error:
-      err instanceof Error
-        ? err.message
-        : JSON.stringify(err, null, 2),
-  };
-}
 }
 
 // ---------------------------------------------------------------------------
