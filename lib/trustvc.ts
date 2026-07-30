@@ -3,7 +3,7 @@
 
 // Use the sub-path import to avoid pulling in Node.js-only utilities
 // (dotenv/config, core-js) from the @trustvc/trustvc main entry.
-import { signW3C, verifyW3CSignature, type PrivateKeyPair } from "@trustvc/trustvc/w3c";
+import { signW3C, verifyW3CSignature, type PrivateKeyPair } from "@trustvc/trustvc";
 import { ethers } from "ethers";
 import {
   DEFAULT_ISSUING_METHODS,
