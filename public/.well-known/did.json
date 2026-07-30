@@ -17,5 +17,11 @@
   ],
   "assertionMethod": [
     "did:web:lanlan3322.github.io:certificate-issuer#key-1"
+  ],
+  "capabilityInvocation": [
+    "did:web:lanlan3322.github.io:certificate-issuer#key-1"
+  ],
+  "capabilityDelegation": [
+    "did:web:lanlan3322.github.io:certificate-issuer#key-1"
   ]
 }
