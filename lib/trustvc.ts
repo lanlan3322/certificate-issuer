@@ -374,12 +374,12 @@ export async function issueDIDCertificate(
   }
 
   try {
-    console.log(keyPair);
     const result = await signW3C(
       credential as Parameters<typeof signW3C>[0],
       keyPair
     );
     if (result.error) {
+      console.dir(result, { depth: null });
       return { credential, signed: false, error: result.error };
     }
     if (!result.signed) {
