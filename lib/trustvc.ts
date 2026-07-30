@@ -52,17 +52,14 @@ export function generateCertificateId(): string {
 
 // Build the W3C Verifiable Credential payload
 export function buildVCPayload(data: CertificateData) {
-  const issuingMethods =
-    data.issuingMethods && data.issuingMethods.length > 0
-      ? data.issuingMethods
-      : DEFAULT_ISSUING_METHODS;
 
   return {
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
       "https://w3id.org/security/data-integrity/v2",
     ],
-    type: ["VerifiableCredential", "OpenCertsCertificate"],
+    id: data.id,
+    type: ["VerifiableCredential"],
     credentialSubject: {
       certificateId:data.id,
       type: ["Person"],
@@ -74,25 +71,8 @@ export function buildVCPayload(data: CertificateData) {
       validFrom: data.validFrom,
       validUntil: data.validUntil,
     },
-    issuer: {
-      id: TRUSTVC_CONFIG.didUrl,
-      type: "OpenAttestationIssuer",
-      name: data.issuerName,
-      identityProof: {
-        identityProofType: "DNS-TXT",
-        identifier: TRUSTVC_CONFIG.demoIssuer.identityProof.location,
-      },
-    },
-    issuingMethods,
+    issuer:  TRUSTVC_CONFIG.didUrl,
     validUntil: data.validUntil,
-    credentialStatus: {
-      id: `https://tradetrust.io/status/${data.id}#list`,
-      type: "BitstringStatusListEntry",
-      statusPurpose: "revocation",
-      statusListIndex: "0",
-      statusListCredential:
-        "https://tradetrust.io/status/credentials/statuslist-1",
-    },
   };
 }
 
