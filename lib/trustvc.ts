@@ -374,6 +374,10 @@ export async function issueDIDCertificate(
   }
 
   try {
+    console.log("SIGN INPUT", {
+  credential,
+  keyPair
+});
     const result = await signW3C(
       credential as Parameters<typeof signW3C>[0],
       keyPair
