@@ -376,11 +376,11 @@ export async function issueDIDCertificate(
   try {
     console.log("KEYPAIR FULL");
 console.log(keyPair);
-console.log(Object.keys(keyPair));
     const result = await signW3C(
       credential as Parameters<typeof signW3C>[0],
       keyPair
     );
+    console.log("SIGN RESULT", result);
     if (result.error) {
       return { credential, signed: false, error: result.error };
     }
