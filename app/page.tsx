@@ -175,6 +175,7 @@ export default function HomePage() {
       // --- DID issuance ---
       if (issuingMethods.includes("did")) {
         const result = await issueDIDCertificate(certData);
+        console.log("DID RESULT", result);
         setDIDResult(result);
       }
 
