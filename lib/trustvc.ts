@@ -390,12 +390,23 @@ export async function issueDIDCertificate(
       signed: true,
     };
   } catch (err) {
-    return {
-      credential,
-      signed: false,
-      error: `DID signing failed: ${(err as Error).message}`,
-    };
+  console.error("FULL TRUSTVC ERROR");
+  console.error(err);
+
+  if (err instanceof Error) {
+    console.error("MESSAGE:", err.message);
+    console.error("STACK:", err.stack);
   }
+
+  return {
+    credential,
+    signed: false,
+    error:
+      err instanceof Error
+        ? err.message
+        : JSON.stringify(err, null, 2),
+  };
+}
 }
 
 // ---------------------------------------------------------------------------
