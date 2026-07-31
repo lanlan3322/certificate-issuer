@@ -354,24 +354,55 @@ export async function signDocumentWithDID(
 export async function issueDIDCertificate(
   data: CertificateData
 ): Promise<DIDIssuanceResult> {
-const credential = {
-  "@context": [
-    "https://www.w3.org/ns/credentials/v2",
-    "https://w3id.org/security/data-integrity/v2",
-  ],
-  type: ["VerifiableCredential"],
-  issuer: "did:web:lanlan3322.github.io:certificate-issuer",
-  validFrom: new Date().toISOString(),
-  credentialSubject: {
-    type: ["Person"],
-    name: "Laurence",
-  },
-};
+  if (!data.recipientName || !data.recipientEmail) {
+    return {
+      credential: {} as Record<string, unknown>,
+      signed: false,
+      error: "Recipient name and email are required for DID issuance.",
+    };
+  }
 
-console.log(JSON.stringify(credential, null, 2));
+  const credential = buildVCPayload(data) as unknown as Record<string, unknown>;
+  const keyPair = getDIDKeyPairFromEnv();
 
-const result = await signDocumentWithDID(credential);
-return result;
+  if (!keyPair) {
+    return {
+      credential,
+      signed: false,
+      error:
+        "DID key pair not configured. " +
+        "Set NEXT_PUBLIC_DID_KEY_ID, NEXT_PUBLIC_DID_CONTROLLER, " +
+        "NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE, and " +
+        "NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE to enable cryptographic signing.",
+    };
+  }
+
+  try {
+    console.log("SIGN INPUT", {
+  credential,
+  keyPair
+});
+    const result = await signW3C(
+      credential as Parameters<typeof signW3C>[0],
+      keyPair
+    );
+    if (result.error) {
+      return { credential, signed: false, error: result.error };
+    }
+    if (!result.signed) {
+      return { credential, signed: false, error: "Signing returned no result." };
+    }
+    return {
+      credential: result.signed as unknown as Record<string, unknown>,
+      signed: true,
+    };
+  } catch (err) {
+    return {
+      credential,
+      signed: false,
+      error: `DID signing failed: ${(err as Error).message}`,
+    };
+  }
 }
 
 // ---------------------------------------------------------------------------
