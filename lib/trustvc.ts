@@ -64,7 +64,8 @@ export function buildVCPayload(data: CertificateData) {
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
       "https://w3id.org/security/data-integrity/v2",
-      "https://schemata.openattestation.com/com/openattestation/4.0/context.json"
+      "https://w3id.org/vc/status-list/2021/v1",
+      "https://w3c-ccg.github.io/citizenship-vocab/contexts/citizenship-v2.jsonld"
     ],
     type: ["VerifiableCredential", "OpenAttestationCredential"],
     issuanceDate: data.issueDate,
