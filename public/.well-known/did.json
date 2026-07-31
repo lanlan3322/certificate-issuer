@@ -3,25 +3,25 @@
     "https://www.w3.org/ns/did/v1",
     "https://w3id.org/security/multikey/v1"
   ],
-  "id": "did:web:lanlan3322.github.io:certificate-issuer",
+  "id": "did:web:verifiablecertificate.netlify.app",
   "verificationMethod": [
     {
-      "id": "did:web:lanlan3322.github.io:certificate-issuer#key-1",
+      "id": "did:web:verifiablecertificate.netlify.app#key-1",
       "type": "Multikey",
-      "controller": "did:web:lanlan3322.github.io:certificate-issuer",
+      "controller": "did:web:verifiablecertificate.netlify.app",
       "publicKeyMultibase": "zDnaepZZHFcKxZ9r1xgqMqMFELf67VEmhFUddFBt2LPajim5z"
     }
   ],
   "authentication": [
-    "did:web:lanlan3322.github.io:certificate-issuer#key-1"
+    "did:web:verifiablecertificate.netlify.app#key-1"
   ],
   "assertionMethod": [
-    "did:web:lanlan3322.github.io:certificate-issuer#key-1"
+    "did:web:verifiablecertificate.netlify.app#key-1"
   ],
   "capabilityInvocation": [
-    "did:web:lanlan3322.github.io:certificate-issuer#key-1"
+    "did:web:verifiablecertificate.netlify.app#key-1"
   ],
   "capabilityDelegation": [
-    "did:web:lanlan3322.github.io:certificate-issuer#key-1"
+    "did:web:verifiablecertificate.netlify.app#key-1"
   ]
 }
