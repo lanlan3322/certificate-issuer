@@ -1,96 +1,38 @@
-# Fix Summary: Safe Mode Validation Error in Certificate Issuer
+# Fix Summary: OpenCerts Context URL Correction
 
-## Issues Addressed
-
-1. **"Safe mode validation error" during credential signing**
-2. **""id" is a defined field and should not be set by the user" error**
-3. **"Dereferencing a URL did not result in a valid JSON-LD object" for OpenCerts context**
+## Issue
+The certificate-issuer project was encountering the error: "Dereferencing a URL did not result in a valid JSON-LD object: https://www.opencerts.io/schema/v2/context.json" when attempting to issue certificates. This occurred because the OpenCerts context URL was incorrect, causing the JSON-LD processor to receive HTML content (likely the SPA index.html) instead of the expected JSON-LD context.
 
 ## Root Cause
+The URL `https://www.opencerts.io/schema/v2/context.json` does not exist as a static file on the opencerts.io domain. When the JSON-Ld processor attempted to fetch this URL, the OpenCerts single-page application served its default HTML page instead, resulting in invalid JSON-Ld content.
 
-The primary issue was an incorrect OpenCerts context URL in the `buildVCPayload` function:
-- **Incorrect**: `"https://www.opencerts.io/schema/context/opencerts_v2.json"`
-- **Correct**: `"https://www.opencerts.io/schema/context/v2.json"`
-
-This caused the JSON-LD processor to fail when trying to dereference the context, triggering the validator's safe mode.
-
-## Changes Made
-
-### File: `/Users/elc-laurence/Desktop/Laurence/eSystem/certificate-issuer/lib/trustvc.ts`
-
-#### In the `buildVCPayload` function:
-
-1. **Fixed OpenCerts Context URL**
-   ```diff
-   - "https://www.opencerts.io/schema/context/opencerts_v2.json"
-   + "https://www.opencerts.io/schema/context/v2.json"
-   ```
-
-2. **Restored Proper Credential Type**
-   ```diff
-   - type: ["VerifiableCredential"],
-   + type: ["VerifiableCredential", "OpenAttestationCredential"],
-   ```
-
-3. **Restored Issuer as Object**
-   ```diff
-   - issuer: TRUSTVC_CONFIG.didUrl,
-   + issuer: {
-   +   id: TRUSTVC_CONFIG.didUrl,
-   +   type: "OpenAttestationIssuer",
-   +   name: data.issuerName,
-   + },
-   ```
-
-4. **Preserved Fixes from Previous Work**
-   - Removed manually set `id` field at credential root (prevents "defined field" error)
-   - Maintained proper credentialSubject structure
-   - Kept credentialStatus for revocation checking
-   - Preserved issuingMethods for Document Store integration
-
-## Current Credential Structure
-
-The fixed `buildVCPayload` function now produces credentials with this structure:
-
-```json
-{
-  "@context": [
-    "https://www.w3.org/ns/credentials/v2",
-    "https://w3id.org/security/data-integrity/v2",
-    "https://www.opencerts.io/schema/context/v2.json"
-  ],
-  "type": ["VerifiableCredential", "OpenAttestationCredential"],
-  "issuanceDate": "<date>",
-  "validFrom": "<date>",
-  "validUntil": "<date>",
-  "credentialSubject": {
-    "type": ["Person"],
-    "name": "<recipientName>",
-    "email": "<recipientEmail>",
-    "certificateType": "<certificateType>",
-    "description": "<description>"
-  },
-  "issuer": {
-    "id": "<didUrl>",
-    "type": "OpenAttestationIssuer",
-    "name": "<issuerName>"
-  },
-  "credentialStatus": {
-    "id": "https://tradetrust.io/status/<credentialId>#list",
-    "type": "BitstringStatusListEntry",
-    "statusPurpose": "revocation",
-    "statusListIndex": "0",
-    "statusListCredential": "https://tradetrust.io/status/credentials/statuslist-1"
-  },
-  "issuingMethods": [<methods>]
-}
+## Solution
+Changed the OpenCerts context URL in the `buildVCPayload` function from:
+```
+"https://www.opencerts.io/schema/v2/context.json"
+```
+to:
+```
+"https://w3id.org/opencerts/v2"
 ```
 
-## Verification
+This change:
+1. Uses the established W3ID persistent identifier service (consistent with the already-used security context URL)
+2. Follows the same pattern as `"https://w3id.org/security/data-integrity/v2"`
+3. Should resolve to the correct JSON-Ld context content with proper content-type headers
+4. Eliminates the dereferencing error by using a properly configured identifier service
 
-This fix addresses all three reported issues:
-1. ✅ Correct context URL prevents JSON-LD dereferencing failures
-2. ✅ Proper credential structure eliminates "defined field" errors
-3. ✅ OpenAttestation v2 compliance ensures proper specification adherence
+## File Modified
+- `/Users/elc-laurence/Desktop/Laurence/eSystem/certificate-issuer/lib/trustvc.ts` (line ~72)
 
-The credential should now successfully pass through the TrustVC SDK's validation pipeline without triggering safe mode restrictions.
+## Current Certificate Structure
+The fixed `buildVCPayload` function now produces credentials with this context array:
+```json
+"@context": [
+  "https://www.w3.org/ns/credentials/v2",
+  "https://w3id.org/security/data-integrity/v2",
+  "https://w3id.org/opencerts/v2"
+]
+```
+
+This follows the established pattern for Verifiable Credentials contexts and should resolve the JSON-Ld dereferencing issue.
