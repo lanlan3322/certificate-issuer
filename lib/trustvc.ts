@@ -9,6 +9,9 @@ import {
   DEFAULT_ISSUING_METHODS,
   IssuingMethod,
   TRUSTVC_CONFIG,
+  DOCUMENT_STORE_CONFIG,
+  ISSUER_CONFIG,
+  NETWORKS,
 } from "./constants";
 
 // Minimal ABI for the OpenAttestation DocumentStore `issue` function.
@@ -116,7 +119,8 @@ export interface VerificationResult {
  * verification API (ecdsa-sd-2023 / Data Integrity Proof).
  *
  * Returns `{ valid: true }` only when the proof is a valid cryptographic
- * signature over the credential. Structural errors, missing proof fields, and
+ * signature over the credential AND the document hash is registered on the
+ * Ethereum Document Store. Structural errors, missing proof fields, and
  * invalid signatures all produce `{ valid: false, message, details }` with
  * meaningful failure descriptions.
  */
@@ -173,9 +177,34 @@ export async function verifyCredential(
       };
     }
 
+    // Additionally verify on-chain registration
+    const onChainResult = await verifyDocumentOnChain(
+      document,
+      ISSUER_CONFIG.documentStore,
+      new ethers.providers.JsonRpcProvider(NETWORKS.sepolia.rpcUrl)
+    );
+
+    if (!onChainResult.verified) {
+      return {
+        valid: false,
+        message: "Credential signature is valid but document not found on blockchain.",
+        details: {
+          issuer:
+            typeof document["issuer"] === "object" && document["issuer"] !== null
+              ? String((document["issuer"] as Record<string, unknown>)["id"] ?? document["issuer"])
+              : String(document["issuer"]),
+          credentialId: document["id"] as string,
+          cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
+          verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
+          blockchainVerification: "failed",
+          message: "Document hash not registered on document store"
+        },
+      };
+    }
+
     return {
       valid: true,
-      message: "Credential verified successfully",
+      message: "Credential verified successfully (on-chain and cryptographic)",
       details: {
         issuer:
           typeof document["issuer"] === "object" && document["issuer"] !== null
@@ -185,6 +214,9 @@ export async function verifyCredential(
         credentialType: document["type"] as string[],
         cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
         verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
+        blockchainVerification: "passed",
+        transactionHash: onChainResult.txHash,
+        blockNumber: onChainResult.blockNumber
       },
     };
   } catch (error) {
@@ -215,6 +247,60 @@ export function generateVerificationQRData(certificateId: string): string {
 
 // Export for use in components
 export { TRUSTVC_CONFIG };
+
+// ---------------------------------------------------------------------------
+// On-Chain Verification Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Verifies a credential document hash against the OpenAttestation Document Store
+ * on Ethereum to check if it has been issued/registered.
+ *
+ * @param credential - The W3C Verifiable Credential to verify
+ * @param documentStoreAddress - The Ethereum Document Store contract address
+ * @param providerOrSender - An ethers provider or signer
+ * @returns Object with verification status and transaction details
+ */
+export async function verifyDocumentOnChain(
+  credential: Record<string, unknown>,
+  documentStoreAddress: string,
+  providerOrSender: ethers.providers.Provider | ethers.Signer
+): Promise<{ verified: boolean; txHash?: string; blockNumber?: number }> {
+  if (!documentStoreAddress) {
+    return { verified: false };
+  }
+
+  try {
+    const documentHash = ethers.utils.keccak256(
+      ethers.utils.toUtf8Bytes(canonicalJson(credential))
+    );
+
+    const provider = 
+      providerOrSender instanceof ethers.providers.Provider 
+        ? providerOrSender 
+        : new ethers.providers.Web3Provider((providerOrSender as any).provider || window.ethereum);
+
+    const contract = new ethers.Contract(
+      documentStoreAddress,
+      DOCUMENT_STORE_ABI,
+      provider
+    );
+
+    const isIssued = await contract.isIssued(documentHash);
+    const txHash = isIssued ? 
+      await contract.callStatic.getTxHash(documentHash) : 
+      undefined;
+
+    return {
+      verified: isIssued,
+      txHash: txHash ? String(txHash) : undefined,
+      blockNumber: isIssued ? await provider.getBlockNumber() : undefined
+    };
+  } catch (error) {
+    console.error("Document store verification failed:", error);
+    return { verified: false };
+  }
+}
 
 // ---------------------------------------------------------------------------
 // DID Certificate Issuance

@@ -188,11 +188,41 @@ export default function VerifyPage() {
                           <dt className="font-medium text-gray-600 capitalize w-32">
                             {key}:
                           </dt>
-                          <dd className="text-gray-800">
+                          <dd className="text-gray-800 break-all">
                             {Array.isArray(value) ? value.join(", ") : String(value)}
                           </dd>
                         </div>
                       ))}
+                      
+                      {/* Show blockchain verification status if available */}
+                      result.details.blockchainVerification && (
+                        <>
+                          <div className="flex mt-2 pt-2 border-t">
+                            <dt className="font-medium text-gray-600 capitalize w-32">
+                              Blockchain Verified:
+                            </dt>
+                            <dd className={typeof result.details.blockchainVerification === 'string' && result.details.blockchainVerification === 'passed' ? 'text-green-600' : 'text-red-600'}>
+                              {typeof result.details.blockchainVerification === 'string' && result.details.blockchainVerification === 'passed' ? 'Yes' : 'No'}
+                              {typeof result.details.transactionHash === 'string' && result.details.transactionHash ? (
+                                <span className="ml-2 text-sm text-blue-600">
+                                  (tx: {result.details.transactionHash.substring(0, 8)}...)
+                                </span>
+                              ) : null}
+                            </dd>
+                          </div>
+                          
+                          {typeof result.details.blockNumber === 'number' && result.details.blockNumber ? (
+                            <div className="flex mt-1">
+                              <dt className="font-medium text-gray-600 capitalize w-32">
+                                Block Number:
+                              </dt>
+                              <dd className="text-gray-800">
+                                {result.details.blockNumber}
+                              </dd>
+                            </div>
+                          ) : null}
+                        </>
+                      )
                     </dl>
                   </div>
                 )}
