@@ -83,7 +83,7 @@ export function buildVCPayload(data: CertificateData) {
         identifier: TRUSTVC_CONFIG.demoIssuer.identityProof.location,
       },
     },
-    issuingMethods,
+    issuingMethods:data.issuingMethods,
     validUntil: data.validUntil,
     credentialStatus: {
       id: `https://tradetrust.io/status/${data.id}#list`,
