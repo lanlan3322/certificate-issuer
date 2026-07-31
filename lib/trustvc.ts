@@ -66,7 +66,6 @@ export function buildVCPayload(data: CertificateData) {
       "https://w3id.org/security/data-integrity/v2",
       "https://www.opencerts.io/schema/context/opencerts_v2.json"
     ],
-    id: data.id,
     type: ["VerifiableCredential", "OpenAttestationCredential"],
     issuanceDate: data.issueDate,
     validFrom: data.validFrom,
