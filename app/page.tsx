@@ -93,6 +93,23 @@ function getNextYearSameDateInputValue(fromDate: string): string {
   return `${nextYear}-${nextMonth}-${nextDay}`;
 }
 
+function dateInputToISO(dateInput: string, endOfDay = false): string | null {
+  const [year, month, day] = dateInput.split("-").map(Number);
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  const date = new Date(
+    Date.UTC(year, month - 1, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0)
+  );
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString();
+}
+
 export default function HomePage() {
   const {
     connected,
@@ -242,6 +259,20 @@ export default function HomePage() {
 
     try {
       const now = getISODateString();
+      const validFromIso = formData.hasValidity
+        ? dateInputToISO(formData.validFrom)
+        : now;
+      const validUntilIsoRaw = formData.hasValidity && formData.validUntil
+        ? dateInputToISO(formData.validUntil, true)
+        : undefined;
+      const validUntilIso = validUntilIsoRaw ?? undefined;
+
+      if (formData.hasValidity && (!validFromIso || !validUntilIso)) {
+        setErrors(["Valid from and valid until must be valid dates."]);
+        setIssuing(false);
+        return;
+      }
+
       const certData: CertificateData = {
         id: generateCertificateId(),
         recipientName: formData.recipientName,
@@ -251,8 +282,8 @@ export default function HomePage() {
         issuerName: "Certificate Issuer",
         issueDate: now,
         description: formData.description,
-        validFrom: formData.hasValidity ? formData.validFrom : now,
-        validUntil: formData.hasValidity ? formData.validUntil ?? undefined : undefined,
+        validFrom: validFromIso ?? now,
+        validUntil: validUntilIso,
         issuingMethods,
       };
 
