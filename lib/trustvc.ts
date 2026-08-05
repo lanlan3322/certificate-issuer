@@ -61,6 +61,7 @@ export function buildVCPayload(data: CertificateData) {
       : DEFAULT_ISSUING_METHODS;
 
   return {
+    id: data.id,
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
       "https://w3id.org/security/data-integrity/v2",
@@ -172,7 +173,29 @@ export async function verifyCredential(
       };
     }
 
-    // Additionally verify on-chain registration
+    const issuingMethods = getIssuingMethods(document);
+    const requiresOnChainVerification = issuingMethods.includes("ethereum");
+
+    if (!requiresOnChainVerification) {
+      return {
+        valid: true,
+        message: "Credential verified successfully (cryptographic signature)",
+        details: {
+          issuer:
+            typeof document["issuer"] === "object" && document["issuer"] !== null
+              ? String((document["issuer"] as Record<string, unknown>)["id"] ?? document["issuer"])
+              : String(document["issuer"]),
+          credentialId: document["id"] as string,
+          credentialType: document["type"] as string[],
+          cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
+          verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
+          blockchainVerification: "skipped",
+        },
+      };
+    }
+
+    // Additionally verify on-chain registration for credentials that were
+    // explicitly issued via the Ethereum path.
     const onChainResult = await verifyDocumentOnChain(
       document,
       ISSUER_CONFIG.documentStore,
@@ -270,10 +293,10 @@ export async function verifyDocumentOnChain(
       ethers.utils.toUtf8Bytes(canonicalJson(credential))
     );
 
-    const provider = 
-      providerOrSender instanceof ethers.providers.Provider 
-        ? providerOrSender 
-        : new ethers.providers.Web3Provider((providerOrSender as any).provider || window.ethereum);
+    const provider = resolveProvider(providerOrSender);
+    if (!provider) {
+      return { verified: false };
+    }
 
     const contract = new ethers.Contract(
       documentStoreAddress,
@@ -282,19 +305,46 @@ export async function verifyDocumentOnChain(
     );
 
     const isIssued = await contract.isIssued(documentHash);
-    const txHash = isIssued ? 
-      await contract.callStatic.getTxHash(documentHash) : 
-      undefined;
 
     return {
       verified: isIssued,
-      txHash: txHash ? String(txHash) : undefined,
-      blockNumber: isIssued ? await provider.getBlockNumber() : undefined
+      blockNumber: undefined,
     };
   } catch (error) {
     console.error("Document store verification failed:", error);
     return { verified: false };
   }
+}
+
+function getIssuingMethods(document: Record<string, unknown>): IssuingMethod[] {
+  const issuingMethods = document["issuingMethods"];
+  if (!Array.isArray(issuingMethods)) {
+    return DEFAULT_ISSUING_METHODS;
+  }
+
+  const supportedMethods: IssuingMethod[] = ["did", "ethereum"];
+
+  return issuingMethods.filter(
+    (method): method is IssuingMethod =>
+      typeof method === "string" && supportedMethods.includes(method as IssuingMethod)
+  );
+}
+
+function resolveProvider(
+  providerOrSender: ethers.providers.Provider | ethers.Signer
+): ethers.providers.Provider | null {
+  if ((providerOrSender as ethers.Signer).provider) {
+    return (providerOrSender as ethers.Signer).provider ?? null;
+  }
+
+  if (
+    typeof (providerOrSender as ethers.providers.Provider).getNetwork === "function" &&
+    typeof (providerOrSender as ethers.providers.Provider).getBlockNumber === "function"
+  ) {
+    return providerOrSender as ethers.providers.Provider;
+  }
+
+  return null;
 }
 
 // ---------------------------------------------------------------------------

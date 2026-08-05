@@ -183,7 +183,12 @@ export default function VerifyPage() {
                       Details
                     </h4>
                     <dl className="text-sm space-y-1">
-                      {Object.entries(result.details).map(([key, value]) => (
+                      {Object.entries(result.details)
+                        .filter(
+                          ([key]) =>
+                            !["blockchainVerification", "transactionHash", "blockNumber"].includes(key)
+                        )
+                        .map(([key, value]) => (
                         <div key={key} className="flex">
                           <dt className="font-medium text-gray-600 capitalize w-32">
                             {key}:
@@ -193,25 +198,37 @@ export default function VerifyPage() {
                           </dd>
                         </div>
                       ))}
-                      
+
                       {/* Show blockchain verification status if available */}
-                      result.details.blockchainVerification && (
+                      {typeof result.details.blockchainVerification === "string" ? (
                         <>
                           <div className="flex mt-2 pt-2 border-t">
                             <dt className="font-medium text-gray-600 capitalize w-32">
                               Blockchain Verified:
                             </dt>
-                            <dd className={typeof result.details.blockchainVerification === 'string' && result.details.blockchainVerification === 'passed' ? 'text-green-600' : 'text-red-600'}>
-                              {typeof result.details.blockchainVerification === 'string' && result.details.blockchainVerification === 'passed' ? 'Yes' : 'No'}
-                              {typeof result.details.transactionHash === 'string' && result.details.transactionHash ? (
+                            <dd
+                              className={
+                                result.details.blockchainVerification === "passed"
+                                  ? "text-green-600"
+                                  : result.details.blockchainVerification === "skipped"
+                                    ? "text-gray-600"
+                                    : "text-red-600"
+                              }
+                            >
+                              {result.details.blockchainVerification === "passed"
+                                ? "Yes"
+                                : result.details.blockchainVerification === "skipped"
+                                  ? "Not required"
+                                  : "No"}
+                              {typeof result.details.transactionHash === "string" && result.details.transactionHash ? (
                                 <span className="ml-2 text-sm text-blue-600">
                                   (tx: {result.details.transactionHash.substring(0, 8)}...)
                                 </span>
                               ) : null}
                             </dd>
                           </div>
-                          
-                          {typeof result.details.blockNumber === 'number' && result.details.blockNumber ? (
+
+                          {typeof result.details.blockNumber === "number" && result.details.blockNumber ? (
                             <div className="flex mt-1">
                               <dt className="font-medium text-gray-600 capitalize w-32">
                                 Block Number:
@@ -222,7 +239,7 @@ export default function VerifyPage() {
                             </div>
                           ) : null}
                         </>
-                      )
+                      ) : null}
                     </dl>
                   </div>
                 )}
