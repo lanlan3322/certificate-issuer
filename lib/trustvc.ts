@@ -95,14 +95,6 @@ export function buildVCPayload(data: CertificateData) {
       type: "OpenAttestationIssuer",
       name: data.issuerName,
     },
-    credentialStatus: {
-      id: `https://tradetrust.io/status/${data.id}#list`,
-      type: "BitstringStatusListEntry",
-      statusPurpose: "revocation",
-      statusListIndex: "0",
-      statusListCredential:
-        "https://tradetrust.io/status/credentials/statuslist-1",
-    },
     issuingMethods: issuingMethods,
   };
 }
@@ -159,8 +151,10 @@ export async function verifyCredential(
       };
     }
 
+    const verificationInput = stripUnsupportedCredentialStatus(document);
+
     const verificationFragments = await verifyDocument(
-      document as Parameters<typeof verifyDocument>[0],
+      verificationInput as Parameters<typeof verifyDocument>[0],
       {
         provider: new ethers.providers.JsonRpcProvider(NETWORKS.sepolia.rpcUrl),
       }
@@ -192,6 +186,8 @@ export async function verifyCredential(
           credentialId: getCredentialIdentifier(document),
           cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
           verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
+          credentialStatus:
+            verificationInput === document ? "verified" : "skipped (placeholder status list)",
         },
       };
     }
@@ -212,6 +208,8 @@ export async function verifyCredential(
           credentialType: document["type"] as string[],
           cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
           verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
+          credentialStatus:
+            verificationInput === document ? "verified" : "skipped (placeholder status list)",
           blockchainVerification: "skipped",
         },
       };
@@ -237,6 +235,8 @@ export async function verifyCredential(
           credentialId: getCredentialIdentifier(document),
           cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
           verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
+          credentialStatus:
+            verificationInput === document ? "verified" : "skipped (placeholder status list)",
           blockchainVerification: "failed",
           message: "Document hash not registered on document store"
         },
@@ -255,6 +255,8 @@ export async function verifyCredential(
         credentialType: document["type"] as string[],
         cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
         verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
+        credentialStatus:
+          verificationInput === document ? "verified" : "skipped (placeholder status list)",
         blockchainVerification: "passed",
         transactionHash: onChainResult.txHash,
         blockNumber: onChainResult.blockNumber
@@ -385,6 +387,30 @@ function resolveProvider(
   }
 
   return null;
+}
+
+function stripUnsupportedCredentialStatus(
+  document: Record<string, unknown>
+): Record<string, unknown> {
+  const credentialStatus = document["credentialStatus"];
+  if (!credentialStatus || Array.isArray(credentialStatus)) {
+    return document;
+  }
+
+  const statusListCredential =
+    typeof credentialStatus === "object" && credentialStatus !== null
+      ? (credentialStatus as Record<string, unknown>)["statusListCredential"]
+      : undefined;
+
+  if (
+    typeof statusListCredential === "string" &&
+    statusListCredential.includes("tradetrust.io/status")
+  ) {
+    const { credentialStatus: _credentialStatus, ...documentWithoutStatus } = document;
+    return documentWithoutStatus;
+  }
+
+  return document;
 }
 
 // ---------------------------------------------------------------------------
