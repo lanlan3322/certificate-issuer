@@ -21,10 +21,47 @@ import {
 import { CertificateData, generateCertificateId, buildVCPayload } from "../lib/trustvc";
 import {
   getISODateString,
-  calculateValidUntil,
 } from "../lib/certificate";
 import { CERTIFICATE_TEMPLATES, IssuingMethod } from "../lib/constants";
 import { DEFAULT_TEMPLATE_ID } from "../app/templates";
+
+function getTodayDateInputValue(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getNextYearSameDateInputValue(fromDate: string): string {
+  const [year, month, day] = fromDate.split("-").map(Number);
+  if (!year || !month || !day) {
+    return fromDate;
+  }
+
+  const nextYearDate = new Date(year + 1, month - 1, day);
+  const nextYear = nextYearDate.getFullYear();
+  const nextMonth = String(nextYearDate.getMonth() + 1).padStart(2, "0");
+  const nextDay = String(nextYearDate.getDate()).padStart(2, "0");
+  return `${nextYear}-${nextMonth}-${nextDay}`;
+}
+
+function dateInputToISO(dateInput: string, endOfDay = false): string | null {
+  const [year, month, day] = dateInput.split("-").map(Number);
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  const date = new Date(
+    Date.UTC(year, month - 1, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0)
+  );
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString();
+}
 
 interface BatchIssuePanelProps {
   connected: boolean;
@@ -136,6 +173,12 @@ export default function BatchIssuePanel({
   const [parseError, setParseError] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [hasValidity, setHasValidity] = useState(true);
+  const [validFromDate, setValidFromDate] = useState(() => getTodayDateInputValue());
+  const [validUntilDate, setValidUntilDate] = useState<string | null>(() => {
+    const today = getTodayDateInputValue();
+    return getNextYearSameDateInputValue(today);
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validRows = rows.filter((r) => r.errors.length === 0);
@@ -193,9 +236,23 @@ export default function BatchIssuePanel({
 
   const handleIssueAll = async () => {
     if (!connected || issuing) return;
+
+    if (hasValidity) {
+      if (!validFromDate || !validUntilDate) {
+        setParseError("Valid from and valid until dates are required.");
+        return;
+      }
+
+      if (validUntilDate < validFromDate) {
+        setParseError("Valid until date must be on or after valid from date.");
+        return;
+      }
+    }
+
     setIssuing(true);
     onIssuingChange(true);
     onIssuedCertificatesChange([]);
+    setParseError(null);
 
     const updated = [...rows];
     const generatedCertificates: IssuedCertificateItem[] = [];
@@ -212,6 +269,16 @@ export default function BatchIssuePanel({
         await new Promise<void>((resolve) => setTimeout(resolve, 150));
 
         const now = getISODateString();
+        const validFromIso = hasValidity ? dateInputToISO(validFromDate) : now;
+        const validUntilIsoRaw = hasValidity && validUntilDate
+          ? dateInputToISO(validUntilDate, true)
+          : undefined;
+        const validUntilIso = validUntilIsoRaw ?? undefined;
+
+        if (hasValidity && (!validFromIso || !validUntilIso)) {
+          throw new Error("Valid from and valid until must be valid dates.");
+        }
+
         const certData: CertificateData = {
           id: generateCertificateId(),
           recipientName: row.recipientName,
@@ -221,8 +288,8 @@ export default function BatchIssuePanel({
           issuerName: "Certificate Issuer",
           issueDate: now,
           description: row.description,
-          validFrom: now,
-          validUntil: calculateValidUntil(now, row.certificateType),
+          validFrom: validFromIso ?? now,
+          validUntil: validUntilIso,
           issuingMethods,
         };
 
@@ -278,6 +345,23 @@ export default function BatchIssuePanel({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleValidityToggle = (checked: boolean) => {
+    setHasValidity(checked);
+    setValidUntilDate((prev) =>
+      checked ? prev ?? getNextYearSameDateInputValue(validFromDate) : null
+    );
+  };
+
+  const handleValidFromChange = (value: string) => {
+    setValidFromDate(value);
+    if (!hasValidity) {
+      return;
+    }
+    setValidUntilDate((prev) =>
+      prev && prev >= value ? prev : getNextYearSameDateInputValue(value)
+    );
+  };
+
   return (
     <div className="space-y-4">
       <IssuingMethodSelector
@@ -285,6 +369,42 @@ export default function BatchIssuePanel({
         onToggle={onToggleIssuingMethod}
         helperText="These methods apply to every certificate issued from this batch."
       />
+
+      <div className="p-3 border border-gray-200 rounded-lg bg-white space-y-3">
+        <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+          <input
+            type="checkbox"
+            checked={hasValidity}
+            onChange={(e) => handleValidityToggle(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          />
+          <span>Has Validity</span>
+        </label>
+
+        {hasValidity && (
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="label text-sm">Valid From</label>
+              <input
+                type="date"
+                value={validFromDate}
+                onChange={(e) => handleValidFromChange(e.target.value)}
+                className="input-field text-sm"
+              />
+            </div>
+            <div>
+              <label className="label text-sm">Valid Until</label>
+              <input
+                type="date"
+                value={validUntilDate ?? ""}
+                min={validFromDate}
+                onChange={(e) => setValidUntilDate(e.target.value || null)}
+                className="input-field text-sm"
+              />
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Instructions */}
       <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
