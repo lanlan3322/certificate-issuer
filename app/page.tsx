@@ -38,7 +38,6 @@ import {
 import {
   formatDate,
   getISODateString,
-  calculateValidUntil,
   validateCertificateData,
   downloadCertificatesZip,
   sanitizeCertificateFileNameForZip,
@@ -62,6 +61,38 @@ import {
 const MAX_VISIBLE_FAILED_FILES = 5;
 const MAX_FAILED_FILE_NAME_LENGTH = 40;
 
+interface IssueFormState {
+  recipientName: string;
+  recipientEmail: string;
+  certificateType: string;
+  templateId: string;
+  description: string;
+  hasValidity: boolean;
+  validFrom: string;
+  validUntil: string | null;
+}
+
+function getTodayDateInputValue(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getNextYearSameDateInputValue(fromDate: string): string {
+  const [year, month, day] = fromDate.split("-").map(Number);
+  if (!year || !month || !day) {
+    return fromDate;
+  }
+
+  const nextYearDate = new Date(year + 1, month - 1, day);
+  const nextYear = nextYearDate.getFullYear();
+  const nextMonth = String(nextYearDate.getMonth() + 1).padStart(2, "0");
+  const nextDay = String(nextYearDate.getDate()).padStart(2, "0");
+  return `${nextYear}-${nextMonth}-${nextDay}`;
+}
+
 export default function HomePage() {
   const {
     connected,
@@ -77,12 +108,18 @@ export default function HomePage() {
     isMetaMaskInstalled,
   } = useWalletConnection();
 
-  const [formData, setFormData] = useState({
-    recipientName: "",
-    recipientEmail: "",
-    certificateType: Object.keys(CERTIFICATE_TEMPLATES)[0],
-    templateId: DEFAULT_TEMPLATE_ID,
-    description: "",
+  const [formData, setFormData] = useState<IssueFormState>(() => {
+    const validFrom = getTodayDateInputValue();
+    return {
+      recipientName: "",
+      recipientEmail: "",
+      certificateType: Object.keys(CERTIFICATE_TEMPLATES)[0],
+      templateId: DEFAULT_TEMPLATE_ID,
+      description: "",
+      hasValidity: true,
+      validFrom,
+      validUntil: getNextYearSameDateInputValue(validFrom),
+    };
   });
   const [issuedCert, setIssuedCert] = useState<CertificateData | null>(null);
   const [copied, setCopied] = useState(false);
@@ -120,7 +157,31 @@ export default function HomePage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "hasValidity") {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData((prev) => ({
+        ...prev,
+        hasValidity: checked,
+        validUntil: checked
+          ? prev.validUntil ?? getNextYearSameDateInputValue(prev.validFrom)
+          : null,
+      }));
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "validFrom" && prev.hasValidity
+        ? {
+            validUntil:
+              prev.validUntil && prev.validUntil >= value
+                ? prev.validUntil
+                : getNextYearSameDateInputValue(value),
+          }
+        : {}),
+    }));
   };
 
   const handleConnectWallet = async () => {
@@ -139,7 +200,10 @@ export default function HomePage() {
   };
 
   const handleIssue = async () => {
-    const validation = validateCertificateData(formData);
+    const validation = validateCertificateData({
+      ...formData,
+      validUntil: formData.validUntil ?? undefined,
+    });
     const issuingMethodValidation = validateIssuingMethods(issuingMethods);
     if (!validation.valid) {
       setErrors(validation.errors);
@@ -149,6 +213,19 @@ export default function HomePage() {
       setErrors(issuingMethodValidation.errors);
       return;
     }
+
+    if (formData.hasValidity) {
+      if (!formData.validFrom || !formData.validUntil) {
+        setErrors(["Valid from and valid until dates are required."]);
+        return;
+      }
+
+      if (formData.validUntil < formData.validFrom) {
+        setErrors(["Valid until date must be on or after valid from date."]);
+        return;
+      }
+    }
+
     setErrors([]);
 
     // Ethereum issuance requires a connected wallet
@@ -174,8 +251,8 @@ export default function HomePage() {
         issuerName: "Certificate Issuer",
         issueDate: now,
         description: formData.description,
-        validFrom: now,
-        validUntil: calculateValidUntil(now, formData.certificateType),
+        validFrom: formData.hasValidity ? formData.validFrom : now,
+        validUntil: formData.hasValidity ? formData.validUntil ?? undefined : undefined,
         issuingMethods,
       };
 
@@ -568,6 +645,45 @@ export default function HomePage() {
                     />
                   </div>
 
+                  <div>
+                    <label className="inline-flex items-center gap-2 text-sm md:text-base font-medium text-gray-700">
+                      <input
+                        type="checkbox"
+                        name="hasValidity"
+                        checked={formData.hasValidity}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span>Has Validity</span>
+                    </label>
+                  </div>
+
+                  {formData.hasValidity && (
+                    <div className="grid sm:grid-cols-2 gap-3 md:gap-4">
+                      <div>
+                        <label className="label text-sm md:text-base">Valid From</label>
+                        <input
+                          type="date"
+                          name="validFrom"
+                          value={formData.validFrom}
+                          onChange={handleInputChange}
+                          className="input-field text-sm md:text-base"
+                        />
+                      </div>
+                      <div>
+                        <label className="label text-sm md:text-base">Valid Until</label>
+                        <input
+                          type="date"
+                          name="validUntil"
+                          value={formData.validUntil ?? ""}
+                          min={formData.validFrom}
+                          onChange={handleInputChange}
+                          className="input-field text-sm md:text-base"
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <IssuingMethodSelector
                     selectedMethods={issuingMethods}
                     onToggle={handleToggleIssuingMethod}
@@ -755,7 +871,7 @@ export default function HomePage() {
                         <p>Issued: {formatDate(issuedCert.issueDate)}</p>
                         <p>
                           Valid: {formatDate(issuedCert.validFrom)} to{" "}
-                          {formatDate(issuedCert.validUntil!)}
+                          {issuedCert.validUntil ? formatDate(issuedCert.validUntil) : "N/A"}
                         </p>
                         <p>
                           Methods: {formatIssuingMethodLabels(issuedCert.issuingMethods)}
