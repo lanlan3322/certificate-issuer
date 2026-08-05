@@ -4,6 +4,7 @@
 // Use the sub-path import to avoid pulling in Node.js-only utilities
 // (dotenv/config, core-js) from the @trustvc/trustvc main entry.
 import { signW3C, verifyDocument, type PrivateKeyPair } from "@trustvc/trustvc";
+import { getDocumentLoader, MULTIKEY_V1_URL } from "@trustvc/w3c-context";
 import { ethers } from "ethers";
 import {
   DEFAULT_ISSUING_METHODS,
@@ -45,6 +46,11 @@ const OPEN_ATTESTATION_CONTEXT = {
   certificateType: "https://schemas.tradetrust.io/credentials#certificateType",
   issuingMethods: "https://schemas.tradetrust.io/credentials#issuingMethods",
 } as const;
+
+const LOCAL_DID_VERIFICATION_METHOD_ID = `${TRUSTVC_CONFIG.didUrl}#key-1`;
+const LOCAL_DID_PUBLIC_KEY_MULTIBASE =
+  process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE ||
+  "zDnaepZZHFcKxZ9r1xgqMqMFELf67VEmhFUddFBt2LPajim5z";
 
 // Certificate data structure
 export interface CertificateData {
@@ -153,10 +159,13 @@ export async function verifyCredential(
 
     const verificationInput = stripUnsupportedCredentialStatus(document);
 
+    const documentLoader = await createTrustVCDocumentLoader();
+
     const verificationFragments = await verifyDocument(
       verificationInput as Parameters<typeof verifyDocument>[0],
       {
         provider: new ethers.providers.JsonRpcProvider(NETWORKS.sepolia.rpcUrl),
+        documentLoader,
       }
     );
 
@@ -411,6 +420,33 @@ function stripUnsupportedCredentialStatus(
   }
 
   return document;
+}
+
+async function createTrustVCDocumentLoader() {
+  const didDocument = {
+    "@context": ["https://www.w3.org/ns/did/v1", MULTIKEY_V1_URL],
+    id: TRUSTVC_CONFIG.didUrl,
+    verificationMethod: [
+      {
+        id: LOCAL_DID_VERIFICATION_METHOD_ID,
+        type: "Multikey",
+        controller: TRUSTVC_CONFIG.didUrl,
+        publicKeyMultibase: LOCAL_DID_PUBLIC_KEY_MULTIBASE,
+      },
+    ],
+    authentication: [LOCAL_DID_VERIFICATION_METHOD_ID],
+    assertionMethod: [LOCAL_DID_VERIFICATION_METHOD_ID],
+    capabilityInvocation: [LOCAL_DID_VERIFICATION_METHOD_ID],
+    capabilityDelegation: [LOCAL_DID_VERIFICATION_METHOD_ID],
+  };
+
+  return getDocumentLoader({
+    [TRUSTVC_CONFIG.didUrl]: didDocument,
+    [LOCAL_DID_VERIFICATION_METHOD_ID]: {
+      "@context": didDocument["@context"],
+      ...(didDocument.verificationMethod[0] as Record<string, unknown>),
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
