@@ -18,7 +18,12 @@ import {
   parseCSV,
   generateSampleCSV,
 } from "../lib/batchParse";
-import { CertificateData, generateCertificateId, buildVCPayload } from "../lib/trustvc";
+import {
+  CertificateData,
+  generateCertificateId,
+  buildVCPayload,
+  issueDIDCertificate,
+} from "../lib/trustvc";
 import {
   getISODateString,
 } from "../lib/certificate";
@@ -293,7 +298,18 @@ export default function BatchIssuePanel({
           issuingMethods,
         };
 
-        const payload = buildVCPayload(certData);
+        let payload = buildVCPayload(certData);
+
+        if (issuingMethods.includes("did")) {
+          const didResult = await issueDIDCertificate(certData);
+          if (!didResult.signed) {
+            throw new Error(
+              didResult.error ??
+                "DID signing failed for this batch row. Configure DID keys before batch issuance."
+            );
+          }
+          payload = didResult.credential as ReturnType<typeof buildVCPayload>;
+        }
 
         const txHash =
           "demo-tx-hash-" + Math.random().toString(36).substring(2, 11);
