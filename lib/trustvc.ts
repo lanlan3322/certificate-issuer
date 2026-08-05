@@ -61,7 +61,6 @@ export function buildVCPayload(data: CertificateData) {
       : DEFAULT_ISSUING_METHODS;
 
   return {
-    id: data.id,
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
       "https://w3id.org/security/data-integrity/v2",
@@ -72,6 +71,7 @@ export function buildVCPayload(data: CertificateData) {
     validFrom: data.validFrom,
     validUntil: data.validUntil,
     credentialSubject: {
+      certificateId: data.id,
       type: ["Person"],
       name: data.recipientName,
       email: data.recipientEmail,
@@ -166,7 +166,7 @@ export async function verifyCredential(
             typeof document["issuer"] === "object" && document["issuer"] !== null
               ? String((document["issuer"] as Record<string, unknown>)["id"] ?? document["issuer"])
               : String(document["issuer"]),
-          credentialId: document["id"] as string,
+          credentialId: getCredentialIdentifier(document),
           cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
           verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
         },
@@ -185,7 +185,7 @@ export async function verifyCredential(
             typeof document["issuer"] === "object" && document["issuer"] !== null
               ? String((document["issuer"] as Record<string, unknown>)["id"] ?? document["issuer"])
               : String(document["issuer"]),
-          credentialId: document["id"] as string,
+          credentialId: getCredentialIdentifier(document),
           credentialType: document["type"] as string[],
           cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
           verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
@@ -211,7 +211,7 @@ export async function verifyCredential(
             typeof document["issuer"] === "object" && document["issuer"] !== null
               ? String((document["issuer"] as Record<string, unknown>)["id"] ?? document["issuer"])
               : String(document["issuer"]),
-          credentialId: document["id"] as string,
+          credentialId: getCredentialIdentifier(document),
           cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
           verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
           blockchainVerification: "failed",
@@ -228,7 +228,7 @@ export async function verifyCredential(
           typeof document["issuer"] === "object" && document["issuer"] !== null
             ? String((document["issuer"] as Record<string, unknown>)["id"] ?? document["issuer"])
             : String(document["issuer"]),
-        credentialId: document["id"] as string,
+        credentialId: getCredentialIdentifier(document),
         credentialType: document["type"] as string[],
         cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
         verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
@@ -328,6 +328,23 @@ function getIssuingMethods(document: Record<string, unknown>): IssuingMethod[] {
     (method): method is IssuingMethod =>
       typeof method === "string" && supportedMethods.includes(method as IssuingMethod)
   );
+}
+
+function getCredentialIdentifier(document: Record<string, unknown>): string | undefined {
+  const credentialSubject = document["credentialSubject"];
+  if (credentialSubject && typeof credentialSubject === "object") {
+    const certificateId = (credentialSubject as Record<string, unknown>)["certificateId"];
+    if (typeof certificateId === "string" && certificateId.trim()) {
+      return certificateId;
+    }
+  }
+
+  const legacyId = document["id"];
+  if (typeof legacyId === "string" && legacyId.trim()) {
+    return legacyId;
+  }
+
+  return undefined;
 }
 
 function resolveProvider(
