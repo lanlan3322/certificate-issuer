@@ -119,6 +119,7 @@ export const TRUSTVC_CONFIG = {
 export const DEMO_CERTIFICATES = [
   {
     id: "demo-cert-001",
+    templateId: "classic",
     recipientName: "Ahmad bin Rahman",
     recipientEmail: "ahmad.rahman@techcorp.sg",
     certificateType: "Professional Certificate",
@@ -131,6 +132,7 @@ export const DEMO_CERTIFICATES = [
   },
   {
     id: "demo-cert-002",
+    templateId: "modern",
     recipientName: "Siti Nurhaliza",
     recipientEmail: "siti.nurhaliza@datawise.io",
     certificateType: "Certificate of Completion",
@@ -143,6 +145,7 @@ export const DEMO_CERTIFICATES = [
   },
   {
     id: "demo-cert-003",
+    templateId: "minimal",
     recipientName: "David Chen Wei",
     recipientEmail: "david.chen@innovatech.sg",
     certificateType: "Certificate of Achievement",

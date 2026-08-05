@@ -6,6 +6,12 @@ import { Shield, FileText, CheckCircle, ExternalLink, Upload, X as XIcon } from 
 import { QRCodeSVG } from "qrcode.react";
 import { DEMO_CERTIFICATES } from "../../lib/constants";
 import { formatDate } from "../../lib/certificate";
+import {
+  CertificateTemplateRenderer,
+  DEFAULT_TEMPLATE_ID,
+  TEMPLATE_OPTIONS,
+  resolveTemplateId,
+} from "../templates";
 
 type CertEntry = {
   id?: string;
@@ -17,6 +23,7 @@ type CertEntry = {
   description: string;
   validFrom: string;
   validUntil?: string;
+  templateId?: string;
   status: string;
 };
 
@@ -72,6 +79,8 @@ const id =
           ? vc.validFrom
           : undefined;
     const description = typeof subject?.description === "string" ? subject.description : "";
+    const templateId =
+      typeof subject?.templateId === "string" ? subject.templateId : DEFAULT_TEMPLATE_ID;
     const validFrom =
       typeof subject?.validFrom === "string"
         ? subject.validFrom
@@ -105,6 +114,7 @@ const id =
       description,
       validFrom,
       validUntil,
+      templateId,
       status: "valid",
     };
   }
@@ -322,31 +332,17 @@ const id =
               {/* Modal Body */}
               <div className="p-6">
                 {/* Certificate Visual */}
-                <div className="bg-gray-50 rounded-lg border-2 border-secondary p-6 mb-6">
-                  <div className="text-center">
-                    <FileText className="w-12 h-12 text-primary mx-auto mb-3" />
-                    <p className="text-xs uppercase tracking-wider text-secondary mb-2">
-                      IMDA Training Academy
+                <div className="mb-6 space-y-3">
+                  <CertificateTemplateRenderer certificate={selectedCert} />
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                    <p>Issued: {formatDate(selectedCert.issueDate)}</p>
+                    <p>
+                      Valid: {formatDate(selectedCert.validFrom)} to{" "}
+                      {selectedCert.validUntil ? formatDate(selectedCert.validUntil) : "N/A"}
                     </p>
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">
-                      {selectedCert.certificateType}
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-2">
-                      Awarded to
+                    <p>
+                      Template: {TEMPLATE_OPTIONS.find((t) => t.id === resolveTemplateId(selectedCert.templateId))?.label}
                     </p>
-                    <p className="text-2xl font-bold text-primary mb-4">
-                      {selectedCert.recipientName}
-                    </p>
-                    <p className="text-sm italic text-gray-600 mb-6">
-                      &quot;{selectedCert.description}&quot;
-                    </p>
-                    <div className="text-sm text-gray-500 space-y-1">
-                      <p>Issued: {formatDate(selectedCert.issueDate)}</p>
-                      <p>
-                        Valid: {formatDate(selectedCert.validFrom)} to{" "}
-                        {selectedCert.validUntil ? formatDate(selectedCert.validUntil) : "N/A"}
-                      </p>
-                    </div>
                   </div>
                 </div>
 
@@ -369,7 +365,7 @@ const id =
                 <div className="grid md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-gray-500">Certificate ID</p>
-                    <p className="font-mono text-gray-800">{selectedCert.recipientName}</p>
+                    <p className="font-mono text-gray-800">{selectedCert.id || "N/A"}</p>
                   </div>
                   <div>
                     <p className="text-gray-500">Status</p>

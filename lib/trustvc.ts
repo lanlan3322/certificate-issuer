@@ -58,6 +58,7 @@ export interface CertificateData {
   recipientName: string;
   recipientEmail: string;
   certificateType: string;
+  templateId?: string;
   issuerName: string;
   issueDate: string;
   description: string;
@@ -94,6 +95,7 @@ export function buildVCPayload(data: CertificateData) {
       name: data.recipientName,
       email: data.recipientEmail,
       certificateType: data.certificateType,
+      templateId: data.templateId,
       description: data.description,
     },
     issuer: {

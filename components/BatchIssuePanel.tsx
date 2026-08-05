@@ -24,6 +24,7 @@ import {
   calculateValidUntil,
 } from "../lib/certificate";
 import { CERTIFICATE_TEMPLATES, IssuingMethod } from "../lib/constants";
+import { DEFAULT_TEMPLATE_ID } from "../app/templates";
 
 interface BatchIssuePanelProps {
   connected: boolean;
@@ -216,6 +217,7 @@ export default function BatchIssuePanel({
           recipientName: row.recipientName,
           recipientEmail: row.recipientEmail,
           certificateType: row.certificateType,
+          templateId: DEFAULT_TEMPLATE_ID,
           issuerName: "Certificate Issuer",
           issueDate: now,
           description: row.description,

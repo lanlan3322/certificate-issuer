@@ -53,6 +53,11 @@ import {
   formatIssuingMethodLabels,
   IssuingMethod,
 } from "../lib/constants";
+import {
+  CertificateTemplateRenderer,
+  DEFAULT_TEMPLATE_ID,
+  TEMPLATE_OPTIONS,
+} from "./templates";
 
 const MAX_VISIBLE_FAILED_FILES = 5;
 const MAX_FAILED_FILE_NAME_LENGTH = 40;
@@ -76,6 +81,7 @@ export default function HomePage() {
     recipientName: "",
     recipientEmail: "",
     certificateType: Object.keys(CERTIFICATE_TEMPLATES)[0],
+    templateId: DEFAULT_TEMPLATE_ID,
     description: "",
   });
   const [issuedCert, setIssuedCert] = useState<CertificateData | null>(null);
@@ -164,6 +170,7 @@ export default function HomePage() {
         recipientName: formData.recipientName,
         recipientEmail: formData.recipientEmail,
         certificateType: formData.certificateType,
+        templateId: formData.templateId,
         issuerName: "Certificate Issuer",
         issueDate: now,
         description: formData.description,
@@ -531,6 +538,25 @@ export default function HomePage() {
                   </div>
 
                   <div>
+                    <label className="label text-sm md:text-base">Template Style</label>
+                    <select
+                      name="templateId"
+                      value={formData.templateId}
+                      onChange={handleInputChange}
+                      className="input-field text-sm md:text-base"
+                    >
+                      {TEMPLATE_OPTIONS.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {TEMPLATE_OPTIONS.find((t) => t.id === formData.templateId)?.description}
+                    </p>
+                  </div>
+
+                  <div>
                     <label className="label text-sm md:text-base">Description / Achievement</label>
                     <input
                       type="text"
@@ -722,48 +748,38 @@ export default function HomePage() {
                       </p>
                     </div>
                   )}
-                  <div className="text-center border-2 border-secondary rounded-lg p-4 md:p-8">
-                    <div className="flex justify-center mb-3 md:mb-4">
-                      <FileText className="w-10 h-10 md:w-16 md:h-16 text-secondary" />
-                    </div>
-                    <p className="text-xs md:text-sm uppercase tracking-wider text-secondary mb-2">
-                      Certificate Issuer
-                    </p>
-                    <h2 className="text-lg md:text-3xl font-bold mb-3 md:mb-4">
-                      {issuedCert.certificateType}
-                    </h2>
-                    <p className="text-sm md:text-lg mb-4 md:mb-6">This certifies that</p>
-                    <p className="text-lg md:text-2xl font-bold text-secondary mb-4 md:mb-6">
-                      {issuedCert.recipientName}
-                    </p>
-                    <p className="text-xs md:text-sm italic mb-4 md:mb-6">
-                      &quot;{issuedCert.description}&quot;
-                    </p>
-                    <div className="text-xs md:text-sm space-y-1">
-                      <p>Issued: {formatDate(issuedCert.issueDate)}</p>
-                      <p>
-                        Valid: {formatDate(issuedCert.validFrom)} to{" "}
-                        {formatDate(issuedCert.validUntil!)}
-                      </p>
-                      <p>
-                        Methods: {formatIssuingMethodLabels(issuedCert.issuingMethods)}
-                      </p>
-                    </div>
-                    <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-white/20">
-                      <p className="text-xs text-white/60">
-                        ID: {issuedCert.id.split(":")[2]}
-                      </p>
-                      <div className="flex justify-center mt-3 md:mt-4">
-                        <QRCodeSVG
-                          value={JSON.stringify({ id: issuedCert.id })}
-                          size={60}
-                          bgColor="#ffffff"
-                          fgColor="#1e3a5f"
-                        />
+                  <div className="space-y-4">
+                    <CertificateTemplateRenderer certificate={issuedCert} />
+                    <div className="rounded-lg border border-gray-200 bg-white p-4 text-xs md:text-sm">
+                      <div className="space-y-1 text-gray-700">
+                        <p>Issued: {formatDate(issuedCert.issueDate)}</p>
+                        <p>
+                          Valid: {formatDate(issuedCert.validFrom)} to{" "}
+                          {formatDate(issuedCert.validUntil!)}
+                        </p>
+                        <p>
+                          Methods: {formatIssuingMethodLabels(issuedCert.issuingMethods)}
+                        </p>
+                        <p>
+                          Template:{" "}
+                          {TEMPLATE_OPTIONS.find((t) => t.id === issuedCert.templateId)?.label ||
+                            TEMPLATE_OPTIONS.find((t) => t.id === DEFAULT_TEMPLATE_ID)?.label}
+                        </p>
                       </div>
-                      <p className="text-xs text-white/60 mt-2">
-                        Scan to verify
-                      </p>
+                      <div className="mt-4 border-t border-gray-200 pt-3 text-center">
+                        <p className="text-xs text-gray-500">
+                          ID: {issuedCert.id.split(":")[2]}
+                        </p>
+                        <div className="mt-2 flex justify-center">
+                          <QRCodeSVG
+                            value={JSON.stringify({ id: issuedCert.id })}
+                            size={60}
+                            bgColor="#ffffff"
+                            fgColor="#1e3a5f"
+                          />
+                        </div>
+                        <p className="mt-2 text-xs text-gray-500">Scan to verify</p>
+                      </div>
                     </div>
                   </div>
 
