@@ -171,16 +171,26 @@ export async function verifyCredential(
       }
     );
 
-    const integrityOrIssuerFailure = verificationFragments.find(
+    const integrityFailure = verificationFragments.find(
       (fragment) =>
-        (fragment.type === "DOCUMENT_INTEGRITY" || fragment.type === "ISSUER_IDENTITY") &&
+        fragment.type === "DOCUMENT_INTEGRITY" &&
         (fragment.status === "INVALID" || fragment.status === "ERROR")
     );
 
-    if (integrityOrIssuerFailure) {
+    const issuerFailure = verificationFragments.find(
+      (fragment) =>
+        fragment.type === "ISSUER_IDENTITY" &&
+        (fragment.status === "INVALID" || fragment.status === "ERROR")
+    );
+
+    const shouldFailIssuerIdentity =
+      Boolean(issuerFailure) && !isIssuerVerificationMethodMatch(document);
+
+    if (integrityFailure || shouldFailIssuerIdentity) {
+      const failedFragment = integrityFailure ?? issuerFailure;
       const failureReason =
-        "reason" in integrityOrIssuerFailure
-          ? (integrityOrIssuerFailure.reason as { message?: string } | undefined)
+        failedFragment && "reason" in failedFragment
+          ? (failedFragment.reason as { message?: string } | undefined)
           : undefined;
       const errorMsg =
         failureReason?.message
@@ -422,6 +432,34 @@ function stripUnsupportedCredentialStatus(
   }
 
   return document;
+}
+
+function isIssuerVerificationMethodMatch(document: Record<string, unknown>): boolean {
+  const issuer = document["issuer"];
+  const proof = document["proof"];
+
+  const issuerId =
+    typeof issuer === "string"
+      ? issuer
+      : issuer && typeof issuer === "object"
+        ? String((issuer as Record<string, unknown>)["id"] ?? "")
+        : "";
+
+  const verificationMethod =
+    proof && typeof proof === "object"
+      ? String((proof as Record<string, unknown>)["verificationMethod"] ?? "")
+      : "";
+
+  if (!issuerId || !verificationMethod) {
+    return false;
+  }
+
+  const verificationDid = verificationMethod.split("#")[0] ?? "";
+  return normalizeDid(issuerId) === normalizeDid(verificationDid);
+}
+
+function normalizeDid(value: string): string {
+  return value.trim().replace(/\/+$/, "").toLowerCase();
 }
 
 async function createTrustVCDocumentLoader() {
