@@ -1,4 +1,4 @@
-export type CertificateTemplateId = "classic" | "modern" | "minimal";
+export type CertificateTemplateId = "classic" | "modern" | "minimal" | "fta";
 
 export interface CertificateTemplateData {
   id?: string;

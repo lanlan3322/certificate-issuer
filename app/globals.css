@@ -44,6 +44,10 @@ body {
     @apply bg-gradient-to-br from-primary to-accent text-white 
            rounded-xl p-8 shadow-xl;
   }
+
+  .font-signature {
+    font-family: "Brush Script MT", "Snell Roundhand", "Apple Chancery", cursive;
+  }
 }
 
 /* Certificate specific styles */

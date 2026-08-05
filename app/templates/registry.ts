@@ -16,12 +16,22 @@ export const TEMPLATE_OPTIONS: TemplateOption[] = [
     label: "Minimal Mono",
     description: "Clean, understated monochrome presentation.",
   },
+  {
+    id: "fta",
+    label: "FTA Academy",
+    description: "Formal academy-style certificate with signature and seal footer.",
+  },
 ];
 
 export const DEFAULT_TEMPLATE_ID: CertificateTemplateId = "classic";
 
 export function resolveTemplateId(templateId?: string): CertificateTemplateId {
-  if (templateId === "classic" || templateId === "modern" || templateId === "minimal") {
+  if (
+    templateId === "classic" ||
+    templateId === "modern" ||
+    templateId === "minimal" ||
+    templateId === "fta"
+  ) {
     return templateId;
   }
   return DEFAULT_TEMPLATE_ID;
