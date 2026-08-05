@@ -370,9 +370,7 @@ export async function verifyDocumentOnChain(
   }
 
   try {
-    const documentHash = ethers.utils.keccak256(
-      ethers.utils.toUtf8Bytes(canonicalJson(credential))
-    );
+    const documentHash = computeDocumentStoreHash(credential);
 
     const provider = resolveProvider(providerOrSender);
     if (!provider) {
@@ -738,6 +736,8 @@ export interface EthereumRevocationResult {
   error?: string;
 }
 
+export type RevocationHashMode = "auto" | "targetHash" | "merkleRoot";
+
 /**
  * Produces a canonical JSON string from an object by sorting all keys
  * recursively. This ensures the resulting string — and therefore the document
@@ -786,9 +786,7 @@ export async function issueCertificateToEthereum(
   }
 
   try {
-    const documentHash = ethers.utils.keccak256(
-      ethers.utils.toUtf8Bytes(canonicalJson(credential))
-    );
+    const documentHash = computeDocumentStoreHash(credential);
 
     // Use ethers v5 directly with a minimal DocumentStore ABI to avoid
     // pulling in Node.js-only dependencies from @trustvc/trustvc.
@@ -861,15 +859,17 @@ export async function issueCertificateToEthereum(
 export async function revokeCertificateOnEthereum(
   credential: Record<string, unknown>,
   documentStoreAddress: string,
-  signer: ethers.Signer
+  signer: ethers.Signer,
+  options?: { hashMode?: RevocationHashMode }
 ): Promise<EthereumRevocationResult> {
   if (!documentStoreAddress) {
     return { error: "Document store address is required." };
   }
 
   try {
-    const documentHash = ethers.utils.keccak256(
-      ethers.utils.toUtf8Bytes(canonicalJson(credential))
+    const documentHash = computeDocumentStoreHash(
+      credential,
+      options?.hashMode ?? "auto"
     );
 
     const contract = new ethers.Contract(
@@ -878,14 +878,7 @@ export async function revokeCertificateOnEthereum(
       signer
     );
 
-    const [isIssued, isRevoked] = await Promise.all([
-      contract.isIssued(documentHash),
-      contract.isRevoked(documentHash),
-    ]);
-
-    if (!isIssued) {
-      return { error: "This document has not been issued on-chain.", documentHash };
-    }
+    const isRevoked = await contract.isRevoked(documentHash);
 
     if (isRevoked) {
       return { error: "This document is already revoked.", documentHash };
@@ -935,4 +928,66 @@ export async function revokeCertificateOnEthereum(
     }
     return { error: msg };
   }
+}
+
+function computeDocumentStoreHash(
+  credential: Record<string, unknown>,
+  mode: RevocationHashMode = "auto"
+): string {
+  if (mode === "targetHash") {
+    const targetHash = getWrappedTargetHash(credential);
+    if (!targetHash) {
+      throw new Error("targetHash is not available in credential.signature.");
+    }
+    return targetHash;
+  }
+
+  if (mode === "merkleRoot") {
+    const merkleRoot = getWrappedMerkleRoot(credential);
+    if (!merkleRoot) {
+      throw new Error("merkleRoot is not available in credential.signature.");
+    }
+    return merkleRoot;
+  }
+
+  const targetHash = getWrappedTargetHash(credential);
+  if (targetHash) {
+    return targetHash;
+  }
+
+  return ethers.utils.keccak256(
+    ethers.utils.toUtf8Bytes(canonicalJson(credential))
+  );
+}
+
+function getWrappedTargetHash(credential: Record<string, unknown>): string | null {
+  const signature = credential["signature"];
+  if (!signature || typeof signature !== "object") {
+    return null;
+  }
+
+  const targetHash = (signature as Record<string, unknown>)["targetHash"];
+  if (typeof targetHash === "string" && isBytes32Hex(targetHash)) {
+    return targetHash;
+  }
+
+  return null;
+}
+
+function getWrappedMerkleRoot(credential: Record<string, unknown>): string | null {
+  const signature = credential["signature"];
+  if (!signature || typeof signature !== "object") {
+    return null;
+  }
+
+  const merkleRoot = (signature as Record<string, unknown>)["merkleRoot"];
+  if (typeof merkleRoot === "string" && isBytes32Hex(merkleRoot)) {
+    return merkleRoot;
+  }
+
+  return null;
+}
+
+function isBytes32Hex(value: string): boolean {
+  return /^0x[a-fA-F0-9]{64}$/.test(value.trim());
 }

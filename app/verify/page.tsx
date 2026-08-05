@@ -8,6 +8,7 @@ import { DOCUMENT_STORE_CONFIG } from "../../lib/constants";
 import {
   verifyCredential,
   VerificationResult,
+  RevocationHashMode,
   revokeCertificateOnEthereum,
 } from "../../lib/trustvc";
 
@@ -19,6 +20,8 @@ export default function VerifyPage() {
   const [loading, setLoading] = useState(false);
   const [revoking, setRevoking] = useState(false);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
+  const [showAdvancedRevoke, setShowAdvancedRevoke] = useState(false);
+  const [revokeHashMode, setRevokeHashMode] = useState<RevocationHashMode>("auto");
   const [revokeMessage, setRevokeMessage] = useState<string | null>(null);
   const [revokeError, setRevokeError] = useState<string | null>(null);
 
@@ -79,7 +82,8 @@ export default function VerifyPage() {
       const revocationResult = await revokeCertificateOnEthereum(
         verifiedDocument,
         DOCUMENT_STORE_CONFIG.address,
-        signer
+        signer,
+        { hashMode: revokeHashMode }
       );
 
       if (revocationResult.error) {
@@ -113,6 +117,8 @@ export default function VerifyPage() {
   const handleOpenRevokeConfirm = () => {
     setRevokeMessage(null);
     setRevokeError(null);
+    setShowAdvancedRevoke(false);
+    setRevokeHashMode("auto");
     setShowRevokeConfirm(true);
   };
 
@@ -125,6 +131,15 @@ export default function VerifyPage() {
     await handleRevoke();
     setShowRevokeConfirm(false);
   };
+
+  const signature = verifiedDocument?.["signature"];
+  const signatureObj = signature && typeof signature === "object"
+    ? (signature as Record<string, unknown>)
+    : null;
+  const hasTargetHash =
+    typeof signatureObj?.targetHash === "string" && /^0x[a-fA-F0-9]{64}$/.test(signatureObj.targetHash);
+  const hasMerkleRoot =
+    typeof signatureObj?.merkleRoot === "string" && /^0x[a-fA-F0-9]{64}$/.test(signatureObj.merkleRoot);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -395,6 +410,38 @@ export default function VerifyPage() {
               <p className="text-sm text-gray-700">
                 Revoking is an on-chain action and cannot be undone. This certificate will fail future blockchain verification checks.
               </p>
+
+              <button
+                type="button"
+                onClick={() => setShowAdvancedRevoke((prev) => !prev)}
+                className="mt-3 text-sm font-medium text-primary hover:underline"
+              >
+                {showAdvancedRevoke ? "Hide advanced options" : "Show advanced options"}
+              </button>
+
+              {showAdvancedRevoke && (
+                <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Revocation Scope
+                  </p>
+                  <select
+                    value={revokeHashMode}
+                    onChange={(e) => setRevokeHashMode(e.target.value as RevocationHashMode)}
+                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="auto">Auto (prefer targetHash)</option>
+                    <option value="targetHash" disabled={!hasTargetHash}>
+                      Document only (targetHash){!hasTargetHash ? " - unavailable" : ""}
+                    </option>
+                    <option value="merkleRoot" disabled={!hasMerkleRoot}>
+                      Batch revoke (merkleRoot){!hasMerkleRoot ? " - unavailable" : ""}
+                    </option>
+                  </select>
+                  <p className="mt-2 text-xs text-gray-600">
+                    `targetHash` revokes a single wrapped document. `merkleRoot` revokes all documents in the same wrapped batch.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-5 py-4">
               <button
