@@ -3,7 +3,7 @@
 
 // Use the sub-path import to avoid pulling in Node.js-only utilities
 // (dotenv/config, core-js) from the @trustvc/trustvc main entry.
-import { deriveW3C, signW3C, verifyW3CSignature, type PrivateKeyPair } from "@trustvc/trustvc";
+import { signW3C, verifyDocument, type PrivateKeyPair } from "@trustvc/trustvc";
 import { ethers } from "ethers";
 import {
   DEFAULT_ISSUING_METHODS,
@@ -45,8 +45,6 @@ const OPEN_ATTESTATION_CONTEXT = {
   certificateType: "https://schemas.tradetrust.io/credentials#certificateType",
   issuingMethods: "https://schemas.tradetrust.io/credentials#issuingMethods",
 } as const;
-
-const DERIVE_CREDENTIAL_ERROR = "Use deriveCredential() first";
 
 // Certificate data structure
 export interface CertificateData {
@@ -161,46 +159,28 @@ export async function verifyCredential(
       };
     }
 
-    // Perform real cryptographic verification via the TrustVC SDK.
-    // verifyW3CSignature resolves the DID document for the verificationMethod
-    // and checks the Data Integrity proof signature.
-    let credentialToVerify = document as Parameters<typeof verifyW3CSignature>[0];
-    let vcResult = await verifyW3CSignature(credentialToVerify);
-
-    if (
-      !vcResult.verified &&
-      typeof vcResult.error === "string" &&
-      vcResult.error.includes(DERIVE_CREDENTIAL_ERROR)
-    ) {
-      const derivedResult = await deriveW3C(
-        credentialToVerify as Parameters<typeof deriveW3C>[0],
-        []
-      );
-
-      if (!derivedResult.derived) {
-        return {
-          valid: false,
-          message: derivedResult.error || "Unable to derive credential for verification.",
-          details: {
-            issuer:
-              typeof document["issuer"] === "object" && document["issuer"] !== null
-                ? String((document["issuer"] as Record<string, unknown>)["id"] ?? document["issuer"])
-                : String(document["issuer"]),
-            credentialId: getCredentialIdentifier(document),
-            cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
-            verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
-          },
-        };
+    const verificationFragments = await verifyDocument(
+      document as Parameters<typeof verifyDocument>[0],
+      {
+        provider: new ethers.providers.JsonRpcProvider(NETWORKS.sepolia.rpcUrl),
       }
+    );
 
-      credentialToVerify = derivedResult.derived as Parameters<typeof verifyW3CSignature>[0];
-      vcResult = await verifyW3CSignature(credentialToVerify);
-    }
+    const integrityOrIssuerFailure = verificationFragments.find(
+      (fragment) =>
+        (fragment.type === "DOCUMENT_INTEGRITY" || fragment.type === "ISSUER_IDENTITY") &&
+        (fragment.status === "INVALID" || fragment.status === "ERROR")
+    );
 
-    if (!vcResult.verified) {
-      const errorMsg = vcResult.error
-        ? String(vcResult.error)
-        : "Signature verification failed.";
+    if (integrityOrIssuerFailure) {
+      const failureReason =
+        "reason" in integrityOrIssuerFailure
+          ? (integrityOrIssuerFailure.reason as { message?: string } | undefined)
+          : undefined;
+      const errorMsg =
+        failureReason?.message
+          ? failureReason.message
+          : "Signature verification failed.";
       return {
         valid: false,
         message: errorMsg,
