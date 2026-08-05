@@ -102,7 +102,7 @@ export function buildVCPayload(data: CertificateData) {
     type: ["VerifiableCredential", "OpenAttestationCredential"],
     issuanceDate: data.issueDate,
     validFrom: data.validFrom,
-    validUntil: data.validUntil,
+    ...(data.validUntil ? { validUntil: data.validUntil } : {}),
     credentialSubject: {
       certificateId: data.id,
       type: ["Person"],
