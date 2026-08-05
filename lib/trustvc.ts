@@ -33,6 +33,20 @@ const DOCUMENT_STORE_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  {
+    inputs: [{ internalType: "bytes32", name: "document", type: "bytes32" }],
+    name: "revoke",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "bytes32", name: "document", type: "bytes32" }],
+    name: "isRevoked",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 
 const OPEN_ATTESTATION_CONTEXT = {
@@ -244,6 +258,27 @@ export async function verifyCredential(
       new ethers.providers.JsonRpcProvider(NETWORKS.sepolia.rpcUrl)
     );
 
+    if (onChainResult.revoked) {
+      return {
+        valid: false,
+        message: "Credential has been revoked on blockchain.",
+        details: {
+          issuer:
+            typeof document["issuer"] === "object" && document["issuer"] !== null
+              ? String((document["issuer"] as Record<string, unknown>)["id"] ?? document["issuer"])
+              : String(document["issuer"]),
+          credentialId: getCredentialIdentifier(document),
+          cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
+          verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
+          credentialStatus:
+            verificationInput === document ? "verified" : "skipped (placeholder status list)",
+          blockchainVerification: "failed",
+          revoked: true,
+          message: "Document hash is marked as revoked on document store",
+        },
+      };
+    }
+
     if (!onChainResult.verified) {
       return {
         valid: false,
@@ -329,7 +364,7 @@ export async function verifyDocumentOnChain(
   credential: Record<string, unknown>,
   documentStoreAddress: string,
   providerOrSender: ethers.providers.Provider | ethers.Signer
-): Promise<{ verified: boolean; txHash?: string; blockNumber?: number }> {
+): Promise<{ verified: boolean; revoked?: boolean; txHash?: string; blockNumber?: number }> {
   if (!documentStoreAddress) {
     return { verified: false };
   }
@@ -350,10 +385,14 @@ export async function verifyDocumentOnChain(
       provider
     );
 
-    const isIssued = await contract.isIssued(documentHash);
+    const [isIssued, isRevoked] = await Promise.all([
+      contract.isIssued(documentHash),
+      contract.isRevoked(documentHash),
+    ]);
 
     return {
-      verified: isIssued,
+      verified: isIssued && !isRevoked,
+      revoked: isRevoked,
       blockNumber: undefined,
     };
   } catch (error) {
@@ -693,6 +732,12 @@ export interface EthereumIssuanceResult {
   error?: string;
 }
 
+export interface EthereumRevocationResult {
+  txHash?: string;
+  documentHash?: string;
+  error?: string;
+}
+
 /**
  * Produces a canonical JSON string from an object by sorting all keys
  * recursively. This ensures the resulting string — and therefore the document
@@ -775,6 +820,90 @@ export async function issueCertificateToEthereum(
     }
 
     const tx: ethers.ContractTransaction = await contract.issue(documentHash);
+    const receipt = await tx.wait();
+
+    return {
+      txHash: receipt.transactionHash,
+      documentHash,
+    };
+  } catch (err) {
+    const msg = (err as Error).message ?? String(err);
+
+    if (msg.includes("user rejected") || msg.includes("ACTION_REJECTED")) {
+      return { error: "Transaction rejected by user." };
+    }
+    if (
+      msg.includes("network changed") ||
+      msg.includes("chain") ||
+      msg.includes("NETWORK_ERROR")
+    ) {
+      return {
+        error:
+          "Network mismatch. Please switch MetaMask to the Sepolia testnet " +
+          "and try again.",
+      };
+    }
+    if (msg.includes("insufficient funds")) {
+      return {
+        error:
+          "Insufficient Sepolia ETH to cover gas. Get test ETH from a faucet.",
+      };
+    }
+    return { error: msg };
+  }
+}
+
+/**
+ * Revokes a credential hash on the OpenAttestation Document Store.
+ * The hash is keccak256(canonicalJson(credential)) and must match the
+ * originally issued document hash.
+ */
+export async function revokeCertificateOnEthereum(
+  credential: Record<string, unknown>,
+  documentStoreAddress: string,
+  signer: ethers.Signer
+): Promise<EthereumRevocationResult> {
+  if (!documentStoreAddress) {
+    return { error: "Document store address is required." };
+  }
+
+  try {
+    const documentHash = ethers.utils.keccak256(
+      ethers.utils.toUtf8Bytes(canonicalJson(credential))
+    );
+
+    const contract = new ethers.Contract(
+      documentStoreAddress,
+      DOCUMENT_STORE_ABI,
+      signer
+    );
+
+    const [isIssued, isRevoked] = await Promise.all([
+      contract.isIssued(documentHash),
+      contract.isRevoked(documentHash),
+    ]);
+
+    if (!isIssued) {
+      return { error: "This document has not been issued on-chain.", documentHash };
+    }
+
+    if (isRevoked) {
+      return { error: "This document is already revoked.", documentHash };
+    }
+
+    try {
+      await contract.callStatic.revoke(documentHash);
+    } catch (staticErr) {
+      const staticMsg = (staticErr as Error).message ?? String(staticErr);
+      return {
+        error:
+          "Pre-check failed — the connected wallet may not have revocation permissions on " +
+          `this document store. (${staticMsg})`,
+        documentHash,
+      };
+    }
+
+    const tx: ethers.ContractTransaction = await contract.revoke(documentHash);
     const receipt = await tx.wait();
 
     return {

@@ -3,12 +3,24 @@
 import { useState } from "react";
 import NavBar from "../../components/NavBar";
 import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, FileCheck } from "lucide-react";
-import { verifyCredential, VerificationResult } from "../../lib/trustvc";
+import { useWalletConnection } from "../../hooks/useWalletConnection";
+import { DOCUMENT_STORE_CONFIG } from "../../lib/constants";
+import {
+  verifyCredential,
+  VerificationResult,
+  revokeCertificateOnEthereum,
+} from "../../lib/trustvc";
 
 export default function VerifyPage() {
+  const { connected, connect, getSigner, network, switchToSepolia } = useWalletConnection();
   const [credentialJson, setCredentialJson] = useState("");
   const [result, setResult] = useState<VerificationResult | null>(null);
+  const [verifiedDocument, setVerifiedDocument] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
+  const [revokeMessage, setRevokeMessage] = useState<string | null>(null);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
 
   const handleVerify = async () => {
     if (!credentialJson.trim()) {
@@ -17,11 +29,15 @@ export default function VerifyPage() {
     }
 
     setLoading(true);
+    setRevokeMessage(null);
+    setRevokeError(null);
     try {
       const doc = JSON.parse(credentialJson);
+      setVerifiedDocument(doc);
       const verificationResult = await verifyCredential(doc);
       setResult(verificationResult);
     } catch (e) {
+      setVerifiedDocument(null);
       setResult({
         valid: false,
         message: `Invalid JSON: ${(e as Error).message}`,
@@ -29,6 +45,85 @@ export default function VerifyPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRevoke = async () => {
+    if (!result?.valid || !verifiedDocument) {
+      setRevokeError("Verify a valid credential before revoking.");
+      return;
+    }
+
+    const issuingMethods = verifiedDocument["issuingMethods"];
+    const supportsRevocation =
+      Array.isArray(issuingMethods) && issuingMethods.includes("ethereum");
+
+    if (!supportsRevocation) {
+      setRevokeError("This credential was not issued via Ethereum and cannot be revoked on-chain.");
+      return;
+    }
+
+    setRevoking(true);
+    setRevokeMessage(null);
+    setRevokeError(null);
+
+    try {
+      if (!connected) {
+        await connect();
+      }
+
+      if (network !== "sepolia") {
+        await switchToSepolia();
+      }
+
+      const signer = await getSigner();
+      const revocationResult = await revokeCertificateOnEthereum(
+        verifiedDocument,
+        DOCUMENT_STORE_CONFIG.address,
+        signer
+      );
+
+      if (revocationResult.error) {
+        setRevokeError(revocationResult.error);
+        return;
+      }
+
+      const txPreview = revocationResult.txHash
+        ? ` (tx: ${revocationResult.txHash.slice(0, 10)}...)`
+        : "";
+
+      setRevokeMessage(`Credential revoked successfully${txPreview}.`);
+      setResult({
+        valid: false,
+        message: "Credential has been revoked on blockchain.",
+        details: {
+          ...(result.details ?? {}),
+          blockchainVerification: "failed",
+          revoked: true,
+          transactionHash: revocationResult.txHash,
+          message: "Document hash is marked as revoked on document store",
+        },
+      });
+    } catch (e) {
+      setRevokeError(`Revocation failed: ${(e as Error).message}`);
+    } finally {
+      setRevoking(false);
+    }
+  };
+
+  const handleOpenRevokeConfirm = () => {
+    setRevokeMessage(null);
+    setRevokeError(null);
+    setShowRevokeConfirm(true);
+  };
+
+  const handleCloseRevokeConfirm = () => {
+    if (revoking) return;
+    setShowRevokeConfirm(false);
+  };
+
+  const handleConfirmRevoke = async () => {
+    await handleRevoke();
+    setShowRevokeConfirm(false);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -243,6 +338,30 @@ export default function VerifyPage() {
                     </dl>
                   </div>
                 )}
+
+                {result.valid && (
+                  <div className="mt-4">
+                    <button
+                      onClick={handleOpenRevokeConfirm}
+                      disabled={revoking}
+                      className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {revoking ? "Revoking..." : "Revoke"}
+                    </button>
+                  </div>
+                )}
+
+                {revokeMessage && (
+                  <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    {revokeMessage}
+                  </p>
+                )}
+
+                {revokeError && (
+                  <p className="mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    {revokeError}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -265,6 +384,37 @@ export default function VerifyPage() {
           </div>
         </div>
       </div>
+
+      {showRevokeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+            <div className="border-b border-gray-100 px-5 py-4">
+              <h3 className="text-lg font-semibold text-gray-900">Confirm Revocation</h3>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-gray-700">
+                Revoking is an on-chain action and cannot be undone. This certificate will fail future blockchain verification checks.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-5 py-4">
+              <button
+                onClick={handleCloseRevokeConfirm}
+                disabled={revoking}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmRevoke}
+                disabled={revoking}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {revoking ? "Revoking..." : "Confirm Revoke"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
