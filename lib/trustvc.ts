@@ -3,7 +3,7 @@
 
 // Use the sub-path import to avoid pulling in Node.js-only utilities
 // (dotenv/config, core-js) from the @trustvc/trustvc main entry.
-import { signW3C, verifyW3CSignature, type PrivateKeyPair } from "@trustvc/trustvc";
+import { deriveW3C, signW3C, verifyW3CSignature, type PrivateKeyPair } from "@trustvc/trustvc";
 import { ethers } from "ethers";
 import {
   DEFAULT_ISSUING_METHODS,
@@ -45,6 +45,8 @@ const OPEN_ATTESTATION_CONTEXT = {
   certificateType: "https://schemas.tradetrust.io/credentials#certificateType",
   issuingMethods: "https://schemas.tradetrust.io/credentials#issuingMethods",
 } as const;
+
+const DERIVE_CREDENTIAL_ERROR = "Use deriveCredential() first";
 
 // Certificate data structure
 export interface CertificateData {
@@ -162,9 +164,38 @@ export async function verifyCredential(
     // Perform real cryptographic verification via the TrustVC SDK.
     // verifyW3CSignature resolves the DID document for the verificationMethod
     // and checks the Data Integrity proof signature.
-    const vcResult = await verifyW3CSignature(
-      document as Parameters<typeof verifyW3CSignature>[0]
-    );
+    let credentialToVerify = document as Parameters<typeof verifyW3CSignature>[0];
+    let vcResult = await verifyW3CSignature(credentialToVerify);
+
+    if (
+      !vcResult.verified &&
+      typeof vcResult.error === "string" &&
+      vcResult.error.includes(DERIVE_CREDENTIAL_ERROR)
+    ) {
+      const derivedResult = await deriveW3C(
+        credentialToVerify as Parameters<typeof deriveW3C>[0],
+        []
+      );
+
+      if (!derivedResult.derived) {
+        return {
+          valid: false,
+          message: derivedResult.error || "Unable to derive credential for verification.",
+          details: {
+            issuer:
+              typeof document["issuer"] === "object" && document["issuer"] !== null
+                ? String((document["issuer"] as Record<string, unknown>)["id"] ?? document["issuer"])
+                : String(document["issuer"]),
+            credentialId: getCredentialIdentifier(document),
+            cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
+            verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
+          },
+        };
+      }
+
+      credentialToVerify = derivedResult.derived as Parameters<typeof verifyW3CSignature>[0];
+      vcResult = await verifyW3CSignature(credentialToVerify);
+    }
 
     if (!vcResult.verified) {
       const errorMsg = vcResult.error
@@ -471,20 +502,18 @@ export async function signDocumentWithDID(
     secretKeyMultibase: secretKeyMultibase,
   } as PrivateKeyPair;
 
+  const unsignedCredential = stripExistingProof(credential);
+
   try {
-    console.log(
-  "SIGNING JSON",
-  JSON.stringify(credential, null, 2)
-);
     const result = await signW3C(
-      credential as Parameters<typeof signW3C>[0],
+      unsignedCredential as Parameters<typeof signW3C>[0],
       keyPair
     );
     if (result.error) {
-      return { credential, signed: false, error: result.error };
+      return { credential: unsignedCredential, signed: false, error: result.error };
     }
     if (!result.signed) {
-      return { credential, signed: false, error: "Signing returned no result." };
+      return { credential: unsignedCredential, signed: false, error: "Signing returned no result." };
     }
     return {
       credential: result.signed as unknown as Record<string, unknown>,
@@ -494,7 +523,7 @@ export async function signDocumentWithDID(
     console.error("FULL SIGN ERROR");
     console.error(err);
     return {
-      credential,
+      credential: unsignedCredential,
       signed: false,
       error:
         err instanceof Error
@@ -538,10 +567,6 @@ export async function issueDIDCertificate(
   }
 
   try {
-    console.log("SIGN INPUT", {
-  credential,
-  keyPair
-});
     const result = await signW3C(
       credential as Parameters<typeof signW3C>[0],
       keyPair
@@ -563,6 +588,17 @@ export async function issueDIDCertificate(
       error: `DID signing failed: ${(err as Error).message}`,
     };
   }
+}
+
+function stripExistingProof(
+  credential: Record<string, unknown>
+): Record<string, unknown> {
+  if (!("proof" in credential)) {
+    return credential;
+  }
+
+  const { proof: _proof, ...unsignedCredential } = credential;
+  return unsignedCredential;
 }
 
 // ---------------------------------------------------------------------------
