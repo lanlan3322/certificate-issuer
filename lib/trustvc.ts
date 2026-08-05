@@ -34,6 +34,18 @@ const DOCUMENT_STORE_ABI = [
   },
 ] as const;
 
+const OPEN_ATTESTATION_CONTEXT = {
+  "@version": 1.1,
+  "@vocab": "https://schema.org/",
+  OpenAttestationCredential:
+    "https://schemas.tradetrust.io/credentials#OpenAttestationCredential",
+  OpenAttestationIssuer:
+    "https://schemas.tradetrust.io/credentials#OpenAttestationIssuer",
+  certificateId: "https://schemas.tradetrust.io/credentials#certificateId",
+  certificateType: "https://schemas.tradetrust.io/credentials#certificateType",
+  issuingMethods: "https://schemas.tradetrust.io/credentials#issuingMethods",
+} as const;
+
 // Certificate data structure
 export interface CertificateData {
   id: string;
@@ -64,7 +76,7 @@ export function buildVCPayload(data: CertificateData) {
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
       "https://w3id.org/security/data-integrity/v2",
-      "https://w3id.org/openattestation/v2"
+      OPEN_ATTESTATION_CONTEXT,
     ],
     type: ["VerifiableCredential", "OpenAttestationCredential"],
     issuanceDate: data.issueDate,
