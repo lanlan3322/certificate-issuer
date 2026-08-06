@@ -56,31 +56,6 @@ export default function VerifyPage() {
       return;
     }
 
-    const issuingMethods = verifiedDocument["issuingMethods"];
-    const supportsEthereumMethod =
-      Array.isArray(issuingMethods) && issuingMethods.includes("ethereum");
-    const signature = verifiedDocument["signature"];
-    const signatureObj =
-      signature && typeof signature === "object"
-        ? (signature as Record<string, unknown>)
-        : null;
-    const hasTargetHashForRevoke =
-      typeof signatureObj?.targetHash === "string" &&
-      /^0x[a-fA-F0-9]{64}$/.test(signatureObj.targetHash);
-    const hasMerkleRootForRevoke =
-      typeof signatureObj?.merkleRoot === "string" &&
-      /^0x[a-fA-F0-9]{64}$/.test(signatureObj.merkleRoot);
-
-    const supportsRevocation =
-      supportsEthereumMethod || hasTargetHashForRevoke || hasMerkleRootForRevoke;
-
-    if (!supportsRevocation) {
-      setRevokeError(
-        "This credential does not include an Ethereum issuing method or OA signature hash (targetHash/merkleRoot) required for on-chain revocation."
-      );
-      return;
-    }
-
     setRevoking(true);
     setRevokeMessage(null);
     setRevokeError(null);
