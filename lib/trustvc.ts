@@ -104,6 +104,11 @@ export function buildVCPayload(data: CertificateData) {
       type: "REVOCATION_STORE",
       location: DOCUMENT_STORE_CONFIG.address,
     };
+  } else if (issuingMethods.includes("did")) {
+    issuer.revocation = {
+      type: TRUSTVC_CONFIG.revocation.type,
+      location: TRUSTVC_CONFIG.revocation.location,
+    };
   }
 
   return {

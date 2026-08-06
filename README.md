@@ -74,11 +74,14 @@ Copy `.env.example` to `.env.local` and fill in the values.
 | `NEXT_PUBLIC_DID_CONTROLLER` | DID controller URI | DID signing only |
 | `NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE` | Base58btc-encoded ECDSA secp256k1 public key (starts with `z`) | DID signing only |
 | `NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE` | Base58btc-encoded ECDSA secp256k1 private key (starts with `z`) | DID signing only |
+| `NEXT_PUBLIC_DID_REVOCATION_LOCATION` | Open Attestation OCSP Responder URL for DID revocation | Optional |
 | `NEXT_PUBLIC_DOCUMENT_STORE_ADDRESS` | Ethereum DocumentStore contract address | Ethereum issuance |
 
 > ⚠️ **Security note:** `NEXT_PUBLIC_*` variables are bundled into the static JS files served by GitHub Pages. Anyone who downloads the page can read them. **Only use demo or test key pairs here.** For a production issuer service, implement a backend signing API instead.
 
 All four `NEXT_PUBLIC_DID_*` variables must be set together. If any one is missing, signing attempts will return a clear error message listing the missing variables.
+
+By default, DID-issued credentials include an `OCSP_RESPONDER` revocation block that points to the Open Attestation OCSP Responder sandbox at `https://ocsp-sandbox.openattestation.com`. Set `NEXT_PUBLIC_DID_REVOCATION_LOCATION` if you are running your own responder instance.
 
 ### Generating a DID Key Pair
 
@@ -114,7 +117,8 @@ External verifiers resolve the issuer's `did:web` document from this URL to obta
 4. Fill in the recipient details.
 5. Click **Issue Certificate**.
 6. The credential will be signed using `ecdsa-sd-2023` and the JSON output will include a `proof` block.
-7. Download or copy the signed credential JSON.
+7. DID-issued credentials also include an Open Attestation OCSP revocation reference so they can be revoked later.
+8. Download or copy the signed credential JSON.
 
 **Without DID keys configured:** The credential is still generated as an unsigned draft (no `proof`). This is useful for previewing the payload.
 

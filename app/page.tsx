@@ -60,11 +60,17 @@ import {
 
 const MAX_VISIBLE_FAILED_FILES = 5;
 const MAX_FAILED_FILE_NAME_LENGTH = 40;
-const REVOCATION_PREREQUISITES = [
+const ETHEREUM_REVOCATION_PREREQUISITES = [
   "Issue with Ethereum enabled so the credential includes a revocation store reference.",
   `Use the deployed Sepolia document store at ${DOCUMENT_STORE_CONFIG.address}.`,
   "Keep the issuer DID document published and reachable for verification.",
   "Revoke from the same network and wallet that has document-store permissions.",
+];
+const DID_REVOCATION_PREREQUISITES = [
+  "Issue with DID enabled so the credential includes an OCSP revocation reference.",
+  "Keep the issuer DID document public and resolvable over did:web.",
+  "Point the revocation location at a reachable OCSP responder.",
+  "Make sure the OCSP responder understands the credential hash you want to revoke.",
 ];
 
 interface IssueFormState {
@@ -726,14 +732,28 @@ export default function HomePage() {
                     onToggle={handleToggleIssuingMethod}
                   />
 
-                  {issuingMethods.includes("ethereum") && (
+                  {issuingMethods.includes("did") && (
                     <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
                       <p className="font-semibold">Revocation prerequisites</p>
                       <p className="mt-1 text-xs text-blue-800">
                         These need to be in place before a credential can be revoked later:
                       </p>
                       <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-blue-800">
-                        {REVOCATION_PREREQUISITES.map((item) => (
+                        {DID_REVOCATION_PREREQUISITES.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {issuingMethods.includes("ethereum") && (
+                    <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-900">
+                      <p className="font-semibold">Ethereum revocation prerequisites</p>
+                      <p className="mt-1 text-xs text-green-800">
+                        These need to be in place before a credential can be revoked on-chain:
+                      </p>
+                      <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-green-800">
+                        {ETHEREUM_REVOCATION_PREREQUISITES.map((item) => (
                           <li key={item}>{item}</li>
                         ))}
                       </ul>
