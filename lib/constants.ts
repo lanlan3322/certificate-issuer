@@ -49,8 +49,8 @@ export function formatIssuingMethodLabels(
 export const DOCUMENT_STORE_CONFIG = {
   // Demo document store on Sepolia
   // For production, deploy your own at:
-  // https://sepolia.etherscan.io/address/0x4B30674f8F77C0b1aB4c8A34B2a85C295A3aE2D4
-  address: "0x4B30674f8F77C0b1aB4c8A34B2a85C295A3aE2D4",
+  // https://sepolia.etherscan.io/address/0x4B30674f8F77C0b1Ab4C8A34b2a85C295A3aE2D4
+  address: "0x4B30674f8F77C0b1Ab4C8A34b2a85C295A3aE2D4",
   
   // Identity Proof - DNS-TXT record
   // Add this TXT record to your DNS:
@@ -165,7 +165,7 @@ export const DEPLOYMENT_STEPS = [
     title: "Deploy Document Store",
     description: "Deploy a document store smart contract on Sepolia testnet",
     action: "Deploy",
-    link: "https://sepolia.etherscan.io/address/0x4B30674f8F77C0b1aB4c8A34B2a85C295A3aE2D4",
+    link: "https://sepolia.etherscan.io/address/0x4B30674f8F77C0b1Ab4C8A34b2a85C295A3aE2D4",
   },
   {
     step: 2,

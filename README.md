@@ -249,7 +249,7 @@ The app uses the **OpenAttestation Document Store** pattern on Ethereum:
 
 - **Network:** Sepolia testnet (chainId: 11155111)
 - **Document Store:** Ethereum smart contract for issuing/revoking document hashes
-- **Default address:** `0x4B30674f8F77C0b1aB4c8A34B2a85C295A3aE2D4` (demo only — outside wallets cannot issue)
+- **Default address:** `0x4B30674f8F77c0b1Ab4C8A34b2a85C295a3ae2D4` (demo only — outside wallets cannot issue)
 
 For production, deploy your own Document Store and update `.env.local`:
 ```
