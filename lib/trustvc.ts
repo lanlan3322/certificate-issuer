@@ -93,6 +93,19 @@ export function buildVCPayload(data: CertificateData) {
       ? data.issuingMethods
       : DEFAULT_ISSUING_METHODS;
 
+  const issuer: Record<string, unknown> = {
+    id: TRUSTVC_CONFIG.didUrl,
+    type: "OpenAttestationIssuer",
+    name: data.issuerName,
+  };
+
+  if (issuingMethods.includes("ethereum")) {
+    issuer.revocation = {
+      type: "REVOCATION_STORE",
+      location: DOCUMENT_STORE_CONFIG.address,
+    };
+  }
+
   return {
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
@@ -112,11 +125,7 @@ export function buildVCPayload(data: CertificateData) {
       templateId: data.templateId,
       description: data.description,
     },
-    issuer: {
-      id: TRUSTVC_CONFIG.didUrl,
-      type: "OpenAttestationIssuer",
-      name: data.issuerName,
-    },
+    issuer,
     issuingMethods: issuingMethods,
   };
 }
