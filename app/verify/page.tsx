@@ -107,22 +107,28 @@ export default function VerifyPage() {
       const txPreview = revocationResult.txHash
         ? ` (tx: ${revocationResult.txHash.slice(0, 10)}...)`
         : "";
+      const submittedPreview = revocationResult.submittedViaBeacon
+        ? " (submitted to OCSP responder)"
+        : "";
 
       setRevokeMessage(
         isOcspRevocation
-          ? `Credential revoked successfully via OCSP responder.`
+          ? `Credential revoked successfully via OCSP responder${submittedPreview}.`
           : `Credential revoked successfully${txPreview}.`
       );
       setResult({
         valid: false,
         message: isOcspRevocation
-          ? "Credential has been revoked via the OCSP responder."
+          ? revocationResult.submittedViaBeacon
+            ? "Credential revocation was submitted to the OCSP responder."
+            : "Credential has been revoked via the OCSP responder."
           : "Credential has been revoked on blockchain.",
         details: {
           ...(result.details ?? {}),
           revoked: true,
           blockchainVerification: isOcspRevocation ? "skipped" : "failed",
           transactionHash: revocationResult.txHash,
+          revocationSubmission: revocationResult.submittedViaBeacon ? "beacon" : isOcspRevocation ? "fetch" : "transaction",
           revocationType: isOcspRevocation ? "OCSP_RESPONDER" : "REVOCATION_STORE",
           message: isOcspRevocation
             ? "Document hash is marked as revoked in the OCSP responder"

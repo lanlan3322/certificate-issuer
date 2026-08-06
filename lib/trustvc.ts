@@ -747,6 +747,7 @@ export interface EthereumIssuanceResult {
 export interface EthereumRevocationResult {
   txHash?: string;
   documentHash?: string;
+  submittedViaBeacon?: boolean;
   error?: string;
 }
 
@@ -990,8 +991,34 @@ export async function revokeCertificateViaOcspResponder(
     };
   } catch (err) {
     const msg = (err as Error).message ?? String(err);
+
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      try {
+        const documentHash = computeDocumentStoreHash(
+          credential,
+          options?.hashMode ?? "auto"
+        );
+        const normalizedUrl = ocspResponderUrl.replace(/\/+$/, "");
+        const beaconBody = new Blob(
+          [JSON.stringify({ documentHash, reasonCode: options?.reasonCode ?? 3 })],
+          { type: "application/json" }
+        );
+
+        if (navigator.sendBeacon(normalizedUrl, beaconBody)) {
+          return {
+            documentHash,
+            submittedViaBeacon: true,
+          };
+        }
+      } catch {
+        // Fall through to the explicit error below.
+      }
+    }
+
     return {
-      error: `OCSP revocation failed: ${msg}`,
+      error:
+        `OCSP revocation failed: ${msg}. ` +
+        "If this responder does not allow browser fetches, deploy it behind a same-origin proxy or use a CORS-enabled endpoint.",
     };
   }
 }
