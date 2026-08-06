@@ -4,11 +4,12 @@ import { useState } from "react";
 import NavBar from "../../components/NavBar";
 import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, FileCheck } from "lucide-react";
 import { useWalletConnection } from "../../hooks/useWalletConnection";
-import { DOCUMENT_STORE_CONFIG } from "../../lib/constants";
+import { DOCUMENT_STORE_CONFIG, TRUSTVC_CONFIG } from "../../lib/constants";
 import {
   verifyCredential,
   VerificationResult,
   RevocationHashMode,
+  revokeCertificateViaOcspResponder,
   revokeCertificateOnEthereum,
 } from "../../lib/trustvc";
 
@@ -60,22 +61,43 @@ export default function VerifyPage() {
     setRevokeMessage(null);
     setRevokeError(null);
 
+    const issuer = verifiedDocument["issuer"];
+    const issuerRevocation =
+      issuer && typeof issuer === "object"
+        ? (issuer as Record<string, unknown>)["revocation"]
+        : null;
+    const revocationType =
+      issuerRevocation && typeof issuerRevocation === "object"
+        ? String((issuerRevocation as Record<string, unknown>)["type"] ?? "")
+        : "";
+    const revocationLocation =
+      issuerRevocation && typeof issuerRevocation === "object"
+        ? String((issuerRevocation as Record<string, unknown>)["location"] ?? "")
+        : "";
+
     try {
-      if (!connected) {
-        await connect();
-      }
+      const isOcspRevocation = revocationType === "OCSP_RESPONDER";
+      const revocationResult = isOcspRevocation
+        ? await revokeCertificateViaOcspResponder(verifiedDocument, revocationLocation || TRUSTVC_CONFIG.revocation.location, {
+            hashMode: revokeHashMode,
+          })
+        : await (async () => {
+            if (!connected) {
+              await connect();
+            }
 
-      if (network !== "sepolia") {
-        await switchToSepolia();
-      }
+            if (network !== "sepolia") {
+              await switchToSepolia();
+            }
 
-      const signer = await getSigner();
-      const revocationResult = await revokeCertificateOnEthereum(
-        verifiedDocument,
-        DOCUMENT_STORE_CONFIG.address,
-        signer,
-        { hashMode: revokeHashMode }
-      );
+            const signer = await getSigner();
+            return revokeCertificateOnEthereum(
+              verifiedDocument,
+              DOCUMENT_STORE_CONFIG.address,
+              signer,
+              { hashMode: revokeHashMode }
+            );
+          })();
 
       if (revocationResult.error) {
         setRevokeError(revocationResult.error);
@@ -86,16 +108,25 @@ export default function VerifyPage() {
         ? ` (tx: ${revocationResult.txHash.slice(0, 10)}...)`
         : "";
 
-      setRevokeMessage(`Credential revoked successfully${txPreview}.`);
+      setRevokeMessage(
+        isOcspRevocation
+          ? `Credential revoked successfully via OCSP responder.`
+          : `Credential revoked successfully${txPreview}.`
+      );
       setResult({
         valid: false,
-        message: "Credential has been revoked on blockchain.",
+        message: isOcspRevocation
+          ? "Credential has been revoked via the OCSP responder."
+          : "Credential has been revoked on blockchain.",
         details: {
           ...(result.details ?? {}),
-          blockchainVerification: "failed",
           revoked: true,
+          blockchainVerification: isOcspRevocation ? "skipped" : "failed",
           transactionHash: revocationResult.txHash,
-          message: "Document hash is marked as revoked on document store",
+          revocationType: isOcspRevocation ? "OCSP_RESPONDER" : "REVOCATION_STORE",
+          message: isOcspRevocation
+            ? "Document hash is marked as revoked in the OCSP responder"
+            : "Document hash is marked as revoked on document store",
         },
       });
     } catch (e) {
@@ -131,6 +162,25 @@ export default function VerifyPage() {
     typeof signatureObj?.targetHash === "string" && /^0x[a-fA-F0-9]{64}$/.test(signatureObj.targetHash);
   const hasMerkleRoot =
     typeof signatureObj?.merkleRoot === "string" && /^0x[a-fA-F0-9]{64}$/.test(signatureObj.merkleRoot);
+  const issuer = verifiedDocument?.["issuer"];
+  const issuerRevocation =
+    issuer && typeof issuer === "object"
+      ? (issuer as Record<string, unknown>)["revocation"]
+      : null;
+  const revocationType =
+    issuerRevocation && typeof issuerRevocation === "object"
+      ? String((issuerRevocation as Record<string, unknown>)["type"] ?? "")
+      : "";
+  const revocationLocation =
+    issuerRevocation && typeof issuerRevocation === "object"
+      ? String((issuerRevocation as Record<string, unknown>)["location"] ?? "")
+      : "";
+  const revocationLabel =
+    revocationType === "OCSP_RESPONDER"
+      ? `DID / OCSP responder${revocationLocation ? `: ${revocationLocation}` : ""}`
+      : revocationType === "REVOCATION_STORE"
+        ? `Ethereum / document store${revocationLocation ? `: ${revocationLocation}` : ""}`
+        : null;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -347,6 +397,11 @@ export default function VerifyPage() {
 
                 {result.valid && (
                   <div className="mt-4">
+                    {revocationLabel && (
+                      <div className="mb-3 inline-flex max-w-full items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700">
+                        <span className="truncate">{revocationLabel}</span>
+                      </div>
+                    )}
                     <button
                       onClick={handleOpenRevokeConfirm}
                       disabled={revoking}
@@ -398,6 +453,12 @@ export default function VerifyPage() {
               <h3 className="text-lg font-semibold text-gray-900">Confirm Revocation</h3>
             </div>
             <div className="px-5 py-4">
+              {revocationLabel && (
+                <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
+                  <span className="font-semibold">Revocation path:</span>{" "}
+                  <span className="break-all">{revocationLabel}</span>
+                </div>
+              )}
               <p className="text-sm text-gray-700">
                 Revoking is an on-chain action and cannot be undone. This certificate will fail future blockchain verification checks.
               </p>

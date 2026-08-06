@@ -944,6 +944,58 @@ export async function revokeCertificateOnEthereum(
   }
 }
 
+/**
+ * Revokes a DID-issued credential through an Open Attestation OCSP responder.
+ *
+ * The responder stores revocation state by document hash and does not require
+ * a blockchain transaction or wallet connection.
+ */
+export async function revokeCertificateViaOcspResponder(
+  credential: Record<string, unknown>,
+  ocspResponderUrl: string,
+  options?: { hashMode?: RevocationHashMode; reasonCode?: number }
+): Promise<EthereumRevocationResult> {
+  if (!ocspResponderUrl) {
+    return { error: "OCSP responder URL is required." };
+  }
+
+  try {
+    const documentHash = computeDocumentStoreHash(
+      credential,
+      options?.hashMode ?? "auto"
+    );
+    const normalizedUrl = ocspResponderUrl.replace(/\/+$/, "");
+
+    const response = await fetch(normalizedUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        documentHash,
+        reasonCode: options?.reasonCode ?? 3,
+      }),
+    });
+
+    if (!response.ok) {
+      const responseText = await response.text();
+      return {
+        error: `OCSP responder rejected the revocation request (${response.status} ${response.statusText}). ${responseText}`,
+        documentHash,
+      };
+    }
+
+    return {
+      documentHash,
+    };
+  } catch (err) {
+    const msg = (err as Error).message ?? String(err);
+    return {
+      error: `OCSP revocation failed: ${msg}`,
+    };
+  }
+}
+
 function computeDocumentStoreHash(
   credential: Record<string, unknown>,
   mode: RevocationHashMode = "auto"
