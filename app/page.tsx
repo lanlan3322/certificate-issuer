@@ -31,6 +31,7 @@ import {
   generateCertificateId,
   buildVCPayload,
   issueCertificateToEthereum,
+  issueDIDCertificate,
   type DIDIssuanceResult,
   type EthereumIssuanceResult,
 } from "../lib/trustvc";
@@ -51,7 +52,6 @@ import {
   formatIssuingMethodLabels,
   IssuingMethod,
 } from "../lib/constants";
-import { withBasePath } from "../lib/site";
 import {
   CertificateTemplateRenderer,
   DEFAULT_TEMPLATE_ID,
@@ -301,36 +301,48 @@ export default function HomePage() {
 
       // --- DID issuance ---
       if (issuingMethods.includes("did")) {
-        const response = await fetch(withBasePath("/api/issue"), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            data: certData,
-            type: "did",
-          }),
-        });
+        let didResult: DIDIssuanceResult;
 
-        const resultPayload = (await response.json()) as {
-          signed?: boolean;
-          credential?: Record<string, unknown>;
-          error?: string;
-        };
-
-        if (!response.ok || resultPayload.error) {
-          setDIDResult({
-            credential: buildVCPayload(certData) as Record<string, unknown>,
-            signed: false,
-            error: resultPayload.error ?? "DID signing request failed.",
+        try {
+          const response = await fetch("/api/issue", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              data: certData,
+              type: "did",
+            }),
           });
-        } else {
-          setDIDResult({
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const resultPayload = (await response.json()) as {
+            signed?: boolean;
+            credential?: Record<string, unknown>;
+            error?: string;
+          };
+
+          if (resultPayload.error) {
+            throw new Error(resultPayload.error);
+          }
+
+          didResult = {
             credential: (resultPayload.credential ?? buildVCPayload(certData)) as Record<string, unknown>,
             signed: Boolean(resultPayload.signed),
             error: resultPayload.error,
-          });
+          };
+        } catch {
+          didResult = await issueDIDCertificate(certData);
         }
+
+        setDIDResult({
+          credential: didResult.credential ?? (buildVCPayload(certData) as Record<string, unknown>),
+          signed: Boolean(didResult.signed),
+          error: didResult.error,
+        });
       }
 
       // --- Ethereum issuance ---
