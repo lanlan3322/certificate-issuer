@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:github-pages": "DEPLOY_TARGET=github-pages next build",
+    "build:netlify": "DEPLOY_TARGET=netlify next build",
     "start": "next start",
     "lint": "next lint"
   },

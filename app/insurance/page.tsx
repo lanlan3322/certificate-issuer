@@ -51,6 +51,7 @@ import {
   formatIssuingMethodLabels,
   IssuingMethod,
 } from "../../lib/constants";
+import { withBasePath } from "../../lib/site";
 import {
   CertificateTemplateRenderer,
   DEFAULT_TEMPLATE_ID,
@@ -293,7 +294,7 @@ export default function InsurancePage() {
       };
 
       if (issuingMethods.includes("did")) {
-        const response = await fetch("/certificate-issuer/api/issue", {
+        const response = await fetch(withBasePath("/api/issue"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -448,8 +449,6 @@ export default function InsurancePage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <NavBar />
-
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-6">
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-700">Insurance launch</p>

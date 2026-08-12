@@ -51,6 +51,7 @@ import {
   formatIssuingMethodLabels,
   IssuingMethod,
 } from "../lib/constants";
+import { withBasePath } from "../lib/site";
 import {
   CertificateTemplateRenderer,
   DEFAULT_TEMPLATE_ID,
@@ -300,7 +301,7 @@ export default function HomePage() {
 
       // --- DID issuance ---
       if (issuingMethods.includes("did")) {
-        const response = await fetch("/certificate-issuer/api/issue", {
+        const response = await fetch(withBasePath("/api/issue"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -460,8 +461,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <NavBar />
-
       <section className="bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.16),_transparent_35%),linear-gradient(135deg,#0f172a_0%,#111827_18%,#0f172a_100%)] text-white">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
           <div className="grid items-center gap-10 lg:grid-cols-[1.2fr_0.8fr]">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { withBasePath } from "../../lib/site";
 
 interface IssuerRecord {
   id: string;
@@ -27,7 +28,7 @@ export default function IssuerAdminPage() {
 
   const loadIssuers = async () => {
     try {
-      const response = await fetch("/certificate-issuer/api/issuers");
+      const response = await fetch(withBasePath("/api/issuers"));
       const payload = (await response.json()) as { issuers?: IssuerRecord[] };
       setIssuers(payload.issuers ?? []);
       setError(null);
@@ -47,7 +48,7 @@ export default function IssuerAdminPage() {
     setError(null);
 
     try {
-      const response = await fetch("/certificate-issuer/api/issuers", {
+      const response = await fetch(withBasePath("/api/issuers"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -72,7 +73,7 @@ export default function IssuerAdminPage() {
     setError(null);
 
     try {
-      const response = await fetch("/certificate-issuer/api/issuers", {
+      const response = await fetch(withBasePath("/api/issuers"), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { withBasePath } from "../../lib/site";
 import NavBar from "../../components/NavBar";
 
 export default function RevocationManagementPage() {
@@ -18,7 +19,7 @@ export default function RevocationManagementPage() {
     setResult(null);
 
     try {
-      const response = await fetch("/certificate-issuer/api/revocation", {
+      const response = await fetch(withBasePath("/api/revocation"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -38,8 +38,6 @@ export default function AuditPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <NavBar />
-
       <main className="mx-auto max-w-5xl px-4 py-8">
         <div className="mb-8 flex items-center justify-between gap-4">
           <div>

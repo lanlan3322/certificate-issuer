@@ -40,7 +40,7 @@ jobs:
           echo "NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE=${{ secrets.NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE }}" >> .env.production
 
       - name: Build
-        run: npm run build
+        run: npm run build:github-pages
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
