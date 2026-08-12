@@ -1,10 +1,19 @@
 /** @type {import('next').NextConfig} */
 const path = require("path");
 
+const deployTarget = process.env.DEPLOY_TARGET || "netlify";
+const isGitHubPages = deployTarget === "github-pages";
+const basePath = isGitHubPages ? "/certificate-issuer" : "";
+
 const nextConfig = {
   output: "export",
+  basePath,
+  assetPrefix: basePath ? `${basePath}/` : undefined,
   images: { unoptimized: true },
   trailingSlash: true,
+  env: {
+    NEXT_PUBLIC_BASE_PATH: basePath,
+  },
   webpack: (config) => {
     // Stub out Node.js-only modules that are transitively imported by
     // @trustvc packages but are never actually used in the browser.
