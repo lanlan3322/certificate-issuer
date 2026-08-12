@@ -32,9 +32,9 @@ export default function NavBar() {
   ];
 
   return (
-    <nav className="border-b border-slate-200 bg-white/90 backdrop-blur-md shadow-sm">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+    <nav className="sticky top-3 z-50 px-4 pb-3 pt-3 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <div className="flex h-16 items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-cyan-300 shadow-sm">
               <Shield className="h-5 w-5" />
@@ -54,9 +54,9 @@ export default function NavBar() {
                   key={item.href}
                   href={item.href}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 ${
                     isActive
-                      ? "bg-slate-900 text-white shadow-sm"
+                      ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
                       : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                   }`}
                 >
@@ -76,7 +76,7 @@ export default function NavBar() {
         </div>
 
         {mobileMenuOpen && (
-          <div className="space-y-2 border-t border-slate-200 py-3 md:hidden">
+          <div className="space-y-2 border-t border-slate-200 px-4 py-3 md:hidden">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
