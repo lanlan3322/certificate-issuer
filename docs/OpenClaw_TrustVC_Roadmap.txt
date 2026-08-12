@@ -1,0 +1,203 @@
+OpenClaw Execution Blueprint
+TrustVC Certificate Issuing Platform Transformation
+Version 1.0
+
+=== Phase 1: Stabilization & Security Foundation ===
+
+Objective:
+Establish a secure, production-ready TrustVC signing architecture.
+
+Task 1.1 TrustVC Signing Validation
+- Create standalone TrustVC signing test project
+- Verify TrustVC lifecycle outside Next.js
+- Standardize W3C VC payload format
+- Eliminate mixed OpenAttestation and W3C payloads
+
+Deliverables:
+- Signed W3C VC
+- Proof block generated
+- Verification successful
+
+Task 1.2 Move Signing Server-Side
+- Create POST /api/issue
+- Create POST /api/verify
+- Remove browser-side signing
+- Move TrustVC signing to backend services
+
+Task 1.3 Key Vault Integration
+- Azure Key Vault (preferred)
+- Key retrieval service
+- Signing proxy service
+- Key rotation support
+
+Task 1.4 Refactor TrustVC Layer
+- Refactor trustvc.ts
+- Refactor constants.ts
+- Create TrustVCService
+- Create DidService
+- Create VerificationService
+- Create IssuanceService
+
+=== Phase 2: Multi-Issuer Platform ===
+
+Objective:
+Convert single issuer application into a multi-tenant platform.
+
+Task 2.1 Organization Management
+Entities:
+- Organization
+- Issuer
+- User
+- Role
+
+Task 2.2 Issuer Workspace
+- Create issuer
+- Edit issuer
+- Disable issuer
+
+Task 2.3 DID Lifecycle Management
+- Generate DID
+- Import DID
+- Export DID
+- Rotate Keys
+- Deactivate DID
+
+Task 2.4 Branding
+- Logo
+- Theme Color
+- Issuer Website
+- Issuer Description
+- Verification Branding
+
+Task 2.5 Role-Based Access Control
+Roles:
+- Platform Admin
+- Issuer Admin
+- Issuer Operator
+- Verifier
+
+=== Phase 3: Certificate Issuing Platform ===
+
+Objective:
+Provide enterprise-grade certificate issuance capabilities.
+
+Task 3.1 Template Builder
+- Visual certificate template designer
+
+Task 3.2 Dynamic Template Rendering
+Support:
+- Text fields
+- Dates
+- Course information
+- Grades
+- Dynamic variables
+
+Task 3.3 Bulk Credential Issuance
+Inputs:
+- Excel
+- CSV
+- JSON
+
+Outputs:
+- Signed JSON
+- ZIP packages
+
+Task 3.4 Revocation Management
+- Credential Status Lists
+- Revocation
+- Suspension
+- Reinstatement
+
+APIs:
+- POST /revoke
+- POST /suspend
+- POST /reinstate
+
+Task 3.5 Verification Portal
+- Upload JSON
+- Paste VC
+- QR Scan
+- Cryptographic validation display
+
+=== Phase 4: Commercial SaaS Platform ===
+
+Objective:
+Launch a scalable commercial TrustVC issuance service.
+
+Task 4.1 Recipient Experience
+- Email delivery
+- Verification URL
+- QR Code
+- PDF representation
+
+Task 4.2 Wallet Integration
+- OpenCerts Wallet
+- Microsoft Entra Verified ID
+- Future VC wallets
+
+Task 4.3 Audit & Compliance
+Track:
+- Issued
+- Downloaded
+- Verified
+- Revoked
+- Updated
+
+Task 4.4 API Platform
+- POST /issue
+- POST /verify
+- POST /revoke
+- GET /credential/{id}
+
+Task 4.5 Enterprise Authentication
+- Microsoft Entra ID
+- Google Workspace
+- GitHub
+
+Task 4.6 Subscription Management
+Plans:
+- Starter
+- Professional
+- Enterprise
+
+=== Target Architecture ===
+Frontend (Netlify/Vercel)
+    -> API Gateway
+    -> Issue API / Verify API / Revoke API
+    -> TrustVC
+    -> Azure Key Vault
+    -> DID Layer
+    -> Status List Service
+    -> Optional Ethereum Registry
+
+=== Priority Order ===
+Sprint 1:
+1. TrustVC signing validation
+2. Server-side signing
+3. Azure Key Vault integration
+4. Multi-issuer support
+
+Sprint 2:
+5. DID management
+6. Template builder
+7. Bulk issuance
+8. Verification portal
+
+Sprint 3:
+9. Wallet integration
+10. Revocation service
+11. Audit logs
+12. Enterprise SSO
+13. SaaS billing
+
+Success Criteria:
+- Multi-tenant issuers
+- Secure server-side TrustVC signing
+- W3C Verifiable Credentials
+- DID lifecycle management
+- Bulk issuance at scale
+- Public verification portal
+- Credential revocation
+- Wallet integration
+- Enterprise authentication
+- Commercial SaaS operation
