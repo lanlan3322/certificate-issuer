@@ -8,6 +8,14 @@ A modern web application for issuing **W3C Verifiable Credentials** certificates
 ![W3C VC](https://img.shields.io/badge/W3C-Verifiable%20Credentials-green)
 ![Next.js](https://img.shields.io/badge/Next.js-14-black)
 
+## Documentation
+
+- [Quick Start Guide](docs/QUICK_START.md)
+- [User Manual](docs/USER_MANUAL.md)
+- [Admin Manual](docs/ADMIN_MANUAL.md)
+- [Operator Manual](docs/OPERATOR_MANUAL.md)
+- [Developer Onboarding Guide](docs/DEVELOPER_ONBOARDING.md)
+
 ## Features
 
 - 📜 **Issue DID Certificates** — Sign W3C Verifiable Credentials with real `ecdsa-sd-2023` Data Integrity Proofs using a configured `did:web` key pair

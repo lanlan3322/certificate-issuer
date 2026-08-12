@@ -1,10 +1,8 @@
 // TrustVC SDK Integration for Certificate Issuance
-// Uses @trustvc/trustvc for W3C Verifiable Credentials
-
-// Use the sub-path import to avoid pulling in Node.js-only utilities
-// (dotenv/config, core-js) from the @trustvc/trustvc main entry.
-import { signW3C, verifyDocument, type PrivateKeyPair } from "@trustvc/trustvc";
-import { getDocumentLoader, MULTIKEY_V1_URL } from "@trustvc/w3c-context";
+// Uses @trustvc/trustvc for W3C Verifiable Credentials.
+// The TrustVC crypto SDK is imported lazily so the browser bundle does not
+// pull in Node-only dependencies or expose signing keys to the client.
+import type { PrivateKeyPair } from "@trustvc/trustvc";
 import { ethers } from "ethers";
 import {
   DEFAULT_ISSUING_METHODS,
@@ -63,8 +61,19 @@ const OPEN_ATTESTATION_CONTEXT = {
 
 const LOCAL_DID_VERIFICATION_METHOD_ID = `${TRUSTVC_CONFIG.didUrl}#key-1`;
 const LOCAL_DID_PUBLIC_KEY_MULTIBASE =
+  process.env.DID_PUBLIC_KEY_MULTIBASE ||
   process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE ||
   "zDnaepZZHFcKxZ9r1xgqMqMFELf67VEmhFUddFBt2LPajim5z";
+
+async function loadTrustVCModules() {
+  const trustvcModule = await import(/* webpackIgnore: true */ "@trustvc/trustvc");
+  return trustvcModule;
+}
+
+async function loadTrustVCContext() {
+  const w3cContext = await import(/* webpackIgnore: true */ "@trustvc/w3c-context");
+  return w3cContext;
+}
 
 // Certificate data structure
 export interface CertificateData {
@@ -189,6 +198,7 @@ export async function verifyCredential(
 
     const verificationInput = stripUnsupportedCredentialStatus(document);
 
+    const { verifyDocument } = await loadTrustVCModules();
     const documentLoader = await createTrustVCDocumentLoader();
 
     const verificationFragments = await verifyDocument(
@@ -514,6 +524,8 @@ function normalizeDid(value: string): string {
 }
 
 async function createTrustVCDocumentLoader() {
+  const { getDocumentLoader, MULTIKEY_V1_URL } = await loadTrustVCContext();
+
   const didDocument = {
     "@context": ["https://www.w3.org/ns/did/v1", MULTIKEY_V1_URL],
     id: TRUSTVC_CONFIG.didUrl,
@@ -541,8 +553,6 @@ async function createTrustVCDocumentLoader() {
 }
 
 // ---------------------------------------------------------------------------
-// DID Certificate Issuance
-// ---------------------------------------------------------------------------
 
 /**
  * Reads the DID key pair from NEXT_PUBLIC_DID_* environment variables.
@@ -558,11 +568,12 @@ async function createTrustVCDocumentLoader() {
  *   NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE – multibase-encoded private key (starts with "z")
  */
 export function getDIDKeyPairFromEnv(): PrivateKeyPair | null {
-  const id = "did:web:lanlan3322.github.io:certificate-issuer#key-1";//process.env.NEXT_PUBLIC_DID_KEY_ID;
-  const controller = process.env.NEXT_PUBLIC_DID_CONTROLLER;
-  const publicKeyMultibase = process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE;
+  const id = process.env.DID_KEY_ID || process.env.NEXT_PUBLIC_DID_KEY_ID;
+  const controller = process.env.DID_CONTROLLER || process.env.NEXT_PUBLIC_DID_CONTROLLER;
+  const publicKeyMultibase =
+    process.env.DID_PUBLIC_KEY_MULTIBASE || process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE;
   const secretKeyMultibase =
-    process.env.NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE;
+    process.env.DID_PRIVATE_KEY_MULTIBASE || process.env.NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE;
 
   if (!id || !controller || !publicKeyMultibase || !secretKeyMultibase) {
     return null;
@@ -603,18 +614,21 @@ export async function signDocumentWithDID(
   credential: Record<string, unknown>,
   secretKeyOverride?: string
 ): Promise<DIDIssuanceResult> {
-  const id = process.env.NEXT_PUBLIC_DID_KEY_ID;
-  const controller = process.env.NEXT_PUBLIC_DID_CONTROLLER;
-  const publicKeyMultibase = process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE;
+  const id = process.env.DID_KEY_ID || process.env.NEXT_PUBLIC_DID_KEY_ID;
+  const controller = process.env.DID_CONTROLLER || process.env.NEXT_PUBLIC_DID_CONTROLLER;
+  const publicKeyMultibase =
+    process.env.DID_PUBLIC_KEY_MULTIBASE || process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE;
   const secretKeyMultibase =
-    secretKeyOverride?.trim() || process.env.NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE;
+    secretKeyOverride?.trim() ||
+    process.env.DID_PRIVATE_KEY_MULTIBASE ||
+    process.env.NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE;
 
   const missing: string[] = [];
-  if (!id) missing.push("NEXT_PUBLIC_DID_KEY_ID");
-  if (!controller) missing.push("NEXT_PUBLIC_DID_CONTROLLER");
-  if (!publicKeyMultibase) missing.push("NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE");
+  if (!id) missing.push("DID_KEY_ID");
+  if (!controller) missing.push("DID_CONTROLLER");
+  if (!publicKeyMultibase) missing.push("DID_PUBLIC_KEY_MULTIBASE");
   if (!secretKeyMultibase)
-    missing.push("NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE (or provide private key above)");
+    missing.push("DID_PRIVATE_KEY_MULTIBASE (or provide private key override)");
 
   if (missing.length > 0) {
     return {
@@ -622,8 +636,8 @@ export async function signDocumentWithDID(
       signed: false,
       error:
         `DID signing is not configured. The following are required: ${missing.join(", ")}. ` +
-        "Set them in .env.local (local) or as repository secrets (GitHub Pages). " +
-        "See the README for setup instructions.",
+        "Set them in the server environment for the signing service. " +
+        "Do not expose private key material in browser code or public build output.",
     };
   }
 
@@ -638,6 +652,7 @@ export async function signDocumentWithDID(
   const unsignedCredential = stripExistingProof(credential);
 
   try {
+    const { signW3C } = await loadTrustVCModules();
     const result = await signW3C(
       unsignedCredential as Parameters<typeof signW3C>[0],
       keyPair
@@ -693,13 +708,12 @@ export async function issueDIDCertificate(
       signed: false,
       error:
         "DID key pair not configured. " +
-        "Set NEXT_PUBLIC_DID_KEY_ID, NEXT_PUBLIC_DID_CONTROLLER, " +
-        "NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE, and " +
-        "NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE to enable cryptographic signing.",
+        "Set DID_KEY_ID, DID_CONTROLLER, DID_PUBLIC_KEY_MULTIBASE, and DID_PRIVATE_KEY_MULTIBASE in the server environment to enable cryptographic signing.",
     };
   }
 
   try {
+    const { signW3C } = await loadTrustVCModules();
     const result = await signW3C(
       credential as Parameters<typeof signW3C>[0],
       keyPair

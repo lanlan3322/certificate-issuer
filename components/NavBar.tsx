@@ -13,6 +13,8 @@ export default function NavBar() {
     { href: "/", label: "Issue", icon: FileText },
     { href: "/verify", label: "Verify", icon: CheckCircle },
     { href: "/gallery", label: "View", icon: Shield },
+    { href: "/docs", label: "Docs", icon: FileText },
+    { href: "/release-notes", label: "Release Notes", icon: FileText },
   ];
 
   return (

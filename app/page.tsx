@@ -30,7 +30,6 @@ import {
   CertificateData,
   generateCertificateId,
   buildVCPayload,
-  issueDIDCertificate,
   issueCertificateToEthereum,
   type DIDIssuanceResult,
   type EthereumIssuanceResult,
@@ -301,8 +300,36 @@ export default function HomePage() {
 
       // --- DID issuance ---
       if (issuingMethods.includes("did")) {
-        const result = await issueDIDCertificate(certData);
-        setDIDResult(result);
+        const response = await fetch("/certificate-issuer/api/issue", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            data: certData,
+            type: "did",
+          }),
+        });
+
+        const resultPayload = (await response.json()) as {
+          signed?: boolean;
+          credential?: Record<string, unknown>;
+          error?: string;
+        };
+
+        if (!response.ok || resultPayload.error) {
+          setDIDResult({
+            credential: buildVCPayload(certData) as Record<string, unknown>,
+            signed: false,
+            error: resultPayload.error ?? "DID signing request failed.",
+          });
+        } else {
+          setDIDResult({
+            credential: (resultPayload.credential ?? buildVCPayload(certData)) as Record<string, unknown>,
+            signed: Boolean(resultPayload.signed),
+            error: resultPayload.error,
+          });
+        }
       }
 
       // --- Ethereum issuance ---
@@ -448,6 +475,50 @@ export default function HomePage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+        <div className="mb-6 rounded-2xl border border-cyan-200 bg-gradient-to-r from-cyan-50 via-white to-sky-50 p-5 text-slate-800 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700">Documentation</p>
+              <h2 className="mt-2 text-xl font-bold text-slate-900">Everything you need to issue, verify, and operate safely</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Start with the quick start, user guide, admin setup, or developer onboarding flow.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <a
+                href="/docs"
+                className="inline-flex items-center justify-center rounded-lg bg-cyan-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-cyan-600"
+              >
+                Open docs hub
+              </a>
+              <a
+                href="/release-notes"
+                className="inline-flex items-center justify-center rounded-lg border border-cyan-200 bg-white px-4 py-2.5 text-sm font-medium text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-50"
+              >
+                Release notes
+              </a>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {[
+              ["/docs/quick-start", "Quick Start"],
+              ["/docs/user-manual", "User Manual"],
+              ["/docs/admin-manual", "Admin Manual"],
+              ["/docs/operator-manual", "Operator Manual"],
+            ].map(([href, label]) => (
+              <a
+                key={href}
+                href={href}
+                className="rounded-full border border-cyan-200 bg-white px-3 py-1.5 text-xs font-medium text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-50"
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+        </div>
+
         {/* Deployment Guide Toggle */}
         <div className="mb-6">
           <button
