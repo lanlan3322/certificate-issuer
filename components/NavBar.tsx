@@ -2,7 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Shield, FileText, CheckCircle, Menu, X, KeyRound } from "lucide-react";
+import {
+  Shield,
+  FileText,
+  CheckCircle,
+  Menu,
+  X,
+  KeyRound,
+  LayoutDashboard,
+  Briefcase,
+  BookOpen,
+  FolderKanban,
+} from "lucide-react";
 import { useState } from "react";
 
 export default function NavBar() {
@@ -10,17 +21,14 @@ export default function NavBar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
-    { href: "/", label: "Issue", icon: FileText },
+    { href: "/", label: "Overview", icon: LayoutDashboard },
     { href: "/platform", label: "Platform", icon: Shield },
     { href: "/did", label: "DID", icon: KeyRound },
-    { href: "/wallet", label: "Wallet", icon: Shield },
-    { href: "/branding", label: "Branding", icon: FileText },
-    { href: "/admin", label: "Admin", icon: Shield },
-    { href: "/verify", label: "Verify", icon: CheckCircle },
-    { href: "/gallery", label: "View", icon: Shield },
-    { href: "/docs", label: "Docs", icon: FileText },
-    { href: "/enterprise", label: "Enterprise", icon: FileText },
-    { href: "/release-notes", label: "Release Notes", icon: FileText },
+    { href: "/verify", label: "Verification", icon: CheckCircle },
+    { href: "/wallet", label: "Wallet", icon: FolderKanban },
+    { href: "/enterprise", label: "Enterprise", icon: Briefcase },
+    { href: "/docs", label: "Docs", icon: BookOpen },
+    { href: "/admin", label: "Admin", icon: FileText },
   ];
 
   return (

@@ -459,22 +459,75 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <NavBar />
 
-      {/* Hero Section - Mobile optimized */}
-      <div className="bg-gradient-to-r from-primary to-accent text-white py-8 md:py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl md:text-4xl font-bold mb-2">
-            Issue Verifiable Certificates
-          </h1>
-          <p className="text-sm md:text-lg text-white/80">
-            TradeTrust-compliant. W3C Verifiable Credentials with on-chain verification.
-          </p>
-        </div>
-      </div>
+      <section className="bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.16),_transparent_35%),linear-gradient(135deg,#0f172a_0%,#111827_18%,#0f172a_100%)] text-white">
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+          <div className="grid items-center gap-10 lg:grid-cols-[1.2fr_0.8fr]">
+            <div>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200">
+                <Shield className="h-3.5 w-3.5" />
+                TrustVC platform
+              </div>
+              <h1 className="max-w-xl text-4xl font-black tracking-tight text-white md:text-5xl lg:text-6xl">
+                Trusted digital credentials for institutions that need scale and trust.
+              </h1>
+              <p className="mt-5 max-w-xl text-base text-slate-200 md:text-lg">
+                Issue, verify, and manage verifiable credentials with enterprise controls,
+                DID-backed identity, and secure wallet-ready delivery workflows.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <a
+                  href="#launch-console"
+                  className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                >
+                  Launch issuance
+                </a>
+                <a
+                  href="/platform"
+                  className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                >
+                  Explore platform
+                </a>
+              </div>
+              <div className="mt-8 flex flex-wrap gap-6 text-sm text-slate-200">
+                <div><span className="font-semibold text-white">W3C</span> native</div>
+                <div><span className="font-semibold text-white">DID</span> ready</div>
+                <div><span className="font-semibold text-white">Multi-issuer</span> support</div>
+              </div>
+            </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-slate-900/20 backdrop-blur-sm">
+              <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-5">
+                <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-400">
+                  <span>Status</span>
+                  <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-emerald-300">Operational</span>
+                </div>
+                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-2xl bg-slate-800 p-4">
+                    <div className="text-sm text-slate-400">Credentials issued</div>
+                    <div className="mt-2 text-3xl font-bold text-white">12.4K</div>
+                  </div>
+                  <div className="rounded-2xl bg-slate-800 p-4">
+                    <div className="text-sm text-slate-400">Revocations</div>
+                    <div className="mt-2 text-3xl font-bold text-white">387</div>
+                  </div>
+                  <div className="rounded-2xl bg-slate-800 p-4 sm:col-span-2">
+                    <div className="text-sm text-slate-400">Verified network</div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-lg font-semibold text-white">Sepolia + DID</span>
+                      <span className="text-emerald-300">Healthy</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         {/* Deployment Guide Toggle */}
         <div className="mb-6">
           <button
