@@ -5,7 +5,6 @@ const nextConfig = {
   output: "export",
   images: { unoptimized: true },
   trailingSlash: true,
-  basePath: "/certificate-issuer",
   webpack: (config) => {
     // Stub out Node.js-only modules that are transitively imported by
     // @trustvc packages but are never actually used in the browser.
