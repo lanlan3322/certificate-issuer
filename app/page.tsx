@@ -695,7 +695,8 @@ export default function HomePage() {
           <p className="mx-auto mt-4 max-w-2xl text-slate-300">
             TrustVC gives teams a clear path from certificate creation to public verification in a secure, scalable, and enterprise-ready platform.
           </p>
-          <div className="mt-6 flex justify-center">
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+            <a href="/insurance" className="btn-primary bg-white text-slate-900 hover:bg-slate-100">Launch Insurance</a>
             <a href="/enterprise" className="btn-secondary border-slate-700 bg-slate-800 text-white hover:border-slate-600 hover:bg-slate-700">Talk to sales</a>
           </div>
         </section>
