@@ -55,24 +55,24 @@ const docs = [
 
 export default function DocsIndexPage() {
   return (
-    <main className="mx-auto max-w-6xl px-6 py-10 text-slate-800">
+    <main className="mx-auto max-w-6xl px-4 py-8 text-slate-800 sm:px-6 lg:px-8 lg:py-10">
       <div className="mb-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-cyan-700">Documentation</p>
-        <h1 className="mt-3 text-4xl font-bold text-slate-900">Platform guides and reference</h1>
-        <p className="mt-3 max-w-2xl text-slate-600">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-700 sm:text-sm">Documentation</p>
+        <h1 className="mt-3 text-3xl font-bold text-slate-900 sm:text-4xl">Platform guides and reference</h1>
+        <p className="mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
           Start here for the user, admin, operator, and developer guidance needed to use and maintain the certificate platform.
         </p>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {docs.map((doc) => (
           <Link
             key={doc.title}
             href={doc.href}
-            className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-md"
+            className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-md sm:p-5"
           >
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Guide</p>
-            <h2 className="mt-3 text-xl font-semibold text-slate-900">{doc.title}</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700 sm:text-sm">Guide</p>
+            <h2 className="mt-3 text-lg font-semibold text-slate-900 sm:text-xl">{doc.title}</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">{doc.description}</p>
             <div className="mt-4 inline-flex items-center text-sm font-medium text-cyan-700 group-hover:text-cyan-800">
               Open guide →

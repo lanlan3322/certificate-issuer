@@ -386,7 +386,7 @@ export default function BatchIssuePanel({
         helperText="These methods apply to every certificate issued from this batch."
       />
 
-      <div className="p-3 border border-gray-200 rounded-lg bg-white space-y-3">
+      <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-3 sm:p-4">
         <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
           <input
             type="checkbox"
@@ -423,12 +423,12 @@ export default function BatchIssuePanel({
       </div>
 
       {/* Instructions */}
-      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
-        <p className="font-medium text-blue-800 mb-1">Expected columns:</p>
-        <code className="text-xs text-blue-700 bg-blue-100 px-2 py-1 rounded block">
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm">
+        <p className="mb-1 font-medium text-blue-800">Expected columns:</p>
+        <code className="block rounded bg-blue-100 px-2 py-1 text-xs text-blue-700 break-all">
           recipientName, recipientEmail, certificateType, description
         </code>
-        <p className="text-blue-600 mt-2 text-xs">
+        <p className="mt-2 text-xs text-blue-600">
           Valid certificate types:{" "}
           {Object.values(CERTIFICATE_TEMPLATES)
             .map((t) => t.name)
@@ -457,17 +457,17 @@ export default function BatchIssuePanel({
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+            className="cursor-pointer rounded-lg border-2 border-dashed border-gray-300 p-4 text-center transition-colors hover:border-primary hover:bg-primary/5 sm:p-6"
           >
-            <FileSpreadsheet className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-            <p className="text-gray-600 text-sm font-medium">
+            <FileSpreadsheet className="mx-auto mb-2 h-8 w-8 text-gray-400 sm:h-10 sm:w-10" />
+            <p className="text-sm font-medium text-gray-600">
               Drop your Excel or CSV file here
             </p>
-            <p className="text-gray-400 text-xs mt-1">
+            <p className="mt-1 text-xs text-gray-400">
               Supports .xlsx, .xls, .csv
             </p>
-            <span className="mt-3 inline-flex items-center space-x-1 bg-primary text-white text-xs px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
-              <Upload className="w-3 h-3" />
+            <span className="mt-3 inline-flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-xs text-white transition-colors hover:bg-primary/90">
+              <Upload className="h-3 w-3" />
               <span>Choose File</span>
             </span>
             <input
@@ -515,8 +515,8 @@ export default function BatchIssuePanel({
           </div>
 
           {/* Row table */}
-          <div className="border border-gray-200 rounded-lg overflow-auto max-h-64">
-            <table className="w-full text-xs min-w-[480px]">
+          <div className="max-h-64 overflow-auto rounded-lg border border-gray-200">
+            <table className="w-full min-w-[360px] text-xs sm:min-w-[480px]">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
                   <th className="px-3 py-2 text-left text-gray-500 font-medium w-8">

@@ -35,13 +35,13 @@ export default function NavBar() {
     <nav className="sticky top-3 z-50 px-4 pb-3 pt-3 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl">
         <div className="flex h-16 items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-cyan-300 shadow-sm">
-              <Shield className="h-5 w-5" />
+          <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-cyan-300 shadow-sm sm:h-10 sm:w-10">
+              <Shield className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <div className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">TrustVC</div>
-              <div className="text-base font-bold text-slate-900">Verifiable Certificates</div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 sm:text-sm">TrustVC</div>
+              <div className="hidden text-base font-bold text-slate-900 sm:block">Verifiable Certificates</div>
             </div>
           </Link>
 

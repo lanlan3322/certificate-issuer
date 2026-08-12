@@ -449,11 +449,11 @@ export default function InsurancePage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-3 py-8 sm:px-4 sm:py-10 lg:px-8">
         <div className="mb-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-700">Insurance launch</p>
-          <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-900">Issue trusted certificates</h1>
-          <p className="mt-3 max-w-2xl text-base text-slate-600">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700 sm:text-sm">Insurance launch</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Issue trusted certificates</h1>
+          <p className="mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
             Launch a verifiable credential workflow from a dedicated insurance operations console.
           </p>
         </div>
@@ -489,27 +489,27 @@ export default function InsurancePage() {
               </h2>
             </div>
 
-            <div className="flex rounded-lg border border-gray-200 mb-4 md:mb-6 overflow-hidden">
+            <div className="mb-4 flex flex-col overflow-hidden rounded-lg border border-gray-200 md:mb-6 sm:flex-row">
               <button
                 onClick={() => setIssueMode("single")}
-                className={`flex-1 flex items-center justify-center space-x-2 py-2 text-sm font-medium transition-colors ${
+                className={`flex flex-1 items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors ${
                   issueMode === "single"
                     ? "bg-primary text-white"
                     : "bg-white text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                <FileText className="w-4 h-4" />
+                <FileText className="h-4 w-4" />
                 <span>Single</span>
               </button>
               <button
                 onClick={() => setIssueMode("batch")}
-                className={`flex-1 flex items-center justify-center space-x-2 py-2 text-sm font-medium transition-colors ${
+                className={`flex flex-1 items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors ${
                   issueMode === "batch"
                     ? "bg-primary text-white"
                     : "bg-white text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                <Layers className="w-4 h-4" />
+                <Layers className="h-4 w-4" />
                 <span>Batch (Excel / CSV)</span>
               </button>
             </div>
@@ -556,7 +556,7 @@ export default function InsurancePage() {
                   <button
                     onClick={handleConnectWallet}
                     disabled={connecting}
-                    className="bg-primary hover:bg-primary/90 text-white px-4 md:px-6 py-2 rounded-lg font-medium flex items-center justify-center mx-auto space-x-2 disabled:opacity-50 text-sm md:text-base"
+                    className="mx-auto flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary/90 disabled:opacity-50 sm:w-auto md:px-6 md:text-base"
                   >
                     {connecting ? (
                       <Loader2 className="w-4 h-4 animate-spin" />

@@ -25,18 +25,18 @@ const authProviders = ["Microsoft Entra ID", "Google Workspace", "GitHub", "Cust
 
 export default function PlatformPage() {
   return (
-    <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-700">Platform</p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-900 md:text-4xl">Multi-issuer operations dashboard</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700 sm:text-sm">Platform</p>
+          <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">Multi-issuer operations dashboard</h1>
         </div>
-        <Link href="/admin" className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700">
+        <Link href="/admin" className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700 sm:w-auto">
           Open issuer admin <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
           <div key={metric.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${metric.tone}`}>

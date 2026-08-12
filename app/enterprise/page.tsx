@@ -15,19 +15,19 @@ const plans = [
 
 export default function EnterprisePage() {
   return (
-    <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <div className="mb-8 text-center">
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-700">Enterprise access</p>
-        <h1 className="mt-2 text-3xl font-bold text-slate-900 md:text-4xl">Authentication and subscription management</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700 sm:text-sm">Enterprise access</p>
+        <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">Authentication and subscription management</h1>
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <div className="mb-5 flex items-center gap-3">
           <Lock className="h-5 w-5 text-cyan-700" />
           <h2 className="text-xl font-semibold text-slate-900">SSO providers</h2>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {providers.map((provider) => (
             <div key={provider.name} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="text-base font-semibold text-slate-900">{provider.name}</div>
@@ -37,13 +37,13 @@ export default function EnterprisePage() {
         </div>
       </section>
 
-      <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <div className="mb-5 flex items-center gap-3">
           <CreditCard className="h-5 w-5 text-violet-700" />
           <h2 className="text-xl font-semibold text-slate-900">Subscription plans</h2>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {plans.map((plan) => (
             <div key={plan.name} className={`rounded-2xl border p-5 ${plan.featured ? "border-slate-900 bg-slate-900 text-white shadow-lg" : "border-slate-200 bg-slate-50 text-slate-900"}`}>
               <div className="flex items-center justify-between">
@@ -69,7 +69,7 @@ export default function EnterprisePage() {
         </div>
       </section>
 
-      <div className="mt-8 rounded-2xl border border-slate-200 bg-gradient-to-r from-cyan-50 to-slate-50 p-6 shadow-sm">
+      <div className="mt-8 rounded-2xl border border-slate-200 bg-gradient-to-r from-cyan-50 to-slate-50 p-4 shadow-sm sm:p-6">
         <div className="flex items-center gap-3">
           <Sparkles className="h-5 w-5 text-cyan-700" />
           <h2 className="text-xl font-semibold text-slate-900">Commercial SaaS readiness</h2>

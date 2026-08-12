@@ -20,14 +20,13 @@ export default function IssuingMethodSelector({
 }: IssuingMethodSelectorProps) {
   return (
     <div>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="label text-sm md:text-base">Issuing Methods</label>
         <span className="text-xs text-gray-500">
-          Default:{" "}
-          {formatIssuingMethodLabels(DEFAULT_ISSUING_METHODS)}
+          Default: {formatIssuingMethodLabels(DEFAULT_ISSUING_METHODS)}
         </span>
       </div>
-      <div className="mt-2 flex flex-wrap gap-3">
+      <div className="mt-2 flex flex-wrap gap-2 sm:gap-3">
         {Object.entries(SUPPORTED_ISSUING_METHODS).map(([method, config]) => {
           const issuingMethod = method as IssuingMethod;
           const checked = selectedMethods.includes(issuingMethod);
@@ -35,7 +34,7 @@ export default function IssuingMethodSelector({
           return (
             <label
               key={method}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+              className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors sm:w-auto ${
                 checked
                   ? "border-primary bg-primary/5 text-primary"
                   : "border-gray-200 bg-white text-gray-700"
