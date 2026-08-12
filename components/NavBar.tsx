@@ -22,7 +22,7 @@ export default function NavBar() {
 
   const navItems = [
     { href: "/", label: "Overview", icon: LayoutDashboard },
-    { href: "/platform", label: "Platform", icon: Shield },
+    { href: "/platform", label: "Solutions", icon: Shield },
     { href: "/did", label: "DID", icon: KeyRound },
     { href: "/verify", label: "Verification", icon: CheckCircle },
     { href: "/wallet", label: "Wallet", icon: FolderKanban },

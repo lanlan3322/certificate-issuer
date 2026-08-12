@@ -190,6 +190,36 @@ Sprint 3:
 12. Enterprise SSO
 13. SaaS billing
 
+Target Website structure:
+Home
+Platform
+Solutions
+Pricing
+Resources
+Contact
+Dashboard
+ ├─ Certificates
+ ├─ Templates
+ ├─ Issuers
+ ├─ Recipients
+ ├─ Verification
+ ├─ Revocation
+ ├─ Analytics
+ └─ Settings
+
+Landing page sections:
+Hero
+Trusted Digital Credentials
+How It Works
+Why TrustVC
+Platform Features
+Certificate Lifecycle
+Issuers We Serve
+Analytics
+Pricing
+FAQ
+CTA
+
 Success Criteria:
 - Multi-tenant issuers
 - Secure server-side TrustVC signing

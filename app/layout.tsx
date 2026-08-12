@@ -3,17 +3,18 @@ import Footer from "../components/Footer";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Verifiable Certificates",
+  title: "TrustVC | Verifiable Credentials Platform",
   description:
-    "Issue verifiable certificates using TrustVC, managed by IMDA. W3C Verifiable Credentials with on-chain verification.",
+    "TrustVC is a secure credential platform for issuing, verifying, and governing W3C verifiable credentials across enterprise and public sector workflows.",
   keywords: [
-    "certificate",
-    "verifiable credentials",
     "TrustVC",
-    "IMDA",
-    "OpenCerts",
-    "blockchain",
+    "verifiable credentials",
+    "certificate platform",
+    "DID",
+    "digital trust",
     "W3C",
+    "enterprise credentials",
+    "credential verification",
   ],
 };
 

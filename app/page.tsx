@@ -528,6 +528,186 @@ export default function HomePage() {
       </section>
 
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <section className="mb-12 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="section-card">
+            <p className="pill mb-4">Solutions</p>
+            <h3 className="text-2xl font-bold text-slate-900">A platform built for institutional trust</h3>
+            <p className="mt-4 text-sm leading-6 text-slate-600">
+              TrustVC brings together credential creation, identity management, verification, and wallet delivery in one secure operating layer for modern organizations.
+            </p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {[
+                "Certificates",
+                "Templates",
+                "Issuers",
+                "Recipients",
+                "Verification",
+                "Revocation",
+              ].map((item) => (
+                <div key={item} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-slate-900 p-5 text-white shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Dashboard preview</p>
+              <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-medium text-emerald-300">Live</span>
+            </div>
+            <div className="mt-5 space-y-3">
+              {[
+                ["Credential issuance", "1,284"],
+                ["Templates active", "18"],
+                ["Validation uptime", "99.98%"],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between rounded-xl border border-slate-700 bg-slate-800 px-3 py-2">
+                  <span className="text-sm text-slate-300">{label}</span>
+                  <span className="text-base font-bold text-white">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-12 grid gap-6 lg:grid-cols-3">
+          <div className="section-card">
+            <p className="pill mb-4">How it works</p>
+            <h3 className="text-xl font-bold text-slate-900">Issue with a trusted workflow</h3>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Create credentials, validate metadata, and publish signed artifacts through a controlled issuance process designed for institutional trust.
+            </p>
+          </div>
+          <div className="section-card">
+            <p className="pill mb-4">Why TrustVC</p>
+            <h3 className="text-xl font-bold text-slate-900">Built for verification and governance</h3>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Every certificate is anchored to a verifiable identity model, with secure handling for revocation, issuance history, and recipient verification.
+            </p>
+          </div>
+          <div className="section-card">
+            <p className="pill mb-4">Platform features</p>
+            <h3 className="text-xl font-bold text-slate-900">Operational clarity at scale</h3>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Support multi-issuer operations, template-driven issuance, wallet-ready delivery, and public verification from a unified product experience.
+            </p>
+          </div>
+        </section>
+
+        <section className="mb-12 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">Certificate lifecycle</p>
+              <h2 className="mt-2 text-3xl font-bold text-slate-900">From creation to verification</h2>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-4">
+            {[
+              ["Create", "Build an issuer-ready credential using templates, validity rules, and structured field data."],
+              ["Issue", "Publish the credential through a secure, auditable issuance flow backed by DID or blockchain verification."],
+              ["Deliver", "Share credentials to recipients, wallets, or verification endpoints with a professional user experience."],
+              ["Verify", "Allow recipients and institutions to validate authenticity, trust, and revocation state quickly."],
+            ].map(([title, description]) => (
+              <div key={title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-3 inline-flex rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                  {title}
+                </div>
+                <p className="text-sm leading-6 text-slate-600">{description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-12 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-3xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm md:p-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Issuers we serve</p>
+            <h2 className="mt-3 text-3xl font-bold">Education, compliance, and public-sector trust</h2>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {[
+                "Training providers",
+                "Certification bodies",
+                "Government agencies",
+                "Enterprise learning teams",
+                "Professional associations",
+                "Compliance programs",
+              ].map((item) => (
+                <div key={item} className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="section-card">
+            <p className="pill mb-4">Analytics</p>
+            <h3 className="text-2xl font-bold text-slate-900">Operational insight across issuance</h3>
+            <div className="mt-5 space-y-4">
+              {[
+                ["Issued", "12.4K"],
+                ["Verified", "97.8%"],
+                ["Revoked", "387"],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <span className="text-sm text-slate-600">{label}</span>
+                  <span className="text-xl font-bold text-slate-900">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-12 rounded-3xl border border-slate-200 bg-gradient-to-r from-cyan-50 via-white to-slate-50 p-6 shadow-sm md:p-8">
+          <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr] lg:items-center">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">Pricing</p>
+              <h2 className="mt-2 text-3xl font-bold text-slate-900">Simple plans for growing trust programs</h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                ["Starter", "$0", "For pilots and early credential programs"],
+                ["Professional", "$49/mo", "For active issuance and verification workflows"],
+                ["Enterprise", "Custom", "For multi-issuer governance and large-scale deployments"],
+              ].map(([plan, price, description]) => (
+                <div key={plan} className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-600">{plan}</div>
+                  <div className="mt-2 text-3xl font-black text-slate-900">{price}</div>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-12 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">FAQ</p>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {[
+              ["What is TrustVC?", "A verifiable credentials platform for issuing and validating trusted digital certificates across multiple institutional scenarios."],
+              ["Can it support multiple issuers?", "Yes. The platform is designed to support multi-issuer operations with role-based governance and controlled issuance flows."],
+              ["Does it support verification?", "Yes. Recipients and institutions can inspect credential authenticity and revocation status using a public verification experience."],
+              ["Can it integrate with wallets?", "Yes. The platform is designed for wallet-ready delivery and compatibility with modern verifiable credential ecosystems."],
+            ].map(([question, answer]) => (
+              <div key={question} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <h3 className="font-semibold text-slate-900">{question}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{answer}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-12 rounded-3xl bg-slate-900 p-8 text-center text-white shadow-[0_20px_50px_rgba(15,23,42,0.22)]">
+          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-cyan-300">Ready to launch</p>
+          <h2 className="mt-3 text-3xl font-bold md:text-4xl">Build trust into every credential.</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-slate-300">
+            TrustVC gives teams a clear path from certificate creation to public verification in a secure, scalable, and enterprise-ready platform.
+          </p>
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+            <a href="#launch-console" className="btn-primary bg-white text-slate-900 hover:bg-slate-100">Get started</a>
+            <a href="/enterprise" className="btn-secondary border-slate-700 bg-slate-800 text-white hover:border-slate-600 hover:bg-slate-700">Talk to sales</a>
+          </div>
+        </section>
+
         {/* Deployment Guide Toggle */}
         <div className="mb-6">
           <button
@@ -555,7 +735,7 @@ export default function HomePage() {
         {/* Main Content Grid - Responsive */}
         <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
           {/* Issue Form */}
-          <div className="card">
+          <div id="launch-console" className="card">
             <div className="flex items-center space-x-3 mb-4 md:mb-6">
               <FileText className="w-5 h-5 md:w-6 md:h-6 text-primary" />
               <h2 className="text-xl md:text-2xl font-bold text-gray-800">
