@@ -18,19 +18,20 @@ export default function NavBar() {
   ];
 
   return (
-    <nav className="bg-primary text-white shadow-lg">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <Shield className="w-8 h-8 text-secondary" />
+    <nav className="border-b border-slate-200 bg-white/90 backdrop-blur-md shadow-sm">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-cyan-300 shadow-sm">
+              <Shield className="h-5 w-5" />
+            </div>
             <div>
-              <span className="font-bold text-lg">Verifiable Certificates</span>
+              <div className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">TrustVC</div>
+              <div className="text-base font-bold text-slate-900">Verifiable Certificates</div>
             </div>
           </Link>
 
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center gap-2">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -39,31 +40,29 @@ export default function NavBar() {
                   key={item.href}
                   href={item.href}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
                     isActive
-                      ? "bg-white/20 text-white font-semibold ring-1 ring-white/30"
-                      : "hover:bg-white/10"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="h-4 w-4" />
                   <span>{item.label}</span>
                 </Link>
               );
             })}
           </div>
 
-          {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2"
+            className="rounded-lg border border-slate-200 p-2 text-slate-700 md:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
-            {mobileMenuOpen ? <X /> : <Menu />}
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
 
-        {/* Mobile Nav */}
         {mobileMenuOpen && (
-          <div className="md:hidden pb-4">
+          <div className="space-y-2 border-t border-slate-200 py-3 md:hidden">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -72,14 +71,14 @@ export default function NavBar() {
                   key={item.href}
                   href={item.href}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center space-x-2 px-3 py-3 rounded-lg transition-colors ${
+                  className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
                     isActive
-                      ? "bg-white/20 text-white font-semibold ring-1 ring-white/30"
-                      : "hover:bg-white/10"
+                      ? "bg-slate-900 text-white"
+                      : "text-slate-700 hover:bg-slate-100"
                   }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="h-4 w-4" />
                   <span>{item.label}</span>
                 </Link>
               );

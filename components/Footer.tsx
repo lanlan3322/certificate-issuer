@@ -12,12 +12,12 @@ const footerLinks = [
 
 export default function Footer() {
   return (
-    <footer className="border-t border-slate-200 bg-white">
+    <footer className="border-t border-slate-200 bg-slate-950 text-slate-200">
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">Documentation</p>
-            <p className="mt-1 text-sm text-slate-600">Quick access to platform guides and operational references.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Documentation</p>
+            <p className="mt-2 text-sm text-slate-300">Quick access to platform guides, release notes, and operational references.</p>
           </div>
 
           <nav aria-label="Documentation links" className="flex flex-wrap gap-2 text-sm">
@@ -25,7 +25,7 @@ export default function Footer() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="rounded-md border border-slate-200 px-3 py-1.5 text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
+                className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-slate-200 transition hover:border-cyan-400 hover:text-cyan-200"
               >
                 {link.label}
               </Link>
