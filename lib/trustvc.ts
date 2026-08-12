@@ -65,14 +65,30 @@ const LOCAL_DID_PUBLIC_KEY_MULTIBASE =
   process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE ||
   "zDnaepZZHFcKxZ9r1xgqMqMFELf67VEmhFUddFBt2LPajim5z";
 
+function getStaticDeploymentDIDMessage() {
+  return (
+    "DID signing is unavailable in this static deployment. " +
+    "The app generated an unsigned draft for preview only. " +
+    "Configure a server-side signing service to enable cryptographically signed credentials."
+  );
+}
+
 async function loadTrustVCModules() {
-  const trustvcModule = await import(/* webpackIgnore: true */ "@trustvc/trustvc");
-  return trustvcModule;
+  try {
+    const dynamicImport = new Function("modulePath", "return import(modulePath);");
+    return await dynamicImport("@trustvc/trustvc");
+  } catch {
+    throw new Error(getStaticDeploymentDIDMessage());
+  }
 }
 
 async function loadTrustVCContext() {
-  const w3cContext = await import(/* webpackIgnore: true */ "@trustvc/w3c-context");
-  return w3cContext;
+  try {
+    const dynamicImport = new Function("modulePath", "return import(modulePath);");
+    return await dynamicImport("@trustvc/w3c-context");
+  } catch {
+    throw new Error(getStaticDeploymentDIDMessage());
+  }
 }
 
 // Certificate data structure
@@ -210,13 +226,13 @@ export async function verifyCredential(
     );
 
     const integrityFailure = verificationFragments.find(
-      (fragment) =>
+      (fragment: { type?: string; status?: string }) =>
         fragment.type === "DOCUMENT_INTEGRITY" &&
         (fragment.status === "INVALID" || fragment.status === "ERROR")
     );
 
     const issuerFailure = verificationFragments.find(
-      (fragment) =>
+      (fragment: { type?: string; status?: string }) =>
         fragment.type === "ISSUER_IDENTITY" &&
         (fragment.status === "INVALID" || fragment.status === "ERROR")
     );
@@ -729,10 +745,14 @@ export async function issueDIDCertificate(
       signed: true,
     };
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown signing error.";
     return {
       credential,
       signed: false,
-      error: `DID signing failed: ${(err as Error).message}`,
+      error:
+        message.startsWith("DID signing is unavailable")
+          ? message
+          : `DID signing failed: ${message}`,
     };
   }
 }
