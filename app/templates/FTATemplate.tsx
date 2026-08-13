@@ -9,9 +9,9 @@ interface TemplateProps {
 
 export default function FTATemplate({ certificate }: TemplateProps) {
   return (
-    <div className="flex min-h-[250mm] flex-col border-2 border-[#d9c46a] bg-white px-8 py-12 text-center shadow-sm sm:px-14 sm:py-16">
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
-        <div className="mb-16 grid h-24 grid-cols-[auto_2px_auto] items-center justify-center gap-8">
+    <div className="box-border flex h-full min-h-0 flex-col border-2 border-[#d9c46a] bg-white px-8 py-10 text-center shadow-sm sm:px-14 sm:py-12">
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+        <div className="mb-12 grid h-24 shrink-0 grid-cols-[auto_2px_auto] items-center justify-center gap-8">
           <p className="relative -top-2 flex h-full items-center font-sans text-8xl font-extrabold leading-[0.82] tracking-[-0.06em] text-[#d71920]">
             FTA
           </p>
@@ -29,17 +29,17 @@ export default function FTATemplate({ certificate }: TemplateProps) {
         <p className="text-2xl italic text-gray-700">This is to certify that</p>
         <p className="mt-4 text-5xl font-bold italic leading-tight text-gray-900">{certificate.recipientName}</p>
 
-        <p className="mt-14 text-2xl text-gray-700">has successfully completed the course</p>
+        <p className="mt-10 text-2xl text-gray-700">has successfully completed the course</p>
         <p className="mx-auto mt-5 max-w-2xl text-4xl font-bold leading-tight text-gray-900">
           {certificate.description}
         </p>
 
-        <p className="mt-7 text-2xl font-medium text-gray-700">({certificate.certificateType})</p>
+        <p className="mt-6 text-2xl font-medium text-gray-700">({certificate.certificateType})</p>
         <p className="mt-3 text-xl text-gray-600">Accredited by IBF</p>
-        <p className="mt-8 text-lg font-semibold text-gray-700">({certificate.id})</p>
+        <p className="mt-6 text-lg font-semibold text-gray-700">({certificate.id})</p>
         <p className="mt-4 text-lg text-gray-500">{certificate.issueDate}</p>
 
-        <div className="mt-auto grid grid-cols-[auto_1fr_auto] items-end gap-8 border-t-2 border-gray-200 pt-10 sm:gap-12">
+        <div className="mt-10 grid shrink-0 grid-cols-[auto_1fr_auto] items-end gap-8 border-t-2 border-gray-200 pt-8 sm:gap-12">
           <div className="flex flex-col items-center gap-3">
             {certificate.verificationUrl ? (
               <QRCodeSVG value={certificate.verificationUrl} size={128} level="M" includeMargin />

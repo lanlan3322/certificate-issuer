@@ -229,7 +229,9 @@ export default function VerifyPage() {
     if (!certificatePreviewRef.current || !certificateForView) return;
 
     setDownloadingPdf(true);
+    const wasDarkMode = document.documentElement.classList.contains("dark");
     try {
+      document.documentElement.classList.remove("dark");
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import("html2canvas"),
         import("jspdf"),
@@ -250,6 +252,7 @@ export default function VerifyPage() {
     } catch (error) {
       setRevokeError(`Unable to download PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
+      document.documentElement.classList.toggle("dark", wasDarkMode);
       setDownloadingPdf(false);
     }
   };
