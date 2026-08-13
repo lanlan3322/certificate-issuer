@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import NavBar from "../../components/NavBar";
-import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, FileCheck } from "lucide-react";
+import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, FileCheck, Eye, X } from "lucide-react";
+import CertificateTemplateRenderer from "../templates/CertificateTemplateRenderer";
+import { CertificateTemplateData } from "../templates/types";
 import { useWalletConnection } from "../../hooks/useWalletConnection";
 import { DOCUMENT_STORE_CONFIG, TRUSTVC_CONFIG } from "../../lib/constants";
 import {
@@ -21,6 +23,7 @@ export default function VerifyPage() {
   const [loading, setLoading] = useState(false);
   const [revoking, setRevoking] = useState(false);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
+  const [showCertificateView, setShowCertificateView] = useState(false);
   const [showAdvancedRevoke, setShowAdvancedRevoke] = useState(false);
   const [revokeHashMode, setRevokeHashMode] = useState<RevocationHashMode>("auto");
   const [revokeMessage, setRevokeMessage] = useState<string | null>(null);
@@ -187,6 +190,30 @@ export default function VerifyPage() {
       : revocationType === "REVOCATION_STORE"
         ? `Ethereum / document store${revocationLocation ? `: ${revocationLocation}` : ""}`
         : null;
+
+  const certificateSubject =
+    verifiedDocument?.["credentialSubject"] &&
+    typeof verifiedDocument["credentialSubject"] === "object"
+      ? (verifiedDocument["credentialSubject"] as Record<string, unknown>)
+      : {};
+  const certificateIssuer =
+    verifiedDocument?.["issuer"] && typeof verifiedDocument["issuer"] === "object"
+      ? (verifiedDocument["issuer"] as Record<string, unknown>)
+      : {};
+  const certificateForView: CertificateTemplateData | null = verifiedDocument
+    ? {
+        id: String(certificateSubject.certificateId ?? verifiedDocument.id ?? ""),
+        recipientName: String(certificateSubject.name ?? "Certificate recipient"),
+        recipientEmail: String(certificateSubject.email ?? ""),
+        certificateType: String(certificateSubject.certificateType ?? "Certificate"),
+        issuerName: String(certificateIssuer.name ?? certificateIssuer.id ?? "Certificate Issuer"),
+        issueDate: String(verifiedDocument.issuanceDate ?? verifiedDocument.validFrom ?? ""),
+        description: String(certificateSubject.description ?? ""),
+        validFrom: String(verifiedDocument.validFrom ?? verifiedDocument.issuanceDate ?? ""),
+        validUntil: typeof verifiedDocument.validUntil === "string" ? verifiedDocument.validUntil : undefined,
+        templateId: typeof certificateSubject.templateId === "string" ? certificateSubject.templateId : undefined,
+      }
+    : null;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -413,6 +440,13 @@ export default function VerifyPage() {
                     >
                       {revoking ? "Revoking..." : "Revoke"}
                     </button>
+                    <button
+                      onClick={() => setShowCertificateView(true)}
+                      className="ml-2 inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
+                    >
+                      <Eye className="h-4 w-4" />
+                      View
+                    </button>
                   </div>
                 )}
 
@@ -514,6 +548,30 @@ export default function VerifyPage() {
               >
                 {revoking ? "Revoking..." : "Confirm Revoke"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCertificateView && certificateForView && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Certificate Preview</h3>
+                <p className="text-xs text-gray-500">Rendered using the credential&apos;s selected template.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCertificateView(false)}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                aria-label="Close certificate preview"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto bg-gray-100 p-4 sm:p-8">
+              <CertificateTemplateRenderer certificate={certificateForView} />
             </div>
           </div>
         </div>
