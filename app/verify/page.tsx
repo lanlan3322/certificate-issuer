@@ -624,13 +624,23 @@ export default function VerifyPage() {
                 <div className="flex-1">
                   <CertificateTemplateRenderer certificate={certificateForView} />
                 </div>
-                <div className="mt-8 flex items-end justify-between gap-6 border-t border-gray-200 pt-5">
-                  <div className="min-w-0 text-xs text-gray-500">
-                    <p className="font-semibold text-gray-700">Verify this certificate</p>
-                    <p className="mt-1 break-all">{certificateForView.id}</p>
+                <div className="mt-8 flex items-end gap-6 border-t border-gray-200 pt-5">
+                  <div className="flex shrink-0 flex-col items-center gap-2">
+                    <QRCodeSVG value={verificationUrl} size={86} level="M" includeMargin />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      Scan to verify
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1 text-xs text-gray-500">
+                    <p className="font-semibold text-gray-700">Digital signature and verification</p>
+                    <div className="mt-5 max-w-xs border-b border-gray-500 pb-1 text-base italic text-gray-800">
+                      {certificateForView.issuerName}
+                    </div>
+                    <p className="mt-1 font-medium text-gray-700">{certificateForView.issuerName}</p>
+                    <p className="mt-1">Issued to {certificateForView.recipientName}</p>
+                    <p className="mt-1 break-all">ID: {certificateForView.id}</p>
                     <p className="mt-1 break-all">{verificationUrl}</p>
                   </div>
-                  <QRCodeSVG value={verificationUrl} size={86} level="M" includeMargin />
                 </div>
               </div>
             </div>
