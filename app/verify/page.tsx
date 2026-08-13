@@ -204,6 +204,11 @@ export default function VerifyPage() {
     verifiedDocument?.["issuer"] && typeof verifiedDocument["issuer"] === "object"
       ? (verifiedDocument["issuer"] as Record<string, unknown>)
       : {};
+  const verificationUrl =
+    typeof window === "undefined"
+      ? withBasePath("/verify")
+      : `${window.location.origin}${withBasePath("/verify")}`;
+
   const certificateForView: CertificateTemplateData | null = verifiedDocument
     ? {
         id: String(certificateSubject.certificateId ?? verifiedDocument.id ?? ""),
@@ -216,13 +221,9 @@ export default function VerifyPage() {
         validFrom: String(verifiedDocument.validFrom ?? verifiedDocument.issuanceDate ?? ""),
         validUntil: typeof verifiedDocument.validUntil === "string" ? verifiedDocument.validUntil : undefined,
         templateId: typeof certificateSubject.templateId === "string" ? certificateSubject.templateId : undefined,
+        verificationUrl,
       }
     : null;
-
-  const verificationUrl =
-    typeof window === "undefined"
-      ? withBasePath("/verify")
-      : `${window.location.origin}${withBasePath("/verify")}`;
 
   const handleDownloadPdf = async () => {
     if (!certificatePreviewRef.current || !certificateForView) return;
@@ -624,7 +625,7 @@ export default function VerifyPage() {
                 <div className="flex-1">
                   <CertificateTemplateRenderer certificate={certificateForView} />
                 </div>
-                <div className="mt-8 flex items-end gap-6 border-t border-gray-200 pt-5">
+                <div className={`${certificateForView.templateId === "fta" ? "hidden" : "mt-8 flex"} items-end gap-6 border-t border-gray-200 pt-5`}>
                   <div className="flex shrink-0 flex-col items-center gap-2">
                     <QRCodeSVG value={verificationUrl} size={86} level="M" includeMargin />
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">

@@ -11,6 +11,7 @@ export interface CertificateTemplateData {
   validFrom: string;
   validUntil?: string;
   templateId?: string;
+  verificationUrl?: string;
 }
 
 export interface TemplateOption {
