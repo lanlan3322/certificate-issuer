@@ -11,12 +11,19 @@ export default function FTATemplate({ certificate }: TemplateProps) {
   return (
     <div className="flex min-h-[250mm] flex-col border-2 border-[#d9c46a] bg-white px-8 py-12 text-center shadow-sm sm:px-14 sm:py-16">
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
-        <div className="mb-16 flex items-center justify-center gap-7 border-b-2 border-gray-200 pb-8">
-          <p className="text-7xl font-extrabold tracking-tight text-red-600 sm:text-8xl">FTA</p>
-          <div className="h-20 w-0.5 bg-gray-300" />
-          <p className="text-left text-3xl tracking-[0.2em] text-gray-500 sm:text-4xl">
-            FINTECH<br />ACADEMY
+        <div className="mb-16 flex items-center justify-center gap-6 sm:gap-8">
+          <p className="font-sans text-7xl font-extrabold leading-none tracking-[-0.06em] text-[#d71920] sm:text-8xl">
+            FTA
           </p>
+          <div className="h-20 w-0.5 bg-[#c9c9c9]" />
+          <div className="text-left font-sans uppercase leading-none">
+            <p className="text-3xl font-medium tracking-[0.24em] text-[#d71920] sm:text-4xl">
+              FINTECH
+            </p>
+            <p className="mt-2 text-3xl font-light tracking-[0.24em] text-[#929292] sm:text-4xl">
+              ACADEMY
+            </p>
+          </div>
         </div>
 
         <p className="text-2xl italic text-gray-700">This is to certify that</p>
