@@ -11,12 +11,12 @@ export default function FTATemplate({ certificate }: TemplateProps) {
   return (
     <div className="flex min-h-[250mm] flex-col border-2 border-[#d9c46a] bg-white px-8 py-12 text-center shadow-sm sm:px-14 sm:py-16">
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
-        <div className="mb-16 flex h-24 items-center justify-center gap-8">
-          <p className="flex h-full items-center font-sans text-8xl font-extrabold leading-none tracking-[-0.06em] text-[#d71920]">
+        <div className="mb-16 grid h-24 grid-cols-[auto_2px_auto] items-center justify-center gap-8">
+          <p className="relative -top-2 flex h-full items-center font-sans text-8xl font-extrabold leading-[0.82] tracking-[-0.06em] text-[#d71920]">
             FTA
           </p>
-          <div className="h-full w-0.5 bg-[#c9c9c9]" />
-          <div className="flex h-full flex-col justify-center text-left font-sans uppercase leading-none">
+          <div className="h-20 w-0.5 self-center bg-[#c9c9c9]" />
+          <div className="relative top-1 flex h-full flex-col justify-center text-left font-sans uppercase leading-[1.02]">
             <p className="text-4xl font-medium tracking-[0.24em] text-[#d71920]">
               FINTECH
             </p>
