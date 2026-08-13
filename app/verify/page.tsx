@@ -242,8 +242,11 @@ export default function VerifyPage() {
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const imageData = canvas.toDataURL("image/png");
       pdf.addImage(imageData, "PNG", 0, 0, 210, 297, undefined, "FAST");
-      const certificateId = certificateForView.id?.split(":").pop() ?? "certificate";
-      pdf.save(`certificate-${certificateId}.pdf`);
+      const recipientFileName = certificateForView.recipientName
+        .trim()
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-+|-+$/g, "") || "recipient";
+      pdf.save(`certificate-${recipientFileName}.pdf`);
     } catch (error) {
       setRevokeError(`Unable to download PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
