@@ -8,17 +8,35 @@ import {
   CheckCircle,
   Menu,
   X,
+  Moon,
+  Sun,
   KeyRound,
   LayoutDashboard,
   Briefcase,
   BookOpen,
   FolderKanban,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function NavBar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    const storedTheme = window.localStorage.getItem("trustvc-theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const shouldUseDark = storedTheme ? storedTheme === "dark" : prefersDark;
+    document.documentElement.classList.toggle("dark", shouldUseDark);
+    setDarkMode(shouldUseDark);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextMode = !darkMode;
+    document.documentElement.classList.toggle("dark", nextMode);
+    window.localStorage.setItem("trustvc-theme", nextMode ? "dark" : "light");
+    setDarkMode(nextMode);
+  };
 
   const navItems = [
     { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -33,7 +51,7 @@ export default function NavBar() {
 
   return (
     <nav className="sticky top-3 z-50 px-4 pb-3 pt-3 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+      <div className="mx-auto max-w-7xl rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/85 dark:shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
         <div className="flex h-16 items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-cyan-300 shadow-sm sm:h-10 sm:w-10">
@@ -45,7 +63,7 @@ export default function NavBar() {
             </div>
           </Link>
 
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden items-center gap-2 md:flex">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -57,7 +75,7 @@ export default function NavBar() {
                   className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 ${
                     isActive
                       ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
-                      : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                      : "text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -67,16 +85,27 @@ export default function NavBar() {
             })}
           </div>
 
-          <button
-            className="rounded-lg border border-slate-200 p-2 text-slate-700 md:hidden"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              className="rounded-lg border border-slate-200 p-2 text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
+            <button
+              className="rounded-lg border border-slate-200 p-2 text-slate-700 dark:border-slate-700 dark:text-slate-200 md:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
 
         {mobileMenuOpen && (
-          <div className="space-y-2 border-t border-slate-200 px-4 py-3 md:hidden">
+          <div className="space-y-2 border-t border-slate-200 px-4 py-3 dark:border-slate-700 md:hidden">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -88,7 +117,7 @@ export default function NavBar() {
                   className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
                     isActive
                       ? "bg-slate-900 text-white"
-                      : "text-slate-700 hover:bg-slate-100"
+                      : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                   }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
