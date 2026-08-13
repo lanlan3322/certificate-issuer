@@ -15,8 +15,8 @@ export default function FTATemplate({ certificate }: TemplateProps) {
           <p className="relative -top-2 flex h-full items-center font-sans text-8xl font-extrabold leading-[0.82] tracking-[-0.06em] text-[#d71920]">
             FTA
           </p>
-          <div className="h-[5.25rem] w-0.5 self-center bg-[#c9c9c9]" />
-          <div className="flex h-full flex-col justify-center text-left font-sans uppercase leading-[1.02]">
+          <div className="h-16 w-0.5 self-center bg-[#c9c9c9]" />
+          <div className="relative -top-1 flex h-full flex-col justify-center text-left font-sans uppercase leading-[1.02]">
             <p className="text-4xl font-medium tracking-[0.24em] text-[#d71920]">
               FINTECH
             </p>
@@ -39,7 +39,7 @@ export default function FTATemplate({ certificate }: TemplateProps) {
         <p className="mt-6 text-lg font-semibold text-gray-700">({certificate.id})</p>
         <p className="mt-4 text-lg text-gray-500">{certificate.issueDate}</p>
 
-        <div className="mt-10 grid shrink-0 grid-cols-[auto_1fr_auto] items-end gap-8 border-t-2 border-gray-200 pt-8 sm:gap-12">
+        <div className="mt-10 grid shrink-0 grid-cols-[128px_minmax(0,1fr)_160px] items-end gap-6 border-t-2 border-gray-200 pt-8 sm:gap-8">
           <div className="flex flex-col items-center gap-3">
             {certificate.verificationUrl ? (
               <QRCodeSVG value={certificate.verificationUrl} size={128} level="M" includeMargin />
@@ -49,12 +49,12 @@ export default function FTATemplate({ certificate }: TemplateProps) {
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Scan to verify</p>
           </div>
 
-          <div className="text-center">
+          <div className="min-w-0 text-center">
             <p className="font-signature text-6xl leading-none text-blue-700">L. Koh</p>
-            <div className="mx-auto mt-1 h-0.5 w-48 bg-gray-400" />
+            <div className="mx-auto mt-4 h-0.5 w-48 bg-gray-400" />
             <p className="mt-3 text-lg font-medium leading-tight text-gray-800">Dr. Lillian Koh, Ph.D</p>
             <p className="text-base text-gray-600">CEO, Fintech Academy</p>
-            <p className="mt-2 text-base text-gray-700">{certificate.issueDate}</p>
+            <p className="mt-2 whitespace-nowrap text-base text-gray-700">{certificate.issueDate}</p>
           </div>
 
           <div className="flex h-40 w-40 items-center justify-center rounded-full border-[12px] border-red-700 bg-red-600/90 text-center text-xs font-semibold uppercase tracking-widest text-red-100 shadow-inner">
