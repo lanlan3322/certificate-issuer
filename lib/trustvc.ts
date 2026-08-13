@@ -205,7 +205,94 @@ export async function verifyCredential(
     }
 
     const proof = document["proof"] as Record<string, unknown>;
-    if (!proof || !proof["proofValue"]) {
+    if (!proof) {
+      return {
+        valid: false,
+        message: "Credential is not signed — missing proof block.",
+      };
+    }
+
+    const walletSignature = typeof proof["signature"] === "string"
+      ? proof["signature"]
+      : undefined;
+    const walletAddress = typeof proof["signedBy"] === "string"
+      ? proof["signedBy"]
+      : typeof proof["verificationMethod"] === "string"
+      ? proof["verificationMethod"]
+      : undefined;
+
+    const isWalletProof = proof["type"] === "EthereumPersonalSignature2024" && Boolean(walletSignature && walletAddress);
+
+    if (isWalletProof && walletSignature && walletAddress) {
+      try {
+        const recoveredAddress = ethers.utils.verifyMessage(
+          canonicalJson(stripExistingProof(document)),
+          walletSignature
+        );
+
+        if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+          return {
+            valid: false,
+            message: "MetaMask signature does not match the signing wallet.",
+            details: {
+              verificationMethod: walletAddress,
+              recoveredAddress,
+            },
+          };
+        }
+      } catch (error) {
+        return {
+          valid: false,
+          message: `Invalid MetaMask signature: ${error instanceof Error ? error.message : "unknown signature error"}`,
+        };
+      }
+
+      const issuingMethods = getIssuingMethods(document);
+      if (!issuingMethods.includes("ethereum")) {
+        return {
+          valid: true,
+          message: "Credential verified successfully (MetaMask signature)",
+          details: {
+            issuer: typeof document["issuer"] === "object" && document["issuer"] !== null
+              ? String((document["issuer"] as Record<string, unknown>)["id"] ?? document["issuer"])
+              : String(document["issuer"]),
+            credentialId: getCredentialIdentifier(document),
+            verificationMethod: walletAddress,
+            cryptosuite: "EthereumPersonalSignature2024",
+          },
+        };
+      }
+
+      const onChainResult = await verifyDocumentOnChain(
+        document,
+        ISSUER_CONFIG.documentStore,
+        new ethers.providers.JsonRpcProvider(NETWORKS.sepolia.rpcUrl)
+      );
+
+      if (onChainResult.revoked) {
+        return {
+          valid: false,
+          message: "Credential has been revoked on blockchain.",
+          details: { verificationMethod: walletAddress, blockchainVerification: "failed", revoked: true },
+        };
+      }
+
+      return {
+        valid: onChainResult.verified,
+        message: onChainResult.verified
+          ? "Credential verified successfully (MetaMask signature and blockchain registration)"
+          : "Credential signature is valid but document not found on blockchain.",
+        details: {
+          issuer: typeof document["issuer"] === "object" && document["issuer"] !== null
+            ? String((document["issuer"] as Record<string, unknown>)["id"] ?? document["issuer"])
+            : String(document["issuer"]),
+          credentialId: getCredentialIdentifier(document),
+          verificationMethod: walletAddress,
+          cryptosuite: "EthereumPersonalSignature2024",
+          blockchainVerification: onChainResult.verified ? "passed" : "failed",
+        },
+      };
+    } else if (!proof["proofValue"]) {
       return {
         valid: false,
         message: "Credential is not signed — missing proofValue in proof block.",
