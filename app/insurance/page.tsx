@@ -168,11 +168,13 @@ export default function InsurancePage() {
   const [batchDownloadError, setBatchDownloadError] = useState<string | null>(null);
 
   const currentCredential = useMemo(() => {
-    if (didResult?.signed && didResult.credential) return didResult.credential;
+    if (didResult?.credential && (didResult.signed || didResult.walletSignature)) {
+      return didResult.credential;
+    }
     if (ethereumResult?.credential) return ethereumResult.credential;
     if (issuedCert) return buildVCPayload(issuedCert) as Record<string, unknown>;
     return null;
-  }, [didResult, issuedCert]);
+  }, [didResult, ethereumResult, issuedCert]);
 
   const currentCredentialHasProof = useMemo(
     () => Boolean(didResult?.signed || didResult?.walletSignature || ethereumResult?.credential),

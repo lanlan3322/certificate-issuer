@@ -174,12 +174,14 @@ export default function HomePage() {
   // Prefer the signed DID credential; fall back to the unsigned DID draft or
   // the plain unsigned payload so the preview always shows something useful.
   const currentCredential = useMemo(() => {
-    if (didResult?.signed && didResult.credential) return didResult.credential;
+    if (didResult?.credential && (didResult.signed || didResult.walletSignature)) {
+      return didResult.credential;
+    }
     if (issuedCert) return buildVCPayload(issuedCert) as Record<string, unknown>;
     return null;
   }, [didResult, issuedCert]);
   const currentCredentialHasProof = useMemo(
-    () => didResult?.signed ?? false,
+    () => Boolean(didResult?.signed || didResult?.walletSignature),
     [didResult]
   );
 
