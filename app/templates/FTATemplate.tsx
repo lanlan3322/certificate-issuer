@@ -15,8 +15,8 @@ export default function FTATemplate({ certificate }: TemplateProps) {
           <p className="relative -top-2 flex h-full items-center font-sans text-8xl font-extrabold leading-[0.82] tracking-[-0.06em] text-[#d71920]">
             FTA
           </p>
-          <div className="h-20 w-0.5 self-center bg-[#c9c9c9]" />
-          <div className="relative top-1 flex h-full flex-col justify-center text-left font-sans uppercase leading-[1.02]">
+          <div className="h-[5.25rem] w-0.5 self-center bg-[#c9c9c9]" />
+          <div className="flex h-full flex-col justify-center text-left font-sans uppercase leading-[1.02]">
             <p className="text-4xl font-medium tracking-[0.24em] text-[#d71920]">
               FINTECH
             </p>
@@ -50,9 +50,9 @@ export default function FTATemplate({ certificate }: TemplateProps) {
           </div>
 
           <div className="text-center">
-            <p className="font-signature text-6xl text-blue-700">L. Koh</p>
-            <div className="mx-auto mt-2 h-0.5 w-60 bg-gray-400" />
-            <p className="mt-3 text-lg font-medium text-gray-800">Dr. Lillian Koh, Ph.D</p>
+            <p className="font-signature text-6xl leading-none text-blue-700">L. Koh</p>
+            <div className="mx-auto mt-1 h-0.5 w-48 bg-gray-400" />
+            <p className="mt-3 text-lg font-medium leading-tight text-gray-800">Dr. Lillian Koh, Ph.D</p>
             <p className="text-base text-gray-600">CEO, Fintech Academy</p>
             <p className="mt-2 text-base text-gray-700">{certificate.issueDate}</p>
           </div>
