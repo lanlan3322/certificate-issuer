@@ -32,6 +32,7 @@ import {
   buildVCPayload,
   issueCertificateToEthereum,
   issueDIDCertificate,
+  signCredentialWithEthereum,
   type DIDIssuanceResult,
   type EthereumIssuanceResult,
 } from "../../lib/trustvc";
@@ -168,13 +169,14 @@ export default function InsurancePage() {
 
   const currentCredential = useMemo(() => {
     if (didResult?.signed && didResult.credential) return didResult.credential;
+    if (ethereumResult?.credential) return ethereumResult.credential;
     if (issuedCert) return buildVCPayload(issuedCert) as Record<string, unknown>;
     return null;
   }, [didResult, issuedCert]);
 
   const currentCredentialHasProof = useMemo(
-    () => didResult?.signed ?? false,
-    [didResult]
+    () => Boolean(didResult?.signed || didResult?.walletSignature || ethereumResult?.credential),
+    [didResult, ethereumResult]
   );
 
   const handleInputChange = (
@@ -252,8 +254,8 @@ export default function InsurancePage() {
 
     setErrors([]);
 
-    if (issuingMethods.includes("ethereum") && !connected) {
-      setErrors(["Please connect your wallet to issue an Ethereum certificate."]);
+    if (issuingMethods.some((method) => method === "ethereum" || method === "did") && !connected) {
+      setErrors(["Please connect MetaMask to sign the selected certificate."]);
       return;
     }
 
@@ -331,10 +333,17 @@ export default function InsurancePage() {
           didResult = await issueDIDCertificate(certData);
         }
 
+        const didSigner = await getSigner();
+        const walletSignedDID = await signCredentialWithEthereum(
+          didResult.credential ?? (buildVCPayload(certData) as Record<string, unknown>),
+          didSigner
+        );
+
         setDIDResult({
-          credential: didResult.credential ?? (buildVCPayload(certData) as Record<string, unknown>),
-          signed: Boolean(didResult.signed),
-          error: didResult.error,
+          ...didResult,
+          credential: walletSignedDID.credential,
+          walletAddress: walletSignedDID.walletAddress,
+          walletSignature: walletSignedDID.signature,
         });
       }
 
@@ -345,12 +354,13 @@ export default function InsurancePage() {
           }
           const signer = await getSigner();
           const unsignedCredential = buildVCPayload(certData) as Record<string, unknown>;
+          const walletSigned = await signCredentialWithEthereum(unsignedCredential, signer);
           const result = await issueCertificateToEthereum(
-            unsignedCredential,
+            walletSigned.credential,
             DOCUMENT_STORE_CONFIG.address,
             signer
           );
-          setEthereumResult(result);
+          setEthereumResult({ ...result, ...walletSigned });
           if (result.txHash) {
             setIssuedTxHash(result.txHash);
           }
@@ -818,8 +828,15 @@ export default function InsurancePage() {
                             >
                               {didResult.signed
                                 ? "DID Credential Signed"
+                                : didResult.walletSignature
+                                ? "DID Credential Signed by MetaMask"
                                 : "DID Credential (Unsigned Draft)"}
                             </p>
+                            {didResult.walletAddress && (
+                              <p className="mt-1 break-all text-xs text-cyan-700">
+                                MetaMask signature: {didResult.walletAddress}
+                              </p>
+                            )}
                             {didResult.error && (
                               <p className="text-xs text-amber-700 mt-1">
                                 {didResult.error}
@@ -850,6 +867,11 @@ export default function InsurancePage() {
                                 <p className="font-medium text-green-800 text-sm">
                                   Issued on Ethereum (Sepolia)
                                 </p>
+                                {ethereumResult.walletAddress && (
+                                  <p className="mt-1 text-xs text-green-700 break-all">
+                                    Signed by MetaMask: {ethereumResult.walletAddress}
+                                  </p>
+                                )}
                                 <p className="text-xs text-green-700 mt-1 font-mono break-all">
                                   Tx:{" "}
                                   <a

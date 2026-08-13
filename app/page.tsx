@@ -32,6 +32,7 @@ import {
   buildVCPayload,
   issueCertificateToEthereum,
   issueDIDCertificate,
+  signCredentialWithEthereum,
   type DIDIssuanceResult,
   type EthereumIssuanceResult,
 } from "../lib/trustvc";
@@ -357,12 +358,13 @@ export default function HomePage() {
             string,
             unknown
           >;
+          const walletSigned = await signCredentialWithEthereum(unsignedCredential, signer);
           const result = await issueCertificateToEthereum(
-            unsignedCredential,
+            walletSigned.credential,
             DOCUMENT_STORE_CONFIG.address,
             signer
           );
-          setEthereumResult(result);
+          setEthereumResult({ ...result, ...walletSigned });
           if (result.txHash) {
             setIssuedTxHash(result.txHash);
           }

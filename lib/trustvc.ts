@@ -608,6 +608,9 @@ export interface DIDIssuanceResult {
   credential: Record<string, unknown>;
   /** True when the credential was successfully signed with the DID key pair */
   signed: boolean;
+  /** MetaMask wallet signature over the DID credential, when requested */
+  walletAddress?: string;
+  walletSignature?: string;
   /** Human-readable error/warning message */
   error?: string;
 }
@@ -775,7 +778,16 @@ function stripExistingProof(
 export interface EthereumIssuanceResult {
   txHash?: string;
   documentHash?: string;
+  credential?: Record<string, unknown>;
+  walletAddress?: string;
+  signature?: string;
   error?: string;
+}
+
+export interface EthereumCredentialSigningResult {
+  credential: Record<string, unknown>;
+  walletAddress: string;
+  signature: string;
 }
 
 export interface EthereumRevocationResult {
@@ -815,6 +827,33 @@ function canonicalJson(value: unknown): string {
             }, {})
         : v
   );
+}
+
+/**
+ * Signs the canonical credential payload with the connected MetaMask wallet.
+ * The returned proof is included in the document before its hash is stored on
+ * the Document Store, so the downloaded credential and on-chain record match.
+ */
+export async function signCredentialWithEthereum(
+  credential: Record<string, unknown>,
+  signer: ethers.Signer
+): Promise<EthereumCredentialSigningResult> {
+  const walletAddress = await signer.getAddress();
+  const message = canonicalJson(stripExistingProof(credential));
+  const signature = await signer.signMessage(message);
+  const signedCredential = {
+    ...stripExistingProof(credential),
+    proof: {
+      type: "EthereumPersonalSignature2024",
+      created: new Date().toISOString(),
+      verificationMethod: walletAddress,
+      proofPurpose: "assertionMethod",
+      signedBy: walletAddress,
+      signature,
+    },
+  };
+
+  return { credential: signedCredential, walletAddress, signature };
 }
 
 /**
@@ -872,6 +911,7 @@ export async function issueCertificateToEthereum(
     return {
       txHash: receipt.transactionHash,
       documentHash,
+      credential,
     };
   } catch (err) {
     const msg = (err as Error).message ?? String(err);
