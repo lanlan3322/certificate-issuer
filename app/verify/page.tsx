@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import NavBar from "../../components/NavBar";
-import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, FileCheck, Eye, X } from "lucide-react";
+import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, FileCheck, Eye, X, Download, Loader2 } from "lucide-react";
 import CertificateTemplateRenderer from "../templates/CertificateTemplateRenderer";
 import { CertificateTemplateData } from "../templates/types";
 import { useWalletConnection } from "../../hooks/useWalletConnection";
 import { DOCUMENT_STORE_CONFIG, TRUSTVC_CONFIG } from "../../lib/constants";
+import { withBasePath } from "../../lib/site";
 import {
   verifyCredential,
   VerificationResult,
@@ -24,6 +26,8 @@ export default function VerifyPage() {
   const [revoking, setRevoking] = useState(false);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
   const [showCertificateView, setShowCertificateView] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const certificatePreviewRef = useRef<HTMLDivElement>(null);
   const [showAdvancedRevoke, setShowAdvancedRevoke] = useState(false);
   const [revokeHashMode, setRevokeHashMode] = useState<RevocationHashMode>("auto");
   const [revokeMessage, setRevokeMessage] = useState<string | null>(null);
@@ -214,6 +218,37 @@ export default function VerifyPage() {
         templateId: typeof certificateSubject.templateId === "string" ? certificateSubject.templateId : undefined,
       }
     : null;
+
+  const verificationUrl =
+    typeof window === "undefined"
+      ? withBasePath("/verify")
+      : `${window.location.origin}${withBasePath("/verify")}`;
+
+  const handleDownloadPdf = async () => {
+    if (!certificatePreviewRef.current || !certificateForView) return;
+
+    setDownloadingPdf(true);
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+      const canvas = await html2canvas(certificatePreviewRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const imageData = canvas.toDataURL("image/png");
+      pdf.addImage(imageData, "PNG", 0, 0, 210, 297, undefined, "FAST");
+      const certificateId = certificateForView.id?.split(":").pop() ?? "certificate";
+      pdf.save(`certificate-${certificateId}.pdf`);
+    } catch (error) {
+      setRevokeError(`Unable to download PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -561,17 +596,43 @@ export default function VerifyPage() {
                 <h3 className="text-lg font-semibold text-gray-900">Certificate Preview</h3>
                 <p className="text-xs text-gray-500">Rendered using the credential&apos;s selected template.</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowCertificateView(false)}
-                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-                aria-label="Close certificate preview"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  disabled={downloadingPdf}
+                  className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {downloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  {downloadingPdf ? "Preparing..." : "Download PDF"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCertificateView(false)}
+                  className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                  aria-label="Close certificate preview"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
             <div className="overflow-y-auto bg-gray-100 p-4 sm:p-8">
-              <CertificateTemplateRenderer certificate={certificateForView} />
+              <div
+                ref={certificatePreviewRef}
+                className="mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm] text-gray-900 shadow-lg"
+              >
+                <div className="flex-1">
+                  <CertificateTemplateRenderer certificate={certificateForView} />
+                </div>
+                <div className="mt-8 flex items-end justify-between gap-6 border-t border-gray-200 pt-5">
+                  <div className="min-w-0 text-xs text-gray-500">
+                    <p className="font-semibold text-gray-700">Verify this certificate</p>
+                    <p className="mt-1 break-all">{certificateForView.id}</p>
+                    <p className="mt-1 break-all">{verificationUrl}</p>
+                  </div>
+                  <QRCodeSVG value={verificationUrl} size={86} level="M" includeMargin />
+                </div>
+              </div>
             </div>
           </div>
         </div>
