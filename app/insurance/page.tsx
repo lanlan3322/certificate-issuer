@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
   FileText,
@@ -166,6 +166,18 @@ export default function InsurancePage() {
   const [batchIssuing, setBatchIssuing] = useState(false);
   const [downloadingBatchZip, setDownloadingBatchZip] = useState(false);
   const [batchDownloadError, setBatchDownloadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedPrefill = window.sessionStorage.getItem("trustvc-agent-prefill");
+    if (!storedPrefill) return;
+    window.sessionStorage.removeItem("trustvc-agent-prefill");
+    try {
+      const values = JSON.parse(storedPrefill) as Partial<IssueFormState>;
+      setFormData((current) => ({ ...current, ...values }));
+    } catch {
+      // Ignore invalid assistant prefill state.
+    }
+  }, []);
 
   const currentCredential = useMemo(() => {
     if (didResult?.credential && (didResult.signed || didResult.walletSignature)) {

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Footer from "../components/Footer";
 import NavBar from "../components/NavBar";
+import AgentWidget from "../components/agent/AgentWidget";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -31,6 +32,7 @@ export default function RootLayout({
           <NavBar />
           <div className="flex-1">{children}</div>
           <Footer />
+          <AgentWidget />
         </div>
       </body>
     </html>
