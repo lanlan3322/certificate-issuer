@@ -1,0 +1,6 @@
+import { query } from "../lib/db";
+export interface CredentialInput { issuerId: string; templateId?: string; externalId: string; recipientName: string; recipientEmail: string; credential: Record<string, unknown>; documentHash?: string; issuingMethods?: string[]; validFrom?: string; validUntil?: string; }
+export const CredentialService = {
+  async list(issuerId?: string) { const result = await query<Record<string, unknown>>(`SELECT * FROM credentials ${issuerId ? "WHERE issuer_id=$1" : ""} ORDER BY issued_at DESC`, issuerId ? [issuerId] : []); return result.rows; },
+  async create(input: CredentialInput) { const result = await query<Record<string, unknown>>("INSERT INTO credentials (issuer_id,template_id,external_id,recipient_name,recipient_email,credential,document_hash,issuing_methods,valid_from,valid_until) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *", [input.issuerId, input.templateId ?? null, input.externalId, input.recipientName, input.recipientEmail, JSON.stringify(input.credential), input.documentHash ?? null, input.issuingMethods ?? [], input.validFrom ?? null, input.validUntil ?? null]); return result.rows[0]; },
+};

@@ -1,21 +1,10 @@
 import { NextResponse } from "next/server";
-import {
-  createDefaultPlatform,
-  createIssuerRepository,
-  getIssuerBySlug,
-  type IssuerStatus,
-  type PlatformState,
-} from "../../../lib/platform";
-
-let platformState: PlatformState = createDefaultPlatform();
-
-function getRepository() {
-  return createIssuerRepository(platformState);
-}
+import { DatabaseConfigurationError } from "../../../lib/db";
+import { IssuerService, type IssuerRecord } from "../../../services/IssuerService";
 
 export async function GET() {
-  const issuers = getRepository().listIssuers();
-  return NextResponse.json({ issuers });
+  try { return NextResponse.json({ issuers: await IssuerService.list() }); }
+  catch (error) { return NextResponse.json({ error: error instanceof DatabaseConfigurationError ? error.message : "Unable to load issuers." }, { status: error instanceof DatabaseConfigurationError ? 503 : 500 }); }
 }
 
 export async function POST(request: Request) {
@@ -41,16 +30,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (getIssuerBySlug(platformState, slug)) {
-      return NextResponse.json(
-        {
-          error: `Issuer slug already exists: ${slug}`,
-        },
-        { status: 409 }
-      );
-    }
-
-    const issuer = getRepository().createIssuer({
+    const issuer = await IssuerService.create({
       organizationId,
       name,
       slug,
@@ -61,9 +41,9 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Unable to create issuer.",
+        error: error instanceof DatabaseConfigurationError ? error.message : error instanceof Error ? error.message : "Unable to create issuer.",
       },
-      { status: 400 }
+      { status: error instanceof DatabaseConfigurationError ? 503 : 400 }
     );
   }
 }
@@ -72,7 +52,7 @@ export async function PATCH(request: Request) {
   try {
     const body = (await request.json()) as {
       id?: string;
-      status?: IssuerStatus;
+      status?: IssuerRecord["status"];
     };
 
     const id = body.id?.trim();
@@ -87,7 +67,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const issuer = getRepository().updateIssuerStatus(id, status);
+    const issuer = await IssuerService.updateStatus(id, status);
 
     return NextResponse.json({ issuer });
   } catch (error) {
@@ -95,7 +75,7 @@ export async function PATCH(request: Request) {
       {
         error: error instanceof Error ? error.message : "Unable to update issuer status.",
       },
-      { status: 400 }
+      { status: error instanceof DatabaseConfigurationError ? 503 : 400 }
     );
   }
 }

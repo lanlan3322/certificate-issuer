@@ -9,6 +9,7 @@ import { createLocalAgentResponse } from "../../lib/agent/local";
 import type { AgentAction, AgentMessageData, AgentResponse } from "../../lib/agent/types";
 
 const MEMORY_KEY = "trustvc-agent-history";
+const SESSION_KEY = "trustvc-agent-session-id";
 const welcome: AgentMessageData = { id: "welcome", role: "assistant", createdAt: new Date().toISOString(), content: "Welcome to Verifiable. I can help you create credentials, configure issuer details, learn DID identity, verify certificates, and manage revocation. What would you like to do?" };
 
 export default function AgentWidget() {
@@ -18,9 +19,18 @@ export default function AgentWidget() {
   const [thinking, setThinking] = useState(false);
   const [messages, setMessages] = useState<AgentMessageData[]>([welcome]);
   const [workflowState, setWorkflowState] = useState<Record<string, string>>({});
+  const [databaseSessionId, setDatabaseSessionId] = useState<string | null>(null);
 
   useEffect(() => { const stored = window.localStorage.getItem(MEMORY_KEY); if (stored) setMessages(JSON.parse(stored) as AgentMessageData[]); }, []);
   useEffect(() => { window.localStorage.setItem(MEMORY_KEY, JSON.stringify(messages.slice(-40))); }, [messages]);
+  useEffect(() => {
+    const existing = window.sessionStorage.getItem(SESSION_KEY);
+    if (existing) { setDatabaseSessionId(existing); return; }
+    void fetch("/api/agent/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPage: pathname }) })
+      .then(async (response) => response.ok ? await response.json() as { session?: { id?: string } } : null)
+      .then((payload) => { const id = payload?.session?.id; if (id) { window.sessionStorage.setItem(SESSION_KEY, id); setDatabaseSessionId(id); } })
+      .catch(() => undefined);
+  }, [pathname]);
 
   const runAction = (action: AgentAction) => {
     AgentAnalyticsService.track(`action:${action.type}`, pathname);
@@ -37,7 +47,7 @@ export default function AgentWidget() {
     const context = { currentPage: pathname, userAction: content, workflowState };
     let response: AgentResponse;
     try {
-      const request = await fetch("/api/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: content, context }) });
+      const request = await fetch("/api/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: content, context, sessionId: databaseSessionId ?? undefined }) });
       if (!request.ok) throw new Error("Agent API unavailable");
       response = await request.json() as AgentResponse;
     } catch { response = createLocalAgentResponse(content, context); }

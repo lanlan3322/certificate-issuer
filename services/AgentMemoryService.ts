@@ -1,0 +1,9 @@
+import { query } from "../lib/db";
+export const AgentMemoryService = {
+  async createSession(input: { issuerId?: string; userId?: string; currentPage?: string; workflow?: string; state?: Record<string, unknown>; }) { const result = await query<Record<string, unknown>>("INSERT INTO agent_sessions (issuer_id,user_id,current_page,current_workflow,session_state) VALUES ($1,$2,$3,$4,$5) RETURNING *", [input.issuerId ?? null, input.userId ?? null, input.currentPage ?? "/", input.workflow ?? null, JSON.stringify(input.state ?? {})]); return result.rows[0]; },
+  async saveConversation(sessionId: string, role: "user" | "assistant" | "system", content: string, metadata: Record<string, unknown> = {}) { const result = await query<Record<string, unknown>>("INSERT INTO agent_messages (session_id,role,content,metadata) VALUES ($1,$2,$3,$4) RETURNING *", [sessionId, role, content, JSON.stringify(metadata)]); return result.rows[0]; },
+  async loadConversation(sessionId: string) { return (await query<Record<string, unknown>>("SELECT * FROM agent_messages WHERE session_id=$1 ORDER BY created_at", [sessionId])).rows; },
+  async saveWorkflowState(sessionId: string, state: Record<string, unknown>, currentPage: string, workflow?: string) { const result = await query<Record<string, unknown>>("UPDATE agent_sessions SET session_state=$2,current_page=$3,current_workflow=$4 WHERE id=$1 RETURNING *", [sessionId, JSON.stringify(state), currentPage, workflow ?? null]); return result.rows[0]; },
+  async loadWorkflowState(sessionId: string) { const result = await query<Record<string, unknown>>("SELECT session_state,current_page,current_workflow FROM agent_sessions WHERE id=$1", [sessionId]); return result.rows[0] ?? null; },
+  async clearSession(sessionId: string) { await query("DELETE FROM agent_sessions WHERE id=$1", [sessionId]); },
+};
