@@ -21,16 +21,43 @@ export default function AgentWidget() {
   const [workflowState, setWorkflowState] = useState<Record<string, string>>({});
   const [databaseSessionId, setDatabaseSessionId] = useState<string | null>(null);
 
+  const createDatabaseSession = async () => {
+    try {
+      const response = await fetch("/api/agent/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPage: pathname }) });
+      if (!response.ok) return null;
+      const payload = await response.json() as { session?: { id?: string } };
+      return payload.session?.id ?? null;
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => { const stored = window.localStorage.getItem(MEMORY_KEY); if (stored) setMessages(JSON.parse(stored) as AgentMessageData[]); }, []);
   useEffect(() => { window.localStorage.setItem(MEMORY_KEY, JSON.stringify(messages.slice(-40))); }, [messages]);
   useEffect(() => {
     const existing = window.sessionStorage.getItem(SESSION_KEY);
     if (existing) { setDatabaseSessionId(existing); return; }
-    void fetch("/api/agent/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPage: pathname }) })
-      .then(async (response) => response.ok ? await response.json() as { session?: { id?: string } } : null)
-      .then((payload) => { const id = payload?.session?.id; if (id) { window.sessionStorage.setItem(SESSION_KEY, id); setDatabaseSessionId(id); } })
-      .catch(() => undefined);
+    void createDatabaseSession().then((id) => { if (id) { window.sessionStorage.setItem(SESSION_KEY, id); setDatabaseSessionId(id); } });
   }, [pathname]);
+
+  const exitSession = async () => {
+    const existingSessionId = databaseSessionId ?? window.sessionStorage.getItem(SESSION_KEY);
+    if (existingSessionId) {
+      await fetch(`/api/agent/session?sessionId=${encodeURIComponent(existingSessionId)}`, { method: "DELETE" }).catch(() => undefined);
+    }
+    window.localStorage.removeItem(MEMORY_KEY);
+    window.sessionStorage.removeItem(SESSION_KEY);
+    setWorkflowState({});
+    setMessages([{ ...welcome, id: crypto.randomUUID(), createdAt: new Date().toISOString(), content: "New session started. I have cleared the previous conversation and workflow state. How can I help?" }]);
+    const newSessionId = await createDatabaseSession();
+    if (newSessionId) {
+      window.sessionStorage.setItem(SESSION_KEY, newSessionId);
+      setDatabaseSessionId(newSessionId);
+    } else {
+      setDatabaseSessionId(null);
+    }
+    AgentAnalyticsService.track("session-exit", pathname);
+  };
 
   const runAction = (action: AgentAction) => {
     AgentAnalyticsService.track(`action:${action.type}`, pathname);
@@ -40,6 +67,10 @@ export default function AgentWidget() {
   };
 
   const send = async (content: string) => {
+    if (content.trim().toLowerCase() === "/exit") {
+      await exitSession();
+      return;
+    }
     const userMessage: AgentMessageData = { id: crypto.randomUUID(), role: "user", content, createdAt: new Date().toISOString() };
     setMessages((items) => [...items, userMessage]);
     setThinking(true);
