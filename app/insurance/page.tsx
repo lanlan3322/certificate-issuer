@@ -402,10 +402,13 @@ export default function InsurancePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const uuid = issuedCert.id.split(":")[2] ?? "credential";
+    const recipientFileName = issuedCert.recipientName
+      .trim()
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-+|-+$/g, "") || "recipient";
     a.download = currentCredentialHasProof
-      ? `certificate-${uuid}.json`
-      : `certificate-${uuid}-unsigned.json`;
+      ? `certificate-${recipientFileName}.json`
+      : `certificate-${recipientFileName}-unsigned.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
