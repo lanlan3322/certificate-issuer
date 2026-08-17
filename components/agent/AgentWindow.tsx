@@ -31,6 +31,9 @@ export default function AgentWindow({ page, messages, isThinking, onClose, onSen
         {isThinking && <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Thinking…</div>}
       </div>
       <AgentSuggestions page={page} onSelect={onSend} />
+      <p className="px-4 pb-2 text-[11px] text-slate-500 dark:text-slate-400">
+        Send <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">/exit</span> to restart a new session.
+      </p>
       <form onSubmit={submit} className="flex gap-2 border-t border-slate-200 p-3 dark:border-slate-700">
         <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="Ask about issuing, DID, or verification" className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-cyan-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
         <button type="submit" disabled={isThinking || !value.trim()} className="rounded-xl bg-cyan-600 p-2 text-white disabled:opacity-50"><ArrowUp className="h-5 w-5" /></button>
