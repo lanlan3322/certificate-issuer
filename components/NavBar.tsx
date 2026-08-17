@@ -47,6 +47,7 @@ export default function NavBar() {
     { href: "/enterprise", label: "Enterprise", icon: Briefcase },
     { href: "/docs", label: "Docs", icon: BookOpen },
     { href: "/admin", label: "Admin", icon: FileText },
+    { href: "/issuer", label: "Issuer Login", icon: KeyRound },
   ];
 
   return (

@@ -6,7 +6,7 @@ const isGitHubPages = deployTarget === "github-pages";
 const basePath = isGitHubPages ? "/certificate-issuer" : "";
 
 const nextConfig = {
-  output: "export",
+  // Netlify runs the Next.js server runtime for auth, PostgreSQL, and API routes.
   basePath,
   assetPrefix: basePath ? `${basePath}/` : undefined,
   images: { unoptimized: true },

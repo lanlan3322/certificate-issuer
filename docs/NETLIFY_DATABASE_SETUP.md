@@ -16,8 +16,27 @@
 | `OPENAI_API_KEY` | Provider dependent | Server-only OpenAI-compatible key. |
 | `AZURE_OPENAI_API_KEY` | Provider dependent | Azure key; wire a dedicated Azure adapter before enabling. |
 | `AGENT_MODEL` | No | LLM model name. Default: `gpt-4o-mini`. |
+| `PASSWORD_RESET_WEBHOOK_URL` | Recommended | Server-side email delivery webhook for issuer password reset links. |
+| `PASSWORD_RESET_BASE_URL` | Recommended | Public URL used to construct reset links, for example `https://verifiable.netlify.app`. |
+| `PASSWORD_RESET_WEBHOOK_SECRET` | Optional | Bearer token sent to the reset webhook for authenticating delivery requests. |
+
+The webhook receives a JSON `POST` body:
+
+```json
+{
+	"event": "issuer.password_reset_requested",
+	"email": "issuer@example.com",
+	"resetUrl": "https://verifiable.netlify.app/issuer?mode=reset&token=...",
+	"expiresInMinutes": 30,
+	"requestedAt": "2026-08-17T12:00:00.000Z"
+}
+```
+
+It must return a `2xx` response. The request includes `Authorization: Bearer <PASSWORD_RESET_WEBHOOK_SECRET>` when the secret is configured. Delivery has an eight-second timeout; a failed delivery returns an error rather than claiming that the email was sent.
 
 Never use `NEXT_PUBLIC_` for database URLs or AI provider keys.
+
+Issuer registration and login require the Netlify server runtime and database migration `002_issuer_auth.sql`. Password reset requests are generic to prevent account enumeration. In production, configure `PASSWORD_RESET_WEBHOOK_URL` to deliver the generated reset link through an approved email provider; reset tokens are never returned to the browser in production. In local development, the API returns a development token to make the flow testable without an email provider.
 
 ## 3. Run migrations
 
@@ -42,7 +61,14 @@ DATABASE_POOL_MAX=5
 3. Run `npm run dev`.
 4. Test `GET /api/issuers`, `GET /api/templates`, `GET /api/credentials`, and `POST /api/agent/session`.
 
-The UI retains browser-only fallback behavior when server APIs are unavailable. Database features require a server-capable Netlify runtime; static GitHub Pages cannot serve the API routes.
+The UI retains browser-only fallback behavior when server APIs are unavailable. Database features require the server-capable Netlify runtime; static GitHub Pages cannot serve these API routes.
+
+For a new database, apply both migrations in order:
+
+```sh
+psql "$DATABASE_URL" -f database/migrations/001_initial_schema.sql
+psql "$DATABASE_URL" -f database/migrations/002_issuer_auth.sql
+```
 
 ## 5. Backup and recovery
 

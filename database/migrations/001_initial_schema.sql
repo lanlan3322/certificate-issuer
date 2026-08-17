@@ -149,6 +149,16 @@ CREATE TABLE api_keys (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE password_reset_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX credentials_issuer_status_idx ON credentials (issuer_id, status, issued_at DESC);
 CREATE INDEX credentials_recipient_email_idx ON credentials (recipient_email);
 CREATE INDEX revocations_credential_created_idx ON revocations (credential_id, created_at DESC);
@@ -157,6 +167,7 @@ CREATE INDEX agent_sessions_issuer_updated_idx ON agent_sessions (issuer_id, upd
 CREATE INDEX agent_messages_session_created_idx ON agent_messages (session_id, created_at);
 CREATE INDEX audit_logs_issuer_created_idx ON audit_logs (issuer_id, created_at DESC);
 CREATE INDEX audit_logs_action_created_idx ON audit_logs (action, created_at DESC);
+CREATE INDEX password_reset_tokens_user_expires_idx ON password_reset_tokens (user_id, expires_at);
 
 CREATE OR REPLACE FUNCTION set_updated_at() RETURNS TRIGGER AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END;
@@ -174,3 +185,4 @@ CREATE TRIGGER agent_messages_updated_at BEFORE UPDATE ON agent_messages FOR EAC
 CREATE TRIGGER audit_logs_updated_at BEFORE UPDATE ON audit_logs FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER subscriptions_updated_at BEFORE UPDATE ON subscriptions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER api_keys_updated_at BEFORE UPDATE ON api_keys FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER password_reset_tokens_updated_at BEFORE UPDATE ON password_reset_tokens FOR EACH ROW EXECUTE FUNCTION set_updated_at();

@@ -1,0 +1,17 @@
+[build]
+  command = "npm run build:netlify"
+  publish = ".next"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[redirects]]
+  from = "/api/health/db"
+  to = "/.netlify/functions/db-health"
+  status = 200
+
+[[redirects]]
+  from = "/api/functions/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
