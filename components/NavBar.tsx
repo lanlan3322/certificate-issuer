@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Shield,
   FileText,
   CheckCircle,
   Menu,
@@ -40,7 +39,7 @@ export default function NavBar() {
 
   const navItems = [
     { href: "/", label: "Overview", icon: LayoutDashboard },
-    { href: "/platform", label: "Solutions", icon: Shield },
+    { href: "/platform", label: "Solutions", icon: KeyRound },
     { href: "/did", label: "DID", icon: KeyRound },
     { href: "/verify", label: "Verification", icon: CheckCircle },
     { href: "/wallet", label: "Wallet", icon: FolderKanban },
@@ -55,13 +54,7 @@ export default function NavBar() {
       <div className="mx-auto max-w-7xl rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/85 dark:shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
         <div className="flex h-16 items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-cyan-300 shadow-sm sm:h-10 sm:w-10">
-              <Shield className="h-4 w-4 sm:h-5 sm:w-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 sm:text-sm">TrustVC</div>
-              <div className="hidden text-base font-bold text-slate-900 sm:block">Verifiable Certificates</div>
-            </div>
+            <img src="/verifiable-logo.svg" alt="Verifiable" className="h-9 w-auto max-w-[190px] sm:h-11 sm:max-w-[230px]" />
           </Link>
 
           <div className="hidden items-center gap-2 md:flex">

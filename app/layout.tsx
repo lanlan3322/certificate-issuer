@@ -5,10 +5,11 @@ import AgentWidget from "../components/agent/AgentWidget";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TrustVC | Verifiable Credentials Platform",
+  title: "Verifiable | Verifiable Credentials Platform",
   description:
     "TrustVC is a secure credential platform for issuing, verifying, and governing W3C verifiable credentials across enterprise and public sector workflows.",
   keywords: [
+    "Verifiable",
     "TrustVC",
     "verifiable credentials",
     "certificate platform",

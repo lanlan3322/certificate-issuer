@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 190" role="img" aria-labelledby="title desc">
+  <title id="title">Verifiable</title>
+  <desc id="desc">Verifiable shield document mark and wordmark</desc>
+  <defs>
+    <linearGradient id="mark" x1="20" y1="20" x2="170" y2="170" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0878f9"/>
+      <stop offset="1" stop-color="#13d5ad"/>
+    </linearGradient>
+  </defs>
+  <path d="M42 22h92l30 30v40l-22 22V65l-20-20H65v84c0 21 14 39 35 48 21-9 35-27 35-48v-9l22-22v31c0 34-22 63-57 76l-8 3-8-3c-35-13-57-42-57-76V42c0-11 9-20 20-20Z" fill="url(#mark)"/>
+  <path d="m38 101 27 28 67-68" fill="none" stroke="url(#mark)" stroke-linecap="round" stroke-linejoin="round" stroke-width="18"/>
+  <path d="M134 22v36h36" fill="none" stroke="url(#mark)" stroke-linejoin="round" stroke-width="18"/>
+  <text x="208" y="134" fill="#fff" font-family="Inter, Arial, sans-serif" font-size="112" font-weight="700" letter-spacing="-4">Verifiable</text>
+</svg>
