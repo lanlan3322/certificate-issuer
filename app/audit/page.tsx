@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import NavBar from "../../components/NavBar";
 import { buildComplianceSummary, createAuditEvent, type AuditEvent } from "../../lib/phase7";
 
 const sampleEvents: AuditEvent[] = [

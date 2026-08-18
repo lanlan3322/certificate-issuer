@@ -18,7 +18,6 @@ import {
   Info,
   Layers,
 } from "lucide-react";
-import NavBar from "../../components/NavBar";
 import DeploymentGuide from "../../components/DeploymentGuide";
 import BatchIssuePanel, {
   BatchIssuedCertificatesPanel,

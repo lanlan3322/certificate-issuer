@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import NavBar from "../../components/NavBar";
 import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, FileCheck, Eye, X, Download, Loader2 } from "lucide-react";
 import CertificateTemplateRenderer from "../templates/CertificateTemplateRenderer";
 import { CertificateTemplateData } from "../templates/types";

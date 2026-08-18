@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useMemo, useState } from "react";
-import NavBar from "../../components/NavBar";
 import { Shield, FileText, CheckCircle, ExternalLink, Upload, X as XIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { DEMO_CERTIFICATES } from "../../lib/constants";

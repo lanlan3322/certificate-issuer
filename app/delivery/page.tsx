@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import NavBar from "../../components/NavBar";
 import { buildVerificationLink, createEmailDelivery, createVerificationBundle } from "../../lib/phase4";
 
 export default function DeliveryPage() {
@@ -32,8 +31,6 @@ export default function DeliveryPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <NavBar />
-
       <main className="mx-auto max-w-5xl px-4 py-8">
         <div className="mb-8">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Phase 4</p>

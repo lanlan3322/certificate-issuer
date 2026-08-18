@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import NavBar from "../../../components/NavBar";
 import {
   createTemplateDefinition,
   renderTemplateText,
@@ -127,8 +126,6 @@ export default function TemplateBuilderPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <NavBar />
-
       <main className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-8 flex items-center justify-between gap-4">
           <div>

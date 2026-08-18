@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { withBasePath } from "../../lib/site";
-import NavBar from "../../components/NavBar";
 
 export default function RevocationManagementPage() {
   const [credentialId, setCredentialId] = useState("cert-demo-102");
@@ -43,8 +42,6 @@ export default function RevocationManagementPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <NavBar />
-
       <main className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-8">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700">Phase 3</p>
