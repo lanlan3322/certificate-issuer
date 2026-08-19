@@ -89,5 +89,6 @@ The Next.js API routes remain the primary browser-facing API surface. Functions 
 - `503 Database unavailable`: check `DATABASE_URL`, migration state, SSL requirements, and connection limits.
 - Auth route fails during static export: use the Netlify build, not `build:github-pages`.
 - Reset email not delivered: check webhook URL, bearer secret, webhook response status, and Netlify function logs.
+- Do not set `PASSWORD_RESET_WEBHOOK_URL` to `/.netlify/functions/password-reset`; that function creates reset tokens and is not an email sender. Use an external email webhook or an email provider endpoint.
 - AI falls back to local responses: check `AGENT_PROVIDER` and server-only provider credentials.
 - Function cannot import a module: confirm the dependency is in `dependencies`, not only `devDependencies`.

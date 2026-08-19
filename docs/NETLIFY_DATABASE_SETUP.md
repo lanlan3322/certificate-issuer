@@ -34,6 +34,8 @@ The webhook receives a JSON `POST` body:
 
 It must return a `2xx` response. The request includes `Authorization: Bearer <PASSWORD_RESET_WEBHOOK_SECRET>` when the secret is configured. Delivery has an eight-second timeout; a failed delivery returns an error rather than claiming that the email was sent.
 
+Do not use this project&apos;s own `/.netlify/functions/password-reset` URL as the webhook URL. That endpoint processes reset requests; it does not send email and would recursively call itself. Configure an external email webhook instead.
+
 Never use `NEXT_PUBLIC_` for database URLs or AI provider keys.
 
 Issuer registration and login require the Netlify server runtime and database migration `002_issuer_auth.sql`. Password reset requests are generic to prevent account enumeration. In production, configure `PASSWORD_RESET_WEBHOOK_URL` to deliver the generated reset link through an approved email provider; reset tokens are never returned to the browser in production. In local development, the API returns a development token to make the flow testable without an email provider.

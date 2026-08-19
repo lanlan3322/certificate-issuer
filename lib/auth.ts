@@ -15,6 +15,8 @@ export interface AuthUser {
   issuerName: string;
 }
 
+export class PasswordResetDeliveryError extends Error {}
+
 function hashToken(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -53,8 +55,14 @@ async function createSession(userId: string, issuerId: string) {
     const webhookUrl = process.env.PASSWORD_RESET_WEBHOOK_URL;
     if (!webhookUrl) return;
 
+    if (/\/\.netlify\/functions\/password-reset\/?$/i.test(webhookUrl)) {
+      throw new PasswordResetDeliveryError(
+        "PASSWORD_RESET_WEBHOOK_URL cannot point to this project's password-reset function. Configure an external email webhook that sends the resetUrl."
+      );
+    }
+
     const baseUrl = process.env.PASSWORD_RESET_BASE_URL?.replace(/\/$/, "");
-    if (!baseUrl) throw new Error("PASSWORD_RESET_BASE_URL is required when PASSWORD_RESET_WEBHOOK_URL is configured.");
+    if (!baseUrl) throw new PasswordResetDeliveryError("PASSWORD_RESET_BASE_URL is required when PASSWORD_RESET_WEBHOOK_URL is configured.");
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8_000);
@@ -76,7 +84,7 @@ async function createSession(userId: string, issuerId: string) {
           requestedAt: new Date().toISOString(),
         }),
       });
-      if (!response.ok) throw new Error(`Password reset webhook returned HTTP ${response.status}.`);
+      if (!response.ok) throw new PasswordResetDeliveryError(`Password reset email service returned HTTP ${response.status}.`);
     } finally {
       clearTimeout(timeout);
     }
