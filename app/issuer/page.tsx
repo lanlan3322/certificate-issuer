@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { KeyRound, LogOut, ShieldCheck } from "lucide-react";
 import { withBasePath } from "../../lib/site";
 
@@ -12,6 +13,7 @@ interface Credential { id: string; external_id: string; recipient_name: string; 
 const initialRegistration = { issuerName: "", slug: "", organizationName: "", email: "", displayName: "", password: "" };
 
 export default function IssuerPortalPage() {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,7 +53,12 @@ export default function IssuerPortalPage() {
       const response = await fetch(withBasePath(endpoint), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const payload = await response.json() as { error?: string; user?: User; message?: string; developmentToken?: string | null };
       if (!response.ok) throw new Error(payload.error ?? "Request failed.");
-      if (mode === "login" || mode === "register") { setUser(payload.user ?? null); await loadSession(); }
+      if (mode === "login" || mode === "register") {
+        setUser(payload.user ?? null);
+        await loadSession();
+        const nextPath = new URLSearchParams(window.location.search).get("next");
+        router.push(nextPath?.startsWith("/") ? nextPath : "/issuer/");
+      }
       else { setMessage(payload.message ?? "If the email is registered, reset instructions have been created."); if (payload.developmentToken) setResetToken(payload.developmentToken); }
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Request failed."); }
     finally { setLoading(false); }
@@ -74,7 +81,7 @@ export default function IssuerPortalPage() {
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
         <div><p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">Issuer portal</p><h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">Welcome, {user.displayName}</h1><p className="mt-1 text-slate-600 dark:text-slate-300">{user.issuerName} · {user.email}</p></div>
-        <div className="flex gap-2"><Link href="/insurance" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">Issue certificate</Link><button type="button" onClick={() => void logout()} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200"><LogOut className="h-4 w-4" /> Log out</button></div>
+        <div className="flex gap-2"><Link href="/insurance/" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">Issue certificate</Link><button type="button" onClick={() => void logout()} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200"><LogOut className="h-4 w-4" /> Log out</button></div>
       </div>
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"><h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">Your certificates</h2>{credentials.length === 0 ? <p className="text-slate-500">No certificates have been stored for this issuer yet.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead className="border-b border-slate-200 text-slate-500 dark:border-slate-700"><tr><th className="px-3 py-3">Recipient</th><th className="px-3 py-3">Email</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Issued</th></tr></thead><tbody>{credentials.map((credential) => <tr key={credential.id} className="border-b border-slate-100 dark:border-slate-800"><td className="px-3 py-3 font-medium text-slate-800 dark:text-slate-200">{credential.recipient_name}</td><td className="px-3 py-3 text-slate-600 dark:text-slate-400">{credential.recipient_email}</td><td className="px-3 py-3 uppercase text-xs">{credential.status}</td><td className="px-3 py-3 text-slate-600 dark:text-slate-400">{new Date(credential.issued_at).toLocaleDateString()}</td></tr>)}</tbody></table></div>}</section>
     </main>

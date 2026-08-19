@@ -16,7 +16,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.json({ error: "Issuer login required." }, { status: 401 });
   }
 
-  const loginUrl = new URL("/issuer", request.url);
+  const loginUrl = new URL("/issuer/", request.url);
   loginUrl.searchParams.set("next", pathname);
   return NextResponse.redirect(loginUrl);
 }

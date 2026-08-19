@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
   FileText,
@@ -17,9 +17,6 @@ import {
   Check,
   Info,
   Layers,
-  Palette,
-  Send,
-  KeyRound,
 } from "lucide-react";
 import DeploymentGuide from "../components/DeploymentGuide";
 import BatchIssuePanel, {
@@ -173,14 +170,6 @@ export default function HomePage() {
   const [batchIssuing, setBatchIssuing] = useState(false);
   const [downloadingBatchZip, setDownloadingBatchZip] = useState(false);
   const [batchDownloadError, setBatchDownloadError] = useState<string | null>(null);
-  const [issuerAuthenticated, setIssuerAuthenticated] = useState(false);
-
-  useEffect(() => {
-    void fetch("/api/auth/me", { method: "POST" })
-      .then(async (response) => response.ok ? await response.json() as { user?: unknown } : null)
-      .then((payload) => setIssuerAuthenticated(Boolean(payload?.user)))
-      .catch(() => setIssuerAuthenticated(false));
-  }, []);
   // Prefer the signed DID credential; fall back to the unsigned DID draft or
   // the plain unsigned payload so the preview always shows something useful.
   const currentCredential = useMemo(() => {
@@ -749,36 +738,6 @@ export default function HomePage() {
               dnsLocation={DOCUMENT_STORE_CONFIG.identityProof.location}
             />
           </div>
-        )}
-
-        {issuerAuthenticated && (
-          <section className="mb-12 rounded-3xl border border-cyan-200 bg-cyan-50/70 p-6 shadow-sm dark:border-cyan-900 dark:bg-cyan-950/30 md:p-8">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700 dark:text-cyan-300">Issuer workspace</p>
-                <h2 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">Manage your credential program</h2>
-                <p className="mt-2 text-slate-600 dark:text-slate-300">Your issuer tools are ready. Configure identity, branding, delivery, and wallet workflows from one place.</p>
-              </div>
-              <a href="/issuer" className="text-sm font-semibold text-cyan-700 hover:text-cyan-900 dark:text-cyan-300 dark:hover:text-cyan-200">Open issuer dashboard →</a>
-            </div>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                ["/branding", "Branding", "Manage issuer identity and visual presentation.", Palette],
-                ["/wallet", "Wallet", "Review wallet connection and signing readiness.", Wallet],
-                ["/delivery", "Delivery", "Prepare recipient delivery and verification bundles.", Send],
-                ["/did", "DID lifecycle", "Create, rotate, and manage issuer DIDs.", KeyRound],
-              ].map(([href, title, description, Icon]) => {
-                const WorkspaceIcon = Icon as typeof Palette;
-                return (
-                  <a key={String(href)} href={String(href)} className="group rounded-2xl border border-cyan-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-cyan-400 hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
-                    <WorkspaceIcon className="h-5 w-5 text-cyan-600 dark:text-cyan-300" />
-                    <h3 className="mt-4 font-semibold text-slate-900 group-hover:text-cyan-700 dark:text-white dark:group-hover:text-cyan-300">{String(title)}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">{String(description)}</p>
-                  </a>
-                );
-              })}
-            </div>
-          </section>
         )}
 
         {/* Info Cards - Responsive Grid */}

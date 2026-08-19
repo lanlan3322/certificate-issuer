@@ -51,7 +51,7 @@ export default function NavBar() {
     { href: "/verify", label: "Verification", icon: CheckCircle },
     { href: "/platform", label: "Platform", icon: KeyRound },
     { href: "/docs", label: "Docs", icon: BookOpen },
-    { href: "/issuer", label: "Issuer access", icon: KeyRound },
+    { href: "/issuer/", label: "Issuer access", icon: KeyRound },
   ];
   const issuerNavItems = [
     { href: "/insurance", label: "Issue", icon: FilePlus2 },

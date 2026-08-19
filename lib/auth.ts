@@ -66,7 +66,7 @@ async function createSession(userId: string, issuerId: string) {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8_000);
-    const resetUrl = `${baseUrl}/issuer?mode=reset&token=${encodeURIComponent(input.token)}`;
+    const resetUrl = `${baseUrl}/issuer/?mode=reset&token=${encodeURIComponent(input.token)}`;
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (process.env.PASSWORD_RESET_WEBHOOK_SECRET) {
