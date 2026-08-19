@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const protectedPages = ["/admin", "/revocation"];
+const protectedPages = ["/admin", "/insurance", "/revocation"];
 const protectedApiPrefixes = ["/api/issuers", "/api/templates", "/api/credentials", "/api/revocation"];
 
 export function middleware(request: NextRequest) {
@@ -22,5 +22,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/revocation/:path*", "/api/issuers/:path*", "/api/templates/:path*", "/api/credentials/:path*", "/api/revocation/:path*"],
+  matcher: ["/admin/:path*", "/insurance/:path*", "/revocation/:path*", "/api/issuers/:path*", "/api/templates/:path*", "/api/credentials/:path*", "/api/revocation/:path*"],
 };
