@@ -56,6 +56,7 @@ export default function IssuerPortalPage() {
       if (mode === "login" || mode === "register") {
         setUser(payload.user ?? null);
         await loadSession();
+        window.dispatchEvent(new Event("trustvc-auth-changed"));
         const nextPath = new URLSearchParams(window.location.search).get("next");
         router.push(nextPath?.startsWith("/") ? nextPath : "/issuer/");
       }
@@ -75,7 +76,7 @@ export default function IssuerPortalPage() {
     finally { setLoading(false); }
   };
 
-  const logout = async () => { await fetch(withBasePath("/api/auth/logout"), { method: "POST" }); setUser(null); setCredentials([]); };
+  const logout = async () => { await fetch(withBasePath("/api/auth/logout"), { method: "POST" }); setUser(null); setCredentials([]); window.dispatchEvent(new Event("trustvc-auth-changed")); };
 
   if (user) return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">

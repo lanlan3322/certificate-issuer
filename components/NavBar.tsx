@@ -33,10 +33,13 @@ export default function NavBar() {
   }, []);
 
   useEffect(() => {
-    void fetch("/api/auth/me", { method: "POST" })
+    const refreshAuthentication = () => void fetch("/api/auth/me", { method: "POST" })
       .then(async (response) => response.ok ? await response.json() as { user?: unknown } : null)
       .then((payload) => setIssuerAuthenticated(Boolean(payload?.user)))
       .catch(() => setIssuerAuthenticated(false));
+    refreshAuthentication();
+    window.addEventListener("trustvc-auth-changed", refreshAuthentication);
+    return () => window.removeEventListener("trustvc-auth-changed", refreshAuthentication);
   }, [pathname]);
 
   const toggleTheme = () => {
