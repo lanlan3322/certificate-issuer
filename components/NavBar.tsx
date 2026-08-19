@@ -12,6 +12,9 @@ import {
   KeyRound,
   LayoutDashboard,
   BookOpen,
+  Palette,
+  Wallet,
+  Send,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -19,6 +22,7 @@ export default function NavBar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [issuerAuthenticated, setIssuerAuthenticated] = useState(false);
 
   useEffect(() => {
     const storedTheme = window.localStorage.getItem("trustvc-theme");
@@ -28,6 +32,13 @@ export default function NavBar() {
     setDarkMode(shouldUseDark);
   }, []);
 
+  useEffect(() => {
+    void fetch("/api/auth/me", { method: "POST" })
+      .then(async (response) => response.ok ? await response.json() as { user?: unknown } : null)
+      .then((payload) => setIssuerAuthenticated(Boolean(payload?.user)))
+      .catch(() => setIssuerAuthenticated(false));
+  }, [pathname]);
+
   const toggleTheme = () => {
     const nextMode = !darkMode;
     document.documentElement.classList.toggle("dark", nextMode);
@@ -35,14 +46,21 @@ export default function NavBar() {
     setDarkMode(nextMode);
   };
 
-  const navItems = [
+  const publicNavItems = [
     { href: "/", label: "Overview", icon: LayoutDashboard },
-    { href: "/insurance", label: "Issue", icon: FilePlus2 },
     { href: "/verify", label: "Verification", icon: CheckCircle },
     { href: "/platform", label: "Platform", icon: KeyRound },
     { href: "/docs", label: "Docs", icon: BookOpen },
     { href: "/issuer", label: "Issuer access", icon: KeyRound },
   ];
+  const issuerNavItems = [
+    { href: "/insurance", label: "Issue", icon: FilePlus2 },
+    { href: "/branding", label: "Branding", icon: Palette },
+    { href: "/did", label: "DID lifecycle", icon: KeyRound },
+    { href: "/wallet", label: "Wallet", icon: Wallet },
+    { href: "/delivery", label: "Delivery", icon: Send },
+  ];
+  const navItems = issuerAuthenticated ? [...publicNavItems.slice(0, 1), ...issuerNavItems, ...publicNavItems.slice(1)] : publicNavItems;
 
   return (
     <nav className="sticky top-3 z-50 px-4 pb-3 pt-3 sm:px-6 lg:px-8">
