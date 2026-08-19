@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CheckCircle,
+  Images,
   FilePlus2,
   Menu,
   X,
@@ -52,6 +53,7 @@ export default function NavBar() {
   const publicNavItems = [
     { href: "/", label: "Overview", icon: LayoutDashboard },
     { href: "/verify", label: "Verification", icon: CheckCircle },
+    { href: "/gallery/", label: "View", icon: Images },
     { href: "/platform", label: "Platform", icon: KeyRound },
     { href: "/docs", label: "Docs", icon: BookOpen },
     { href: "/issuer/", label: "Issuer access", icon: KeyRound },

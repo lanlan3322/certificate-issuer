@@ -5,6 +5,7 @@ import { Shield, FileText, CheckCircle, ExternalLink, Upload, X as XIcon } from 
 import { QRCodeSVG } from "qrcode.react";
 import { DEMO_CERTIFICATES } from "../../lib/constants";
 import { formatDate } from "../../lib/certificate";
+import { withBasePath } from "../../lib/site";
 import {
   CertificateTemplateRenderer,
   DEFAULT_TEMPLATE_ID,
@@ -33,6 +34,9 @@ export default function GalleryPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const certificates: CertEntry[] = uploadedCerts ?? DEMO_CERTIFICATES;
+  const verificationUrl = typeof window === "undefined"
+    ? withBasePath("/verify")
+    : `${window.location.origin}${withBasePath("/verify")}`;
   const certTypeCount = useMemo(
     () => new Set(certificates.map((c) => c.certificateType)).size,
     [certificates]
@@ -305,7 +309,7 @@ const id =
         {/* Modal */}
         {selectedCert && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-auto">
+            <div className="bg-white rounded-xl max-w-5xl w-full max-h-[92vh] overflow-auto">
               {/* Modal Header */}
               <div className="bg-gradient-to-r from-primary to-accent text-white p-6 rounded-t-xl">
                 <div className="flex justify-between items-start">
@@ -327,10 +331,28 @@ const id =
               </div>
 
               {/* Modal Body */}
-              <div className="p-6">
+              <div className="bg-gray-100 p-4 sm:p-8">
                 {/* Certificate Visual */}
                 <div className="mb-6 space-y-3">
-                  <CertificateTemplateRenderer certificate={selectedCert} />
+                  <div className="mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm] text-gray-900 shadow-lg">
+                    <div className="flex-1">
+                      <CertificateTemplateRenderer certificate={{ ...selectedCert, verificationUrl }} />
+                    </div>
+                    <div className={`${resolveTemplateId(selectedCert.templateId) === "fta" ? "hidden" : "mt-8 flex"} items-end gap-6 border-t border-gray-200 pt-5`}>
+                      <div className="flex shrink-0 flex-col items-center gap-2">
+                        <QRCodeSVG value={verificationUrl} size={86} level="M" includeMargin />
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Scan to verify</span>
+                      </div>
+                      <div className="min-w-0 flex-1 text-xs text-gray-500">
+                        <p className="font-semibold text-gray-700">Digital signature and verification</p>
+                        <div className="mt-5 max-w-xs border-b border-gray-500 pb-1 text-base italic text-gray-800">{selectedCert.issuerName}</div>
+                        <p className="mt-1 font-medium text-gray-700">{selectedCert.issuerName}</p>
+                        <p className="mt-1">Issued to {selectedCert.recipientName}</p>
+                        <p className="mt-1 break-all">ID: {selectedCert.id || "N/A"}</p>
+                        <p className="mt-1 break-all">{verificationUrl}</p>
+                      </div>
+                    </div>
+                  </div>
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
                     <p>Issued: {formatDate(selectedCert.issueDate)}</p>
                     <p>
@@ -339,21 +361,6 @@ const id =
                     </p>
                     <p>
                       Template: {TEMPLATE_OPTIONS.find((t) => t.id === resolveTemplateId(selectedCert.templateId))?.label}
-                    </p>
-                  </div>
-                </div>
-
-                {/* QR Code */}
-                <div className="flex items-center justify-center mb-6">
-                  <div className="bg-white p-4 rounded-lg shadow-md text-center">
-                    <QRCodeSVG
-                      value={JSON.stringify({ recipientName: selectedCert.recipientName })}
-                      size={100}
-                      bgColor="#ffffff"
-                      fgColor="#1e3a5f"
-                    />
-                    <p className="text-xs text-gray-500 mt-2">
-                      Scan to verify
                     </p>
                   </div>
                 </div>
