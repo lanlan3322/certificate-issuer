@@ -3,17 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  FileText,
   CheckCircle,
+  FilePlus2,
   Menu,
   X,
   Moon,
   Sun,
   KeyRound,
   LayoutDashboard,
-  Briefcase,
   BookOpen,
-  FolderKanban,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -39,14 +37,11 @@ export default function NavBar() {
 
   const navItems = [
     { href: "/", label: "Overview", icon: LayoutDashboard },
-    { href: "/platform", label: "Solutions", icon: KeyRound },
-    { href: "/did", label: "DID", icon: KeyRound },
+    { href: "/insurance", label: "Issue", icon: FilePlus2 },
     { href: "/verify", label: "Verification", icon: CheckCircle },
-    { href: "/wallet", label: "Wallet", icon: FolderKanban },
-    { href: "/enterprise", label: "Enterprise", icon: Briefcase },
+    { href: "/platform", label: "Platform", icon: KeyRound },
     { href: "/docs", label: "Docs", icon: BookOpen },
-    { href: "/admin", label: "Admin", icon: FileText },
-    { href: "/issuer", label: "Issuer Login", icon: KeyRound },
+    { href: "/issuer", label: "Issuer access", icon: KeyRound },
   ];
 
   return (
