@@ -2,26 +2,6 @@ import Link from "next/link";
 
 const docs = [
   {
-    title: "Platform Overview",
-    description: "Multi-issuer operations, SaaS readiness, and enterprise deployment posture.",
-    href: "/platform",
-  },
-  {
-    title: "DID Lifecycle",
-    description: "Issuer identities, key rotation, did:web workflows, and trust service status.",
-    href: "/did",
-  },
-  {
-    title: "Wallet Delivery",
-    description: "QR handoff, email delivery, and wallet-ready credential experiences.",
-    href: "/wallet",
-  },
-  {
-    title: "Branding",
-    description: "Issuer identity, website, theme colors, and verifiable brand presentation.",
-    href: "/branding",
-  },
-  {
     title: "Quick Start",
     description: "Local setup, issue flows, verification basics, and common troubleshooting.",
     href: "/docs/quick-start",
