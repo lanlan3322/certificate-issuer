@@ -1,81 +1,76 @@
 import { NextResponse } from "next/server";
+import { authorize, errorResponse } from "../../../lib/apiAuth";
+import { AuditService } from "../../../services/AuditService";
 import {
-  createRevocationRecord,
-  reinstateCredential,
-  revokeCredential,
-  suspendCredential,
-  type RevocationRecord,
-} from "../../../lib/phase3";
+  CredentialNotFoundError,
+  RevocationService,
+  RevocationStateError,
+  type RevocationAction,
+} from "../../../services/RevocationService";
 
-const revocationRegistry = new Map<string, RevocationRecord>();
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-export async function GET() {
-  return NextResponse.json({
-    records: Array.from(revocationRegistry.values()).sort((a, b) =>
-      a.updatedAt.localeCompare(b.updatedAt)
-    ),
-  });
+const ACTIONS: RevocationAction[] = ["revoke", "suspend", "reinstate"];
+
+export async function GET(request: Request) {
+  const { user, response } = await authorize();
+  if (response) return response;
+  try {
+    const limit = new URL(request.url).searchParams.get("limit");
+    return NextResponse.json({
+      records: await RevocationService.list(user.issuerId, limit ? Number(limit) : undefined),
+    });
+  } catch (error) {
+    return errorResponse(error, "Unable to load revocation records.", 500);
+  }
 }
 
 export async function POST(request: Request) {
+  const { user, response } = await authorize();
+  if (response) return response;
   try {
     const body = (await request.json()) as {
       credentialId?: string;
-      action?: "revoke" | "suspend" | "reinstate";
+      action?: RevocationAction;
       reason?: string;
+      transactionHash?: string;
     };
 
-    const credentialId = body.credentialId?.trim();
-    const action = body.action;
-    const reason = body.reason?.trim() || "Operational action";
-
-    if (!credentialId || !action) {
-      return NextResponse.json(
-        { error: "credentialId and action are required." },
-        { status: 400 }
-      );
+    const credentialRef = body.credentialId?.trim();
+    if (!credentialRef) return NextResponse.json({ error: "credentialId is required." }, { status: 400 });
+    if (!body.action || !ACTIONS.includes(body.action)) {
+      return NextResponse.json({ error: `action must be one of ${ACTIONS.join(", ")}.` }, { status: 400 });
     }
+    const reason = body.reason?.trim();
+    if (!reason) return NextResponse.json({ error: "reason is required." }, { status: 400 });
 
-    const existing = revocationRegistry.get(credentialId) ?? createRevocationRecord(credentialId, reason);
-    let record = existing;
+    const record = await RevocationService.apply({
+      credentialRef,
+      issuerId: user.issuerId,
+      action: body.action,
+      reason,
+      transactionHash: body.transactionHash,
+    });
 
-    if (action === "revoke") {
-      if (existing.status === "revoked") {
-        return NextResponse.json(
-          { error: `Credential ${credentialId} is already revoked.` },
-          { status: 409 }
-        );
-      }
-      record = revokeCredential(existing, reason);
-    } else if (action === "suspend") {
-      if (existing.status === "revoked") {
-        return NextResponse.json(
-          { error: `Credential ${credentialId} cannot be suspended after revocation.` },
-          { status: 409 }
-        );
-      }
-      record = suspendCredential(existing, reason);
-    } else if (action === "reinstate") {
-      if (existing.status === "active") {
-        return NextResponse.json(
-          { error: `Credential ${credentialId} is already active.` },
-          { status: 409 }
-        );
-      }
-      record = reinstateCredential(existing, reason);
-    } else {
-      return NextResponse.json(
-        { error: `Unsupported action: ${String(action)}` },
-        { status: 400 }
-      );
-    }
+    await AuditService.record({
+      organizationId: user.organizationId,
+      issuerId: user.issuerId,
+      userId: user.id,
+      action: `credential.${body.action}`,
+      entityType: "credential",
+      entityId: record.credentialId,
+      metadata: { reason, externalId: record.externalId, transactionHash: body.transactionHash ?? null },
+    });
 
-    revocationRegistry.set(credentialId, record);
-    return NextResponse.json({ record }, { status: 200 });
+    return NextResponse.json({ record });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to update revocation status." },
-      { status: 400 }
-    );
+    if (error instanceof CredentialNotFoundError) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+    if (error instanceof RevocationStateError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    return errorResponse(error, "Unable to update revocation status.");
   }
 }

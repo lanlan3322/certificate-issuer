@@ -14,7 +14,12 @@ export async function POST(request: Request) {
     }
 
     const record = await VerificationService.findByExternalId(externalId);
-    const verified = Boolean(record);
+    const found = Boolean(record);
+    const status = record?.status ? String(record.status) : null;
+    const expired = Boolean(record?.valid_until && new Date(String(record.valid_until)) < new Date());
+    // A credential that exists but is revoked, suspended, or past its validity
+    // window must not be reported as verified.
+    const verified = found && status === "issued" && !expired;
 
     const forwardedFor = request.headers.get("x-forwarded-for");
     const sourceIp = forwardedFor?.split(",")[0].trim() || undefined;
@@ -23,7 +28,7 @@ export async function POST(request: Request) {
       credentialId: typeof record?.id === "string" ? record.id : undefined,
       externalId,
       verified,
-      result: { found: verified },
+      result: { found, status, expired },
       sourceIp,
     });
 
@@ -31,10 +36,11 @@ export async function POST(request: Request) {
     // returned — never the stored recipient details.
     return NextResponse.json({
       verified,
-      credential: verified
+      reason: !found ? "not_found" : expired ? "expired" : status !== "issued" ? status : null,
+      credential: found
         ? {
             externalId,
-            status: record?.status,
+            status: expired ? "expired" : status,
             issuedAt: record?.issued_at,
             validFrom: record?.valid_from,
             validUntil: record?.valid_until,

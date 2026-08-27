@@ -1,16 +1,85 @@
 import { NextResponse } from "next/server";
-import { DatabaseConfigurationError } from "../../../lib/db";
+import { authorize, errorResponse } from "../../../lib/apiAuth";
+import { AuditService } from "../../../services/AuditService";
 import { TemplateService } from "../../../services/TemplateService";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
-  try { const issuerId = new URL(request.url).searchParams.get("issuerId") ?? undefined; return NextResponse.json({ templates: await TemplateService.list(issuerId) }); }
-  catch (error) { return NextResponse.json({ error: error instanceof DatabaseConfigurationError ? error.message : "Unable to load templates." }, { status: error instanceof DatabaseConfigurationError ? 503 : 500 }); }
+  const { user, response } = await authorize();
+  if (response) return response;
+  try {
+    const includeInactive = new URL(request.url).searchParams.get("includeInactive") === "true";
+    // Scoped to the session's issuer; the issuerId query param is ignored.
+    return NextResponse.json({ templates: await TemplateService.list(user.issuerId, { includeInactive }) });
+  } catch (error) {
+    return errorResponse(error, "Unable to load templates.", 500);
+  }
 }
 
 export async function POST(request: Request) {
+  const { user, response } = await authorize();
+  if (response) return response;
   try {
-    const body = await request.json() as { issuerId?: string; slug?: string; name?: string; description?: string; definition?: Record<string, unknown> };
-    if (!body.slug?.trim() || !body.name?.trim()) return NextResponse.json({ error: "slug and name are required." }, { status: 400 });
-    return NextResponse.json({ template: await TemplateService.create({ issuerId: body.issuerId, slug: body.slug.trim(), name: body.name.trim(), description: body.description?.trim(), definition: body.definition }) }, { status: 201 });
-  } catch (error) { return NextResponse.json({ error: error instanceof DatabaseConfigurationError ? error.message : error instanceof Error ? error.message : "Unable to create template." }, { status: error instanceof DatabaseConfigurationError ? 503 : 400 }); }
+    const body = (await request.json()) as {
+      slug?: string;
+      name?: string;
+      description?: string;
+      definition?: Record<string, unknown>;
+    };
+
+    const slug = body.slug?.trim().toLowerCase();
+    const name = body.name?.trim();
+    if (!slug || !name) {
+      return NextResponse.json({ error: "slug and name are required." }, { status: 400 });
+    }
+    if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug)) {
+      return NextResponse.json({ error: "Slug must be 2-63 lowercase letters, numbers, or hyphens." }, { status: 400 });
+    }
+
+    const template = await TemplateService.upsert({
+      issuerId: user.issuerId,
+      slug,
+      name,
+      description: body.description?.trim(),
+      definition: body.definition,
+    });
+
+    await AuditService.record({
+      organizationId: user.organizationId,
+      issuerId: user.issuerId,
+      userId: user.id,
+      action: "template.saved",
+      entityType: "template",
+      entityId: template.id,
+      metadata: { slug, name },
+    });
+
+    return NextResponse.json({ template }, { status: 201 });
+  } catch (error) {
+    return errorResponse(error, "Unable to save template.");
+  }
+}
+
+export async function DELETE(request: Request) {
+  const { user, response } = await authorize();
+  if (response) return response;
+  try {
+    const id = new URL(request.url).searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "id is required." }, { status: 400 });
+
+    const template = await TemplateService.deactivate(id, user.issuerId);
+    await AuditService.record({
+      organizationId: user.organizationId,
+      issuerId: user.issuerId,
+      userId: user.id,
+      action: "template.deactivated",
+      entityType: "template",
+      entityId: template.id,
+    });
+    return NextResponse.json({ template });
+  } catch (error) {
+    return errorResponse(error, "Unable to delete template.");
+  }
 }

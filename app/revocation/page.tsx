@@ -4,7 +4,7 @@ import { useState } from "react";
 import { withBasePath } from "../../lib/site";
 
 export default function RevocationManagementPage() {
-  const [credentialId, setCredentialId] = useState("cert-demo-102");
+  const [credentialId, setCredentialId] = useState("");
   const [action, setAction] = useState<"revoke" | "suspend" | "reinstate">("revoke");
   const [reason, setReason] = useState("Policy review");
   const [result, setResult] = useState<Record<string, unknown> | null>(null);

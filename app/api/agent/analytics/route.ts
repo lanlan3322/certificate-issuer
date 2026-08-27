@@ -1,51 +1,39 @@
 import { NextResponse } from "next/server";
-import { getCurrentIssuerUser } from "../../../../lib/auth";
-import { DatabaseConfigurationError } from "../../../../lib/db";
-import { AgentAnalyticsService } from "../../../../services/AgentAnalyticsService";
+import { authorize, errorResponse } from "../../../../lib/apiAuth";
+import { AuditService } from "../../../../services/AuditService";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const { user, response } = await authorize();
+  if (response) return response;
   try {
-    const user = await getCurrentIssuerUser();
-    if (!user) return NextResponse.json({ error: "Issuer login required." }, { status: 401 });
-
-    const body = (await request.json()) as {
-      action?: string;
-      organizationId?: string;
-      userId?: string;
-      metadata?: Record<string, unknown>;
-    };
+    const body = (await request.json()) as { action?: string; metadata?: Record<string, unknown> };
 
     // Ownership is taken from the session, not the request body.
-    await AgentAnalyticsService.track({
-      action: String(body.action ?? "agent.action"),
+    await AuditService.record({
+      organizationId: user.organizationId,
       issuerId: user.issuerId,
       userId: user.id,
+      action: String(body.action ?? "agent.action"),
+      entityType: "agent",
       metadata: body.metadata,
     });
 
     return NextResponse.json({ tracked: true }, { status: 201 });
   } catch (error) {
-    if (error instanceof DatabaseConfigurationError) {
-      return NextResponse.json({ error: error.message }, { status: 503 });
-    }
-    console.error("Agent analytics tracking failed", error);
-    return NextResponse.json({ error: "Unable to record analytics." }, { status: 400 });
+    return errorResponse(error, "Unable to record analytics.");
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { user, response } = await authorize();
+  if (response) return response;
   try {
-    const user = await getCurrentIssuerUser();
-    if (!user) return NextResponse.json({ error: "Issuer login required." }, { status: 401 });
-    return NextResponse.json({ summary: await AgentAnalyticsService.summary() });
+    const days = Math.min(Math.max(Number(new URL(request.url).searchParams.get("days") ?? 30), 1), 365);
+    return NextResponse.json({ summary: await AuditService.summary(user.organizationId, days) });
   } catch (error) {
-    if (error instanceof DatabaseConfigurationError) {
-      return NextResponse.json({ error: error.message }, { status: 503 });
-    }
-    console.error("Agent analytics summary failed", error);
-    return NextResponse.json({ error: "Unable to load analytics." }, { status: 500 });
+    return errorResponse(error, "Unable to load analytics.", 500);
   }
 }

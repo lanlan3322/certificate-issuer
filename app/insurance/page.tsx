@@ -309,42 +309,39 @@ export default function InsurancePage() {
       };
 
       if (issuingMethods.includes("did")) {
-        let didResult: DIDIssuanceResult;
+        // Signing and persistence both happen server-side; there is no browser
+        // fallback because the signing key is never sent to the client.
+        const response = await fetch("/api/issue", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            data: certData,
+            type: "did",
+          }),
+        });
 
-        try {
-          const response = await fetch("/api/issue", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              data: certData,
-              type: "did",
-            }),
-          });
+        const resultPayload = (await response.json().catch(() => ({}))) as {
+          signed?: boolean;
+          credential?: Record<string, unknown>;
+          error?: string;
+        };
 
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-
-          const resultPayload = (await response.json()) as {
-            signed?: boolean;
-            credential?: Record<string, unknown>;
-            error?: string;
-          };
-
-          if (resultPayload.error) {
-            throw new Error(resultPayload.error);
-          }
-
-          didResult = {
-            credential: (resultPayload.credential ?? buildVCPayload(certData)) as Record<string, unknown>,
-            signed: Boolean(resultPayload.signed),
-            error: resultPayload.error,
-          };
-        } catch {
-          didResult = await issueDIDCertificate(certData);
+        if (!response.ok || resultPayload.error) {
+          setErrors([
+            response.status === 401
+              ? "Log in as an issuer to issue certificates."
+              : resultPayload.error ?? `Issuance failed (HTTP ${response.status}).`,
+          ]);
+          setIssuing(false);
+          return;
         }
+
+        const didResult: DIDIssuanceResult = {
+          credential: (resultPayload.credential ?? buildVCPayload(certData)) as Record<string, unknown>,
+          signed: Boolean(resultPayload.signed),
+        };
 
         const didSigner = await getSigner();
         const walletSignedDID = await signCredentialWithEthereum(

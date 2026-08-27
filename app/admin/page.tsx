@@ -14,10 +14,10 @@ interface IssuerRecord {
 }
 
 const initialForm = {
-  organizationId: "org-demo",
   name: "",
   slug: "",
   contactEmail: "",
+  didUri: "",
 };
 
 export default function IssuerAdminPage() {
@@ -105,15 +105,6 @@ export default function IssuerAdminPage() {
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-xl font-semibold text-slate-900">Create issuer</h2>
           <form className="space-y-4" onSubmit={handleSubmit}>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Organization</label>
-              <input
-                className="w-full rounded-md border border-slate-300 px-3 py-2"
-                value={form.organizationId}
-                onChange={(event) => setForm({ ...form, organizationId: event.target.value })}
-              />
-            </div>
-
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Issuer name</label>
               <input

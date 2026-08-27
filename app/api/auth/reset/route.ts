@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server";
-import { DatabaseConfigurationError } from "../../../../lib/db";
 import { resetPassword } from "../../../../lib/auth";
+import { errorResponse } from "../../../../lib/apiAuth";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+/**
+ * Completes a recovery flow. The emailed link establishes a recovery session
+ * via Supabase before this route is called, so no token is accepted here.
+ */
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { token?: string; password?: string };
-    if (!body.token || !body.password) return NextResponse.json({ error: "Reset token and new password are required." }, { status: 400 });
-    await resetPassword(body.token, body.password);
+    const body = (await request.json()) as { password?: string };
+    if (!body.password) return NextResponse.json({ error: "A new password is required." }, { status: 400 });
+    await resetPassword(body.password);
     return NextResponse.json({ reset: true });
-  } catch (error) { return NextResponse.json({ error: error instanceof DatabaseConfigurationError ? error.message : error instanceof Error ? error.message : "Unable to reset password." }, { status: error instanceof DatabaseConfigurationError ? 503 : 400 }); }
+  } catch (error) {
+    return errorResponse(error, "Unable to reset password.");
+  }
 }

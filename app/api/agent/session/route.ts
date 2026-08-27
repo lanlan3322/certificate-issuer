@@ -1,29 +1,69 @@
 import { NextResponse } from "next/server";
-import { DatabaseConfigurationError } from "../../../../lib/db";
+import { getCurrentIssuerUser } from "../../../../lib/auth";
+import { errorResponse } from "../../../../lib/apiAuth";
 import { AgentMemoryService } from "../../../../services/AgentMemoryService";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(request: Request) {
   try {
     const sessionId = new URL(request.url).searchParams.get("sessionId");
-    if (!sessionId) return NextResponse.json({ error: "sessionId is required." }, { status: 400 });
-    const [session, messages] = await Promise.all([AgentMemoryService.loadWorkflowState(sessionId), AgentMemoryService.loadConversation(sessionId)]);
+    if (!sessionId || !UUID.test(sessionId)) {
+      return NextResponse.json({ error: "A valid sessionId is required." }, { status: 400 });
+    }
+
+    const user = await getCurrentIssuerUser();
+    const userId = user?.id ?? null;
+
+    // Ownership is part of the query predicate, so an unowned session is
+    // indistinguishable from a nonexistent one.
+    if (!(await AgentMemoryService.ownsSession(sessionId, userId))) {
+      return NextResponse.json({ error: "Session not found." }, { status: 404 });
+    }
+
+    const [session, messages] = await Promise.all([
+      AgentMemoryService.loadWorkflowState(sessionId, userId),
+      AgentMemoryService.loadConversation(sessionId, userId),
+    ]);
     return NextResponse.json({ session, messages });
-  } catch (error) { return NextResponse.json({ error: error instanceof DatabaseConfigurationError ? error.message : "Unable to load agent session." }, { status: error instanceof DatabaseConfigurationError ? 503 : 500 }); }
+  } catch (error) {
+    return errorResponse(error, "Unable to load agent session.", 500);
+  }
 }
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { issuerId?: string; userId?: string; currentPage?: string; workflow?: string; state?: Record<string, unknown> };
-    const session = await AgentMemoryService.createSession({ issuerId: body.issuerId, userId: body.userId, currentPage: body.currentPage, workflow: body.workflow, state: body.state });
+    const body = (await request.json()) as { currentPage?: string; workflow?: string; state?: Record<string, unknown> };
+    const user = await getCurrentIssuerUser();
+
+    // Attribution comes from the session, never the request body.
+    const session = await AgentMemoryService.createSession({
+      issuerId: user?.issuerId,
+      userId: user?.id,
+      currentPage: body.currentPage,
+      workflow: body.workflow,
+      state: body.state,
+    });
     return NextResponse.json({ session }, { status: 201 });
-  } catch (error) { return NextResponse.json({ error: error instanceof DatabaseConfigurationError ? error.message : "Unable to create agent session." }, { status: error instanceof DatabaseConfigurationError ? 503 : 500 }); }
+  } catch (error) {
+    return errorResponse(error, "Unable to create agent session.", 500);
+  }
 }
 
 export async function DELETE(request: Request) {
   try {
     const sessionId = new URL(request.url).searchParams.get("sessionId");
-    if (!sessionId) return NextResponse.json({ error: "sessionId is required." }, { status: 400 });
-    await AgentMemoryService.clearSession(sessionId);
+    if (!sessionId || !UUID.test(sessionId)) {
+      return NextResponse.json({ error: "A valid sessionId is required." }, { status: 400 });
+    }
+    const user = await getCurrentIssuerUser();
+    const cleared = await AgentMemoryService.clearSession(sessionId, user?.id ?? null);
+    if (!cleared) return NextResponse.json({ error: "Session not found." }, { status: 404 });
     return NextResponse.json({ cleared: true });
-  } catch (error) { return NextResponse.json({ error: error instanceof DatabaseConfigurationError ? error.message : "Unable to clear agent session." }, { status: error instanceof DatabaseConfigurationError ? 503 : 500 }); }
+  } catch (error) {
+    return errorResponse(error, "Unable to clear agent session.", 500);
+  }
 }

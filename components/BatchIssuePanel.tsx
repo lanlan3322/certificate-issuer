@@ -299,20 +299,31 @@ export default function BatchIssuePanel({
         };
 
         let payload = buildVCPayload(certData);
+        let txHash: string | undefined;
 
         if (issuingMethods.includes("did")) {
-          const didResult = await issueDIDCertificate(certData);
-          if (!didResult.signed) {
+          const response = await fetch("/api/issue", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ data: certData, type: "did" }),
+          });
+          const result = (await response.json().catch(() => ({}))) as {
+            signed?: boolean;
+            credential?: Record<string, unknown>;
+            error?: string;
+          };
+          if (!response.ok || !result.signed) {
             throw new Error(
-              didResult.error ??
-                "DID signing failed for this batch row. Configure DID keys before batch issuance."
+              result.error ??
+                (response.status === 401
+                  ? "Log in as an issuer to run batch issuance."
+                  : "DID signing failed for this batch row.")
             );
           }
-          payload = didResult.credential as ReturnType<typeof buildVCPayload>;
+          payload = result.credential as ReturnType<typeof buildVCPayload>;
+          txHash = certData.id;
         }
 
-        const txHash =
-          "demo-tx-hash-" + Math.random().toString(36).substring(2, 11);
         updated[i] = { ...updated[i], status: "success", txHash };
 
         const safeName = row.recipientName

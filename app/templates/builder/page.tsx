@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { withBasePath } from "../../../lib/site";
 import {
   createTemplateDefinition,
   renderTemplateText,
@@ -8,6 +9,22 @@ import {
 } from "../../../lib/phase3";
 
 type FieldDraft = TemplateFieldDefinition & { id: string };
+
+interface SavedTemplate {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  definition: Record<string, unknown>;
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 63) || "custom-template";
+}
 
 const starterValues = {
   recipientName: "Alicia Tan",
@@ -50,19 +67,30 @@ export default function TemplateBuilderPage() {
   const [description, setDescription] = useState("Issued by {{issuerName}}");
   const [accentColor, setAccentColor] = useState("#0f172a");
   const [fields, setFields] = useState<FieldDraft[]>(initialFields);
-  const [savedTemplates, setSavedTemplates] = useState<Array<{ id: string; name: string }>>([]);
+  const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([]);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    const stored = window.localStorage.getItem("phase3-custom-templates");
-    if (!stored) return;
-
+  const loadTemplates = useCallback(async () => {
     try {
-      const parsed = JSON.parse(stored) as Array<{ id: string; name: string }>;
-      setSavedTemplates(parsed);
-    } catch {
-      // Ignore invalid storage values.
+      const response = await fetch(withBasePath("/api/templates"));
+      if (response.status === 401) {
+        setError("Log in as an issuer to save and load templates.");
+        return;
+      }
+      const payload = (await response.json()) as { templates?: SavedTemplate[]; error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Unable to load templates.");
+      setSavedTemplates(payload.templates ?? []);
+      setError(null);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Unable to load templates.");
     }
   }, []);
+
+  useEffect(() => {
+    void loadTemplates();
+  }, [loadTemplates]);
 
   const template = useMemo(
     () =>
@@ -113,15 +141,66 @@ export default function TemplateBuilderPage() {
     setFields((current) => current.filter((field) => field.id !== id));
   };
 
-  const saveTemplate = () => {
-    const payload = {
-      id: `custom-${Date.now()}`,
-      name,
-    };
+  const saveTemplate = async () => {
+    setSaving(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const response = await fetch(withBasePath("/api/templates"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug: slugify(name),
+          name,
+          description,
+          // The full definition is persisted so the template can be reloaded.
+          definition: template,
+        }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Unable to save template.");
+      setStatus(`Saved "${name}".`);
+      await loadTemplates();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save template.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    const nextTemplates = [...savedTemplates, payload];
-    window.localStorage.setItem("phase3-custom-templates", JSON.stringify(nextTemplates));
-    setSavedTemplates(nextTemplates);
+  const loadTemplate = (saved: SavedTemplate) => {
+    const definition = saved.definition as {
+      name?: string;
+      title?: string;
+      subtitle?: string;
+      description?: string;
+      accentColor?: string;
+      fields?: TemplateFieldDefinition[];
+    };
+    setName(definition.name ?? saved.name);
+    setTitle(definition.title ?? "");
+    setSubtitle(definition.subtitle ?? "");
+    setDescription(definition.description ?? saved.description);
+    setAccentColor(definition.accentColor ?? "#0f172a");
+    setFields(
+      (definition.fields ?? []).map((field, index) => ({ ...field, id: `${field.key}-${index}` }))
+    );
+    setStatus(`Loaded "${saved.name}".`);
+  };
+
+  const deleteTemplate = async (saved: SavedTemplate) => {
+    setError(null);
+    try {
+      const response = await fetch(withBasePath(`/api/templates?id=${encodeURIComponent(saved.id)}`), {
+        method: "DELETE",
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Unable to delete template.");
+      setStatus(`Deleted "${saved.name}".`);
+      await loadTemplates();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Unable to delete template.");
+    }
   };
 
   return (
@@ -135,11 +214,15 @@ export default function TemplateBuilderPage() {
           <button
             type="button"
             onClick={saveTemplate}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            disabled={saving}
+            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
           >
-            Save template
+            {saving ? "Saving..." : "Save template"}
           </button>
         </div>
+
+        {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+        {status && <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{status}</div>}
 
         <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -292,8 +375,24 @@ export default function TemplateBuilderPage() {
                 </h3>
                 <ul className="space-y-2">
                   {savedTemplates.map((item) => (
-                    <li key={item.id} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                      {item.name}
+                    <li key={item.id} className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                      <span className="truncate">{item.name}</span>
+                      <span className="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => loadTemplate(item)}
+                          className="text-xs font-medium text-sky-700 hover:underline"
+                        >
+                          Load
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteTemplate(item)}
+                          className="text-xs font-medium text-red-600 hover:underline"
+                        >
+                          Delete
+                        </button>
+                      </span>
                     </li>
                   ))}
                 </ul>

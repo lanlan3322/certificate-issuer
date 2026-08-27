@@ -1,11 +1,18 @@
-export interface AgentAnalyticsEvent { type: string; page: string; createdAt: string; }
+import { withBasePath } from "../site";
 
-const KEY = "trustvc-agent-analytics";
-
+/**
+ * Client-side analytics reporter. Posts to the server so events land in
+ * audit_logs attributed to the signed-in issuer; silently no-ops for anonymous
+ * visitors, whose events the API rejects with 401.
+ */
 export const AgentAnalyticsService = {
   track(type: string, page: string) {
     if (typeof window === "undefined") return;
-    const events = JSON.parse(window.localStorage.getItem(KEY) ?? "[]") as AgentAnalyticsEvent[];
-    window.localStorage.setItem(KEY, JSON.stringify([...events.slice(-99), { type, page, createdAt: new Date().toISOString() }]));
+    void fetch(withBasePath("/api/agent/analytics"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: `agent.${type}`, metadata: { page } }),
+      keepalive: true,
+    }).catch(() => undefined);
   },
 };

@@ -299,47 +299,39 @@ export default function HomePage() {
 
       // --- DID issuance ---
       if (issuingMethods.includes("did")) {
-        let didResult: DIDIssuanceResult;
+        // Signing and persistence both happen server-side; there is no browser
+        // fallback because the signing key is never sent to the client.
+        const response = await fetch("/api/issue", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            data: certData,
+            type: "did",
+            templateId: formData.templateId,
+          }),
+        });
 
-        try {
-          const response = await fetch("/api/issue", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              data: certData,
-              type: "did",
-            }),
-          });
+        const resultPayload = (await response.json().catch(() => ({}))) as {
+          signed?: boolean;
+          credential?: Record<string, unknown>;
+          error?: string;
+        };
 
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+        if (!response.ok || resultPayload.error) {
+          if (response.status === 401) {
+            setErrors(["Log in as an issuer to issue certificates."]);
+          } else {
+            setErrors([resultPayload.error ?? `Issuance failed (HTTP ${response.status}).`]);
           }
-
-          const resultPayload = (await response.json()) as {
-            signed?: boolean;
-            credential?: Record<string, unknown>;
-            error?: string;
-          };
-
-          if (resultPayload.error) {
-            throw new Error(resultPayload.error);
-          }
-
-          didResult = {
-            credential: (resultPayload.credential ?? buildVCPayload(certData)) as Record<string, unknown>,
-            signed: Boolean(resultPayload.signed),
-            error: resultPayload.error,
-          };
-        } catch {
-          didResult = await issueDIDCertificate(certData);
+          setIssuing(false);
+          return;
         }
 
         setDIDResult({
-          credential: didResult.credential ?? (buildVCPayload(certData) as Record<string, unknown>),
-          signed: Boolean(didResult.signed),
-          error: didResult.error,
+          credential: (resultPayload.credential ?? buildVCPayload(certData)) as Record<string, unknown>,
+          signed: Boolean(resultPayload.signed),
         });
       }
 
@@ -364,6 +356,13 @@ export default function HomePage() {
           setEthereumResult({ ...result, ...walletSigned });
           if (result.txHash) {
             setIssuedTxHash(result.txHash);
+          }
+          if (result.documentHash) {
+            await fetch("/api/credentials", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ externalId: certData.id, documentHash: result.documentHash }),
+            }).catch(() => undefined);
           }
         } catch (err) {
           setEthereumResult({
