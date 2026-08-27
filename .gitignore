@@ -10,11 +10,18 @@ dist/
 build/
 
 # Environment files
+# .env.production is committed on purpose and holds only public NEXT_PUBLIC_*
+# build config. Everything below may contain secrets and must stay local.
 .env
 .env.local
+.env.*.local
+.env.development
+.env.test
 .env.development.local
 .env.test.local
 .env.production.local
+*.pem
+*.key
 
 # IDE
 .idea/

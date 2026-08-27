@@ -30,7 +30,7 @@ flowchart LR
   Widget --> Analytics[Local session analytics]
 ```
 
-The implementation uses a local-first assistant so Netlify and GitHub Pages remain functional. When `AGENT_PROVIDER` and provider credentials are configured in a server-enabled deployment, `/api/agent` delegates to the selected provider. Secrets never reach the client.
+The implementation uses a local-first assistant so Vercel and GitHub Pages remain functional. When `AGENT_PROVIDER` and provider credentials are configured in a server-enabled deployment, `/api/agent` delegates to the selected provider. Secrets never reach the client.
 
 ## Components and Data Flow
 

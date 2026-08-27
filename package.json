@@ -6,12 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "build:github-pages": "DEPLOY_TARGET=github-pages next build",
-    "build:netlify": "DEPLOY_TARGET=netlify next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "build:vercel": "DEPLOY_TARGET=vercel next build"
   },
   "dependencies": {
-    "@netlify/functions": "^5.3.0",
+    "@supabase/supabase-js": "^2.112.4",
     "@trustvc/trustvc": "^2.15.2",
     "ethers": "^5.8.0",
     "html2canvas": "^1.4.1",

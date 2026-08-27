@@ -1,4 +1,4 @@
-# Netlify Database Schema
+# Database Schema
 
 The initial production schema is [001_initial_schema.sql](../database/migrations/001_initial_schema.sql). It uses PostgreSQL UUID primary keys, UTC timestamps, foreign keys, parameterized service access, and update triggers.
 

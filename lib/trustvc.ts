@@ -658,25 +658,27 @@ async function createTrustVCDocumentLoader() {
 // ---------------------------------------------------------------------------
 
 /**
- * Reads the DID key pair from NEXT_PUBLIC_DID_* environment variables.
+ * Reads the DID key pair from the server environment.
  * Returns null when the variables are not set (unsigned/demo mode).
  *
  * All four variables must be present; if any one is missing the function
  * returns null and credentials are issued as unsigned drafts.
  *
  * Required variables (all must be set together):
- *   NEXT_PUBLIC_DID_KEY_ID              – full key URL, e.g. did:web:example.com#key-1
- *   NEXT_PUBLIC_DID_CONTROLLER          – DID controller, e.g. did:web:example.com
- *   NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE  – multibase-encoded public key (starts with "z")
- *   NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE – multibase-encoded private key (starts with "z")
+ *   DID_KEY_ID              – full key URL, e.g. did:web:example.com#key-1
+ *   DID_CONTROLLER          – DID controller, e.g. did:web:example.com
+ *   DID_PUBLIC_KEY_MULTIBASE  – multibase-encoded public key (starts with "z")
+ *   DID_PRIVATE_KEY_MULTIBASE – multibase-encoded private key (starts with "z")
+ *
+ * The private key is deliberately server-only: a NEXT_PUBLIC_ variant would be
+ * inlined into the browser bundle and expose the issuer signing key.
  */
 export function getDIDKeyPairFromEnv(): PrivateKeyPair | null {
   const id = process.env.DID_KEY_ID || process.env.NEXT_PUBLIC_DID_KEY_ID;
   const controller = process.env.DID_CONTROLLER || process.env.NEXT_PUBLIC_DID_CONTROLLER;
   const publicKeyMultibase =
     process.env.DID_PUBLIC_KEY_MULTIBASE || process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE;
-  const secretKeyMultibase =
-    process.env.DID_PRIVATE_KEY_MULTIBASE || process.env.NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE;
+  const secretKeyMultibase = process.env.DID_PRIVATE_KEY_MULTIBASE;
 
   if (!id || !controller || !publicKeyMultibase || !secretKeyMultibase) {
     return null;
@@ -704,7 +706,7 @@ export interface DIDIssuanceResult {
 
 /**
  * Signs an arbitrary credential document using the DID key pair configured
- * via NEXT_PUBLIC_DID_* environment variables.
+ * via the server-side DID_* environment variables.
  *
  * The `secretKeyOverride` parameter can be used to supply the
  * `secretKeyMultibase` value directly (e.g. entered by the user in the Sign
@@ -725,9 +727,7 @@ export async function signDocumentWithDID(
   const publicKeyMultibase =
     process.env.DID_PUBLIC_KEY_MULTIBASE || process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE;
   const secretKeyMultibase =
-    secretKeyOverride?.trim() ||
-    process.env.DID_PRIVATE_KEY_MULTIBASE ||
-    process.env.NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE;
+    secretKeyOverride?.trim() || process.env.DID_PRIVATE_KEY_MULTIBASE;
 
   const missing: string[] = [];
   if (!id) missing.push("DID_KEY_ID");

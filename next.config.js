@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const path = require("path");
 
-const deployTarget = process.env.DEPLOY_TARGET || "netlify";
+const deployTarget = process.env.DEPLOY_TARGET || "vercel";
 const isGitHubPages = deployTarget === "github-pages";
 const basePath = isGitHubPages ? "/certificate-issuer" : "";
 
@@ -19,7 +19,7 @@ const stubbedModules = [
 ];
 
 const nextConfig = {
-  // Netlify runs the Next.js server runtime for auth, PostgreSQL, and API routes.
+  // Vercel runs the Next.js server runtime for auth, PostgreSQL, and API routes.
   basePath,
   assetPrefix: basePath ? `${basePath}/` : undefined,
   images: { unoptimized: true },

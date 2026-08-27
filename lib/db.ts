@@ -8,10 +8,28 @@ export function isDatabaseConfigured() {
   return Boolean(process.env.DATABASE_URL);
 }
 
+function isLocalConnection(connectionString: string) {
+  try {
+    const { hostname } = new URL(connectionString);
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
+function buildSslConfig(connectionString: string) {
+  if (isLocalConnection(connectionString)) return undefined;
+  // Supabase and other managed providers require TLS on every connection,
+  // including from local development.
+  const ca = process.env.DATABASE_SSL_CA;
+  return ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: false };
+}
+
 function getPool() {
-  if (!process.env.DATABASE_URL) throw new DatabaseConfigurationError("DATABASE_URL is required for database operations.");
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) throw new DatabaseConfigurationError("DATABASE_URL is required for database operations.");
   if (!pool) {
-    pool = new Pool({ connectionString: process.env.DATABASE_URL, max: Number(process.env.DATABASE_POOL_MAX ?? 5), idleTimeoutMillis: 30_000, connectionTimeoutMillis: 5_000, ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : undefined });
+    pool = new Pool({ connectionString, max: Number(process.env.DATABASE_POOL_MAX ?? 5), idleTimeoutMillis: 30_000, connectionTimeoutMillis: 5_000, ssl: buildSslConfig(connectionString) });
     pool.on("error", (error) => console.error("Unexpected PostgreSQL pool error", error));
   }
   return pool;

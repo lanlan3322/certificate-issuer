@@ -30,7 +30,7 @@ Phase 1 roadmap items covered:
 ### Code changes required
 
 - Remove all browser access to private DID material.
-- Delete or disable code paths that read NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE from the client bundle.
+- [Done] Deleted the code paths that read NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE from the client bundle; the signing key is now read only from the server-side DID_PRIVATE_KEY_MULTIBASE.
 - Update the issuance flow so the browser calls a backend endpoint instead of signing locally.
 - Replace client validation logic that assumes private key material exists in the browser runtime.
 - Ensure public DID metadata remains client-visible only for verification, not private signing material.

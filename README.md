@@ -81,13 +81,13 @@ Copy `.env.example` to `.env.local` and fill in the values.
 | `NEXT_PUBLIC_DID_KEY_ID` | Full DID key URL, e.g. `did:web:example.com#key-1` | DID signing only |
 | `NEXT_PUBLIC_DID_CONTROLLER` | DID controller URI | DID signing only |
 | `NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE` | Base58btc-encoded ECDSA secp256k1 public key (starts with `z`) | DID signing only |
-| `NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE` | Base58btc-encoded ECDSA secp256k1 private key (starts with `z`) | DID signing only |
+| `DID_PRIVATE_KEY_MULTIBASE` | Base58btc-encoded ECDSA secp256k1 private key (starts with `z`). **Server-only — never prefix with `NEXT_PUBLIC_`.** | DID signing only |
 | `NEXT_PUBLIC_DID_REVOCATION_LOCATION` | Open Attestation OCSP Responder URL for DID revocation | Optional |
 | `NEXT_PUBLIC_DOCUMENT_STORE_ADDRESS` | Ethereum DocumentStore contract address | Ethereum issuance |
 
-> ⚠️ **Security note:** `NEXT_PUBLIC_*` variables are bundled into the static JS files served by GitHub Pages. Anyone who downloads the page can read them. **Only use demo or test key pairs here.** For a production issuer service, implement a backend signing API instead.
+> ⚠️ **Security note:** `NEXT_PUBLIC_*` variables are inlined into the browser bundle and are readable by anyone who loads the page. The DID private key is therefore read **only** from the server-side `DID_PRIVATE_KEY_MULTIBASE` variable; signing happens in the `/api/issue` route handler, never in the browser. Setting a `NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE` variable has no effect.
 
-All four `NEXT_PUBLIC_DID_*` variables must be set together. If any one is missing, signing attempts will return a clear error message listing the missing variables.
+All four DID variables must be set together. If any one is missing, signing attempts will return a clear error message listing the missing variables.
 
 By default, DID-issued credentials include an `OCSP_RESPONDER` revocation block that points to the Open Attestation OCSP Responder sandbox at `https://ocsp-sandbox.openattestation.com`. Set `NEXT_PUBLIC_DID_REVOCATION_LOCATION` if you are running your own responder instance.
 
@@ -174,7 +174,7 @@ Add these in **Settings → Secrets and variables → Actions → New repository
 | `NEXT_PUBLIC_DID_KEY_ID` | Your DID key URL |
 | `NEXT_PUBLIC_DID_CONTROLLER` | Your DID controller URI |
 | `NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE` | Your ECDSA public key |
-| `NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE` | Your ECDSA private key (**⚠️ treat as confidential**) |
+| `DID_PRIVATE_KEY_MULTIBASE` | Your ECDSA private key (**⚠️ server-only secret**) |
 
 Then update the workflow to pass these as env vars during `npm run build`:
 
@@ -185,8 +185,11 @@ Then update the workflow to pass these as env vars during `npm run build`:
     NEXT_PUBLIC_DID_KEY_ID: ${{ secrets.NEXT_PUBLIC_DID_KEY_ID }}
     NEXT_PUBLIC_DID_CONTROLLER: ${{ secrets.NEXT_PUBLIC_DID_CONTROLLER }}
     NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE: ${{ secrets.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE }}
-    NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE: ${{ secrets.NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE }}
 ```
+
+The private key is intentionally absent: a static GitHub Pages build cannot sign
+server-side, so DID signing is unavailable there. Use the Vercel deployment and
+set `DID_PRIVATE_KEY_MULTIBASE` in the project environment variables instead.
 
 ## Project Structure
 
@@ -270,7 +273,7 @@ NEXT_PUBLIC_DOCUMENT_STORE_ADDRESS=0xYourContractAddress
 
 ## Known Limitations and Security Notes
 
-1. **Private key in static bundle:** `NEXT_PUBLIC_*` variables are inlined into the browser JavaScript. The DID private key is therefore visible to anyone who downloads the page. This is acceptable for demos/testing; for production use a server-side signing endpoint.
+1. **Signing is server-side only:** The DID private key is read from `DID_PRIVATE_KEY_MULTIBASE`, which is never exposed to the browser. Signing therefore requires the Vercel server runtime; a static GitHub Pages build issues unsigned drafts.
 
 2. **Demo document store:** The default document store contract (`0x4B30674...`) was deployed for demonstration purposes and the owner wallet is not publicly known. Ethereum issuance from outside wallets will fail the pre-check. Deploy your own store for real issuance.
 

@@ -161,7 +161,7 @@ Plans:
 - Enterprise
 
 === Target Architecture ===
-Frontend (Netlify/Vercel)
+Frontend (Vercel)
     -> API Gateway
     -> Issue API / Verify API / Revoke API
     -> TrustVC

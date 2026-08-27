@@ -55,9 +55,9 @@ async function createSession(userId: string, issuerId: string) {
     const webhookUrl = process.env.PASSWORD_RESET_WEBHOOK_URL;
     if (!webhookUrl) return;
 
-    if (/\/\.netlify\/functions\/password-reset\/?$/i.test(webhookUrl)) {
+    if (/\/api\/auth\/reset(-request)?\/?$/i.test(webhookUrl)) {
       throw new PasswordResetDeliveryError(
-        "PASSWORD_RESET_WEBHOOK_URL cannot point to this project's password-reset function. Configure an external email webhook that sends the resetUrl."
+        "PASSWORD_RESET_WEBHOOK_URL cannot point to this project's password-reset route. Configure an external email webhook that sends the resetUrl."
       );
     }
 
