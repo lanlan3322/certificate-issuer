@@ -48,7 +48,7 @@ function normalizeEmail(email: string) {
 async function createSession(userId: string, issuerId: string) {
   const rawToken = randomBytes(32).toString("base64url");
   await query("INSERT INTO auth_sessions (user_id, issuer_id, token_hash, expires_at) VALUES ($1,$2,$3,now() + interval '7 days')", [userId, issuerId, hashToken(rawToken)]);
-  cookies().set(SESSION_COOKIE, rawToken, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: SESSION_DAYS * 24 * 60 * 60 });
+  (await cookies()).set(SESSION_COOKIE, rawToken, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: SESSION_DAYS * 24 * 60 * 60 });
 }
 
   async function deliverPasswordReset(input: { email: string; token: string }) {
@@ -113,7 +113,7 @@ export async function loginIssuer(emailInput: string, password: string) {
 }
 
 export async function getCurrentIssuerUser(): Promise<AuthUser | null> {
-  const rawToken = cookies().get(SESSION_COOKIE)?.value;
+  const rawToken = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!rawToken) return null;
   const result = await query<AuthUser & { user_id: string; issuer_id: string }>("SELECT u.id AS user_id, i.id AS issuer_id, u.email, u.display_name AS \"displayName\", i.name AS \"issuerName\" FROM auth_sessions s JOIN users u ON u.id=s.user_id JOIN issuers i ON i.id=s.issuer_id WHERE s.token_hash=$1 AND s.expires_at > now() AND i.status='active' LIMIT 1", [hashToken(rawToken)]);
   const row = result.rows[0];
@@ -121,9 +121,9 @@ export async function getCurrentIssuerUser(): Promise<AuthUser | null> {
 }
 
 export async function logoutIssuer() {
-  const rawToken = cookies().get(SESSION_COOKIE)?.value;
+  const rawToken = (await cookies()).get(SESSION_COOKIE)?.value;
   if (rawToken) await query("DELETE FROM auth_sessions WHERE token_hash=$1", [hashToken(rawToken)]);
-  cookies().set(SESSION_COOKIE, "", { httpOnly: true, expires: new Date(0), path: "/" });
+  (await cookies()).set(SESSION_COOKIE, "", { httpOnly: true, expires: new Date(0), path: "/" });
 }
 
 export async function requestPasswordReset(emailInput: string) {

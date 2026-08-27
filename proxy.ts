@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const protectedPages = ["/admin", "/branding", "/delivery", "/did", "/insurance", "/revocation", "/wallet"];
 const protectedApiPrefixes = ["/api/issuers", "/api/templates", "/api/credentials", "/api/revocation"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isProtectedPage = protectedPages.some((route) => pathname === route || pathname.startsWith(`${route}/`));
   const isProtectedApi = protectedApiPrefixes.some((route) => pathname === route || pathname.startsWith(`${route}/`));

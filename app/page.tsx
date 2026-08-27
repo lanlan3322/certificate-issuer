@@ -15,10 +15,8 @@ import {
   ExternalLink,
   Loader2,
   Check,
-  Info,
   Layers,
 } from "lucide-react";
-import DeploymentGuide from "../components/DeploymentGuide";
 import BatchIssuePanel, {
   BatchIssuedCertificatesPanel,
   IssuedCertificateItem,
@@ -48,7 +46,6 @@ import {
   CERTIFICATE_TEMPLATES,
   DEFAULT_ISSUING_METHODS,
   DOCUMENT_STORE_CONFIG,
-  DEPLOYMENT_STEPS,
   formatIssuingMethodLabels,
   IssuingMethod,
 } from "../lib/constants";
@@ -159,7 +156,6 @@ export default function HomePage() {
   const [ethereumResult, setEthereumResult] =
     useState<EthereumIssuanceResult | null>(null);
   const [walletWarningDismissed, setWalletWarningDismissed] = useState(false);
-  const [showDeploymentGuide, setShowDeploymentGuide] = useState(false);
   const [issueMode, setIssueMode] = useState<"single" | "batch">("single");
   const [issuingMethods, setIssuingMethods] = useState<IssuingMethod[]>(
     DEFAULT_ISSUING_METHODS
@@ -506,31 +502,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-slate-900/20 backdrop-blur-sm">
-              <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-5">
-                <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-400">
-                  <span>Status</span>
-                  <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-emerald-300">Operational</span>
-                </div>
-                <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-slate-800 p-4">
-                    <div className="text-sm text-slate-400">Credentials issued</div>
-                    <div className="mt-2 text-3xl font-bold text-white">12.4K</div>
-                  </div>
-                  <div className="rounded-2xl bg-slate-800 p-4">
-                    <div className="text-sm text-slate-400">Revocations</div>
-                    <div className="mt-2 text-3xl font-bold text-white">387</div>
-                  </div>
-                  <div className="rounded-2xl bg-slate-800 p-4 sm:col-span-2">
-                    <div className="text-sm text-slate-400">Verified network</div>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-lg font-semibold text-white">Sepolia + DID</span>
-                      <span className="text-emerald-300">Healthy</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            
           </div>
         </div>
       </section>
@@ -557,74 +529,7 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-slate-900 p-5 text-white shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Dashboard preview</p>
-              <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-medium text-emerald-300">Live</span>
-            </div>
-            <div className="mt-5 space-y-3">
-              {[
-                ["Credential issuance", "1,284"],
-                ["Templates active", "18"],
-                ["Validation uptime", "99.98%"],
-              ].map(([label, value]) => (
-                <div key={label} className="flex items-center justify-between rounded-xl border border-slate-700 bg-slate-800 px-3 py-2">
-                  <span className="text-sm text-slate-300">{label}</span>
-                  <span className="text-base font-bold text-white">{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="mb-12 grid gap-6 lg:grid-cols-3">
-          <div className="section-card">
-            <p className="pill mb-4">How it works</p>
-            <h3 className="text-xl font-bold text-slate-900">Issue with a trusted workflow</h3>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              Create credentials, validate metadata, and publish signed artifacts through a controlled issuance process designed for institutional trust.
-            </p>
-          </div>
-          <div className="section-card">
-            <p className="pill mb-4">Why TrustVC</p>
-            <h3 className="text-xl font-bold text-slate-900">Built for verification and governance</h3>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              Every certificate is anchored to a verifiable identity model, with secure handling for revocation, issuance history, and recipient verification.
-            </p>
-          </div>
-          <div className="section-card">
-            <p className="pill mb-4">Platform features</p>
-            <h3 className="text-xl font-bold text-slate-900">Operational clarity at scale</h3>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              Support multi-issuer operations, template-driven issuance, wallet-ready delivery, and public verification from a unified product experience.
-            </p>
-          </div>
-        </section>
-
-        <section className="mb-12 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">Certificate lifecycle</p>
-              <h2 className="mt-2 text-3xl font-bold text-slate-900">From creation to verification</h2>
-            </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-4">
-            {[
-              ["Create", "Build an issuer-ready credential using templates, validity rules, and structured field data."],
-              ["Issue", "Publish the credential through a secure, auditable issuance flow backed by DID or blockchain verification."],
-              ["Deliver", "Share credentials to recipients, wallets, or verification endpoints with a professional user experience."],
-              ["Verify", "Allow recipients and institutions to validate authenticity, trust, and revocation state quickly."],
-            ].map(([title, description]) => (
-              <div key={title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="mb-3 inline-flex rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                  {title}
-                </div>
-                <p className="text-sm leading-6 text-slate-600">{description}</p>
-              </div>
-            ))}
-          </div>
+          </div>          
         </section>
 
         <section className="mb-12 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -642,45 +547,6 @@ export default function HomePage() {
               ].map((item) => (
                 <div key={item} className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200">
                   {item}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="section-card">
-            <p className="pill mb-4">Analytics</p>
-            <h3 className="text-2xl font-bold text-slate-900">Operational insight across issuance</h3>
-            <div className="mt-5 space-y-4">
-              {[
-                ["Issued", "12.4K"],
-                ["Verified", "97.8%"],
-                ["Revoked", "387"],
-              ].map(([label, value]) => (
-                <div key={label} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <span className="text-sm text-slate-600">{label}</span>
-                  <span className="text-xl font-bold text-slate-900">{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="mb-12 rounded-3xl border border-slate-200 bg-gradient-to-r from-cyan-50 via-white to-slate-50 p-6 shadow-sm md:p-8">
-          <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr] lg:items-center">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">Pricing</p>
-              <h2 className="mt-2 text-3xl font-bold text-slate-900">Simple plans for growing trust programs</h2>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              {[
-                ["Starter", "$0", "For pilots and early credential programs"],
-                ["Professional", "$49/mo", "For active issuance and verification workflows"],
-                ["Enterprise", "Custom", "For multi-issuer governance and large-scale deployments"],
-              ].map(([plan, price, description]) => (
-                <div key={plan} className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="text-sm font-semibold text-slate-600">{plan}</div>
-                  <div className="mt-2 text-3xl font-black text-slate-900">{price}</div>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
                 </div>
               ))}
             </div>
@@ -715,30 +581,6 @@ export default function HomePage() {
             <a href="/enterprise" className="btn-secondary border-slate-700 bg-slate-800 text-white hover:border-slate-600 hover:bg-slate-700">Talk to sales</a>
           </div>
         </section>
-
-        {/* Deployment Guide Toggle */}
-        <div className="mb-6">
-          <button
-            onClick={() => setShowDeploymentGuide(!showDeploymentGuide)}
-            className="flex items-center space-x-2 text-primary hover:text-primary/80 transition-colors"
-          >
-            <Info className="w-5 h-5" />
-            <span className="font-medium">
-              {showDeploymentGuide ? "Hide" : "Show"} Deployment Guide
-            </span>
-          </button>
-        </div>
-
-        {/* Deployment Guide */}
-        {showDeploymentGuide && (
-          <div className="mb-8">
-            <DeploymentGuide
-              steps={DEPLOYMENT_STEPS}
-              documentStoreAddress={DOCUMENT_STORE_CONFIG.address}
-              dnsLocation={DOCUMENT_STORE_CONFIG.identityProof.location}
-            />
-          </div>
-        )}
 
         {/* Info Cards - Responsive Grid */}
         <div className="mt-8 md:mt-12 grid md:grid-cols-3 gap-4 md:gap-6">
