@@ -71,7 +71,7 @@ export const RevocationService = {
     }
 
     if (lookup.error) throw lookup.error;
-    const credential = ***;
+    const credential = lookup.data;
     if (!credential) throw new CredentialNotFoundError("Credential not found for this issuer.");
 
     const nextStatus = STATUS_FOR_ACTION[input.action];
