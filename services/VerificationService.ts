@@ -1,12 +1,23 @@
-import { query } from "../lib/db";
+import { getSupabaseServerClient } from "../lib/supabase/server";
 
 export const VerificationService = {
   async log(input: { credentialId?: string; externalId?: string; verified: boolean; result: Record<string, unknown>; sourceIp?: string }) {
-    const result = await query<Record<string, unknown>>("INSERT INTO verification_logs (credential_id,credential_external_id,verified,result,source_ip) VALUES ($1,$2,$3,$4,$5) RETURNING *", [input.credentialId ?? null, input.externalId ?? null, input.verified, JSON.stringify(input.result), input.sourceIp ?? null]);
-    return result.rows[0];
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase.from("verification_logs").insert({
+      credential_id: input.credentialId ?? null,
+      credential_external_id: input.externalId ?? null,
+      verified: input.verified,
+      result: JSON.stringify(input.result),
+      source_ip: input.sourceIp ?? null,
+    }).select().single();
+    if (error) throw error;
+    return data;
   },
+
   async findByExternalId(externalId: string) {
-    const result = await query<Record<string, unknown>>("SELECT * FROM credentials WHERE external_id=$1 LIMIT 1", [externalId]);
-    return result.rows[0] ?? null;
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase.from("credentials").select("*").eq("external_id", externalId).maybeSingle();
+    if (error) throw error;
+    return data ?? null;
   },
 };

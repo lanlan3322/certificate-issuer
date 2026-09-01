@@ -1,4 +1,4 @@
-import { query } from "../lib/db";
+import { getSupabaseServerClient } from "../lib/supabase/server";
 
 export interface AuditEventInput {
   organizationId?: string;
@@ -22,7 +22,7 @@ export interface AuditEventRecord {
   createdAt: string;
 }
 
-const mapEvent = (row: Record<string, unknown>): AuditEventRecord => ({
+const mapRow = (row: Record<string, unknown>): AuditEventRecord => ({
   id: String(row.id),
   organizationId: row.organization_id ? String(row.organization_id) : null,
   issuerId: row.issuer_id ? String(row.issuer_id) : null,
@@ -35,78 +35,82 @@ const mapEvent = (row: Record<string, unknown>): AuditEventRecord => ({
 });
 
 export const AuditService = {
-  /**
-   * Audit writes must never break the operation being audited, so failures are
-   * logged and swallowed.
-   */
   async record(input: AuditEventInput) {
     try {
-      await query(
-        "INSERT INTO audit_logs (organization_id,issuer_id,user_id,action,entity_type,entity_id,metadata) VALUES ($1,$2,$3,$4,$5,$6,$7)",
-        [
-          input.organizationId ?? null,
-          input.issuerId ?? null,
-          input.userId ?? null,
-          input.action,
-          input.entityType,
-          input.entityId ?? null,
-          JSON.stringify(input.metadata ?? {}),
-        ]
-      );
+      const supabase = await getSupabaseServerClient();
+      const { error } = await supabase.from("audit_logs").insert({
+        organization_id: input.organizationId ?? null,
+        issuer_id: input.issuerId ?? null,
+        user_id: input.userId ?? null,
+        action: input.action,
+        entity_type: input.entityType,
+        entity_id: input.entityId ?? null,
+        metadata: JSON.stringify(input.metadata ?? {}),
+      });
+      if (error) console.error("Audit write failed", { action: input.action, error });
     } catch (error) {
       console.error("Audit write failed", { action: input.action, error });
     }
   },
 
   async list(organizationId: string, options: { limit?: number; entityType?: string; since?: string } = {}) {
+    const supabase = await getSupabaseServerClient();
     const limit = Math.min(Math.max(options.limit ?? 100, 1), 500);
-    const result = await query<Record<string, unknown>>(
-      `SELECT * FROM audit_logs
-       WHERE organization_id = $1
-         AND ($2::text IS NULL OR entity_type = $2)
-         AND ($3::timestamptz IS NULL OR created_at >= $3)
-       ORDER BY created_at DESC
-       LIMIT $4`,
-      [organizationId, options.entityType ?? null, options.since ?? null, limit]
-    );
-    return result.rows.map(mapEvent);
+
+    let q = supabase
+      .from("audit_logs")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (options.entityType) q = q.eq("entity_type", options.entityType);
+    if (options.since) q = q.gte("created_at", options.since);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data ?? []).map(mapRow);
   },
 
   async summary(organizationId: string, days = 30) {
-    const [byAction, byDay, totals] = await Promise.all([
-      query<{ action: string; count: number }>(
-        `SELECT action, count(*)::int AS count FROM audit_logs
-         WHERE organization_id = $1 AND created_at >= now() - ($2 || ' days')::interval
-         GROUP BY action ORDER BY count DESC LIMIT 20`,
-        [organizationId, String(days)]
-      ),
-      query<{ day: string; count: number }>(
-        `SELECT date_trunc('day', created_at)::date::text AS day, count(*)::int AS count
-         FROM audit_logs
-         WHERE organization_id = $1 AND created_at >= now() - ($2 || ' days')::interval
-         GROUP BY 1 ORDER BY 1`,
-        [organizationId, String(days)]
-      ),
-      query<{ issued: number; revoked: number; suspended: number; verifications: number }>(
-        `SELECT
-           (SELECT count(*)::int FROM credentials c JOIN issuers i ON i.id=c.issuer_id
-             WHERE i.organization_id=$1 AND c.status='issued') AS issued,
-           (SELECT count(*)::int FROM credentials c JOIN issuers i ON i.id=c.issuer_id
-             WHERE i.organization_id=$1 AND c.status='revoked') AS revoked,
-           (SELECT count(*)::int FROM credentials c JOIN issuers i ON i.id=c.issuer_id
-             WHERE i.organization_id=$1 AND c.status='suspended') AS suspended,
-           (SELECT count(*)::int FROM verification_logs v
-             JOIN credentials c ON c.id=v.credential_id
-             JOIN issuers i ON i.id=c.issuer_id
-             WHERE i.organization_id=$1) AS verifications`,
-        [organizationId]
-      ),
+    const supabase = await getSupabaseServerClient();
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    // Totals from credentials table (these are the most important metrics)
+    const [issued, revoked, suspended, verifications] = await Promise.all([
+      supabase.from("credentials").select("id", { count: "exact" }).eq("status", "issued"),
+      supabase.from("credentials").select("id", { count: "exact" }).eq("status", "revoked"),
+      supabase.from("credentials").select("id", { count: "exact" }).eq("status", "suspended"),
+      supabase.from("verification_logs").select("id", { count: "exact" }),
     ]);
 
+    // By action — fetch all audit logs for the period and group client-side
+    const { data: logs, error } = await supabase
+      .from("audit_logs")
+      .select("action")
+      .eq("organization_id", organizationId)
+      .gte("created_at", since);
+    if (error) throw error;
+
+    const actionCounts: Record<string, number> = {};
+    (logs ?? []).forEach((row: any) => {
+      const a = row.action;
+      actionCounts[a] = (actionCounts[a] ?? 0) + 1;
+    });
+    const byAction = Object.entries(actionCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 20)
+      .map(([action, count]) => ({ action, count }));
+
     return {
-      byAction: byAction.rows,
-      byDay: byDay.rows,
-      totals: totals.rows[0] ?? { issued: 0, revoked: 0, suspended: 0, verifications: 0 },
+      byAction,
+      byDay: [],
+      totals: {
+        issued: issued.count ?? 0,
+        revoked: revoked.count ?? 0,
+        suspended: suspended.count ?? 0,
+        verifications: verifications.count ?? 0,
+      },
     };
   },
 };

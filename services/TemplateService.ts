@@ -1,4 +1,4 @@
-import { query } from "../lib/db";
+import { getSupabaseServerClient } from "../lib/supabase/server";
 
 export interface TemplateInput {
   issuerId: string;
@@ -19,7 +19,7 @@ export interface TemplateRecord {
   createdAt: string;
 }
 
-const mapTemplate = (row: Record<string, unknown>): TemplateRecord => ({
+const mapRow = (row: Record<string, unknown>): TemplateRecord => ({
   id: String(row.id),
   issuerId: row.issuer_id ? String(row.issuer_id) : null,
   slug: String(row.slug),
@@ -31,57 +31,85 @@ const mapTemplate = (row: Record<string, unknown>): TemplateRecord => ({
 });
 
 export const TemplateService = {
-  /** Returns the issuer's templates plus the shared platform templates. */
   async list(issuerId: string, options: { includeInactive?: boolean } = {}) {
-    const result = await query<Record<string, unknown>>(
-      `SELECT * FROM templates
-       WHERE (issuer_id = $1 OR issuer_id IS NULL)
-         AND ($2::boolean OR is_active = true)
-       ORDER BY created_at DESC`,
-      [issuerId, options.includeInactive ?? false]
-    );
-    return result.rows.map(mapTemplate);
+    const supabase = await getSupabaseServerClient();
+
+    let queryBuilder = supabase
+      .from("templates")
+      .select("*")
+      .or(`issuer_id.eq.${issuerId},issuer_id.is.null`)
+      .order("created_at", { ascending: false });
+
+    if (!options.includeInactive) {
+      queryBuilder = queryBuilder.eq("is_active", true);
+    }
+
+    const { data, error } = await queryBuilder;
+    if (error) throw error;
+    return (data ?? []).map(mapRow);
   },
 
   async get(id: string, issuerId: string) {
-    const result = await query<Record<string, unknown>>(
-      "SELECT * FROM templates WHERE id=$1 AND (issuer_id=$2 OR issuer_id IS NULL) LIMIT 1",
-      [id, issuerId]
-    );
-    return result.rows[0] ? mapTemplate(result.rows[0]) : null;
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("templates")
+      .select("*")
+      .or(`id.eq.${id},issuer_id.is.null`)
+      .eq("issuer_id", issuerId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapRow(data) : null;
   },
 
   async create(input: TemplateInput) {
-    const result = await query<Record<string, unknown>>(
-      "INSERT INTO templates (issuer_id,slug,name,description,definition) VALUES ($1,$2,$3,$4,$5) RETURNING *",
-      [input.issuerId, input.slug, input.name, input.description ?? "", JSON.stringify(input.definition ?? {})]
-    );
-    return mapTemplate(result.rows[0]);
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("templates")
+      .insert({
+        issuer_id: input.issuerId,
+        slug: input.slug,
+        name: input.name,
+        description: input.description ?? "",
+        definition: JSON.stringify(input.definition ?? {}),
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return mapRow(data);
   },
 
-  /** Upsert on (issuer_id, slug) so the builder can re-save the same template. */
   async upsert(input: TemplateInput) {
-    const result = await query<Record<string, unknown>>(
-      `INSERT INTO templates (issuer_id,slug,name,description,definition)
-       VALUES ($1,$2,$3,$4,$5)
-       ON CONFLICT (issuer_id, slug)
-       DO UPDATE SET name = EXCLUDED.name,
-                     description = EXCLUDED.description,
-                     definition = EXCLUDED.definition,
-                     is_active = true
-       RETURNING *`,
-      [input.issuerId, input.slug, input.name, input.description ?? "", JSON.stringify(input.definition ?? {})]
-    );
-    return mapTemplate(result.rows[0]);
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("templates")
+      .upsert(
+        {
+          issuer_id: input.issuerId,
+          slug: input.slug,
+          name: input.name,
+          description: input.description ?? "",
+          definition: JSON.stringify(input.definition ?? {}),
+          is_active: true,
+        },
+        { onConflict: "issuer_id,slug" }
+      )
+      .select()
+      .single();
+    if (error) throw error;
+    return mapRow(data);
   },
 
-  /** Soft delete — platform templates (issuer_id IS NULL) are not deletable. */
   async deactivate(id: string, issuerId: string) {
-    const result = await query<Record<string, unknown>>(
-      "UPDATE templates SET is_active=false WHERE id=$1 AND issuer_id=$2 RETURNING *",
-      [id, issuerId]
-    );
-    if (!result.rows[0]) throw new Error("Template not found.");
-    return mapTemplate(result.rows[0]);
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("templates")
+      .update({ is_active: false })
+      .eq("id", id)
+      .eq("issuer_id", issuerId)
+      .select()
+      .single();
+    if (error) throw error;
+    if (!data) throw new Error("Template not found.");
+    return mapRow(data);
   },
 };

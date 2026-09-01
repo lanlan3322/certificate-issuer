@@ -1,67 +1,71 @@
-import { query } from "../lib/db";
+import { getSupabaseServerClient } from "../lib/supabase/server";
 
 export const AgentMemoryService = {
   async createSession(input: { issuerId?: string; userId?: string; currentPage?: string; workflow?: string; state?: Record<string, unknown>; }) {
-    const result = await query<Record<string, unknown>>(
-      "INSERT INTO agent_sessions (issuer_id,user_id,current_page,current_workflow,session_state) VALUES ($1,$2,$3,$4,$5) RETURNING *",
-      [input.issuerId ?? null, input.userId ?? null, input.currentPage ?? "/", input.workflow ?? null, JSON.stringify(input.state ?? {})]
-    );
-    return result.rows[0];
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase.from("agent_sessions").insert({
+      issuer_id: input.issuerId ?? null,
+      user_id: input.userId ?? null,
+      current_page: input.currentPage ?? "/",
+      current_workflow: input.workflow ?? null,
+      session_state: JSON.stringify(input.state ?? {}),
+    }).select().single();
+    if (error) throw error;
+    return data;
   },
 
-  /**
-   * Ownership check used by every session-scoped operation. Sessions created
-   * anonymously (user_id IS NULL) are only reachable by the anonymous caller,
-   * never by a signed-in user, and vice versa.
-   */
   async ownsSession(sessionId: string, userId: string | null) {
-    const result = await query<{ id: string }>(
-      "SELECT id FROM agent_sessions WHERE id=$1 AND user_id IS NOT DISTINCT FROM $2 LIMIT 1",
-      [sessionId, userId]
-    );
-    return Boolean(result.rows[0]);
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase.from("agent_sessions").select("id").eq("id", sessionId).is("user_id", userId).maybeSingle();
+    if (error) throw error;
+    return Boolean(data);
   },
 
   async saveConversation(sessionId: string, role: "user" | "assistant" | "system", content: string, metadata: Record<string, unknown> = {}) {
-    const result = await query<Record<string, unknown>>(
-      "INSERT INTO agent_messages (session_id,role,content,metadata) VALUES ($1,$2,$3,$4) RETURNING *",
-      [sessionId, role, content, JSON.stringify(metadata)]
-    );
-    return result.rows[0];
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase.from("agent_messages").insert({
+      session_id: sessionId,
+      role,
+      content,
+      metadata: JSON.stringify(metadata),
+    }).select().single();
+    if (error) throw error;
+    return data;
   },
 
   async loadConversation(sessionId: string, userId: string | null) {
-    const result = await query<Record<string, unknown>>(
-      `SELECT m.* FROM agent_messages m
-       JOIN agent_sessions s ON s.id = m.session_id
-       WHERE m.session_id = $1 AND s.user_id IS NOT DISTINCT FROM $2
-       ORDER BY m.created_at`,
-      [sessionId, userId]
-    );
-    return result.rows;
+    const supabase = await getSupabaseServerClient();
+    const { data: sessions, error: sessErr } = await supabase.from("agent_sessions").select("id").eq("id", sessionId).is("user_id", userId).maybeSingle();
+    if (sessErr) throw sessErr;
+    if (!sessions) return [];
+
+    const { data, error } = await supabase.from("agent_messages").select("*").eq("session_id", sessionId).order("created_at");
+    if (error) throw error;
+    return data ?? [];
   },
 
-  async saveWorkflowState(sessionId: string, state: Record<string, unknown>, currentPage: string, workflow?: string) {
-    const result = await query<Record<string, unknown>>(
-      "UPDATE agent_sessions SET session_state=$2,current_page=$3,current_workflow=$4 WHERE id=$1 RETURNING *",
-      [sessionId, JSON.stringify(state), currentPage, workflow ?? null]
-    );
-    return result.rows[0];
+  async saveWorkflowState(sessionId: string, state: Record<string, unknown>, currentPage?: string, workflow?: string) {
+    const supabase = await getSupabaseServerClient();
+    const updates: Record<string, unknown> = { session_state: JSON.stringify(state) };
+    if (currentPage !== undefined) updates.current_page = currentPage;
+    if (workflow !== undefined) updates.current_workflow = workflow ?? null;
+
+    const { data, error } = await supabase.from("agent_sessions").update(updates).eq("id", sessionId).select().single();
+    if (error) throw error;
+    return data;
   },
 
   async loadWorkflowState(sessionId: string, userId: string | null) {
-    const result = await query<Record<string, unknown>>(
-      "SELECT session_state,current_page,current_workflow FROM agent_sessions WHERE id=$1 AND user_id IS NOT DISTINCT FROM $2",
-      [sessionId, userId]
-    );
-    return result.rows[0] ?? null;
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase.from("agent_sessions").select("session_state, current_page, current_workflow").eq("id", sessionId).is("user_id", userId).maybeSingle();
+    if (error) throw error;
+    return data ?? null;
   },
 
   async clearSession(sessionId: string, userId: string | null) {
-    const result = await query(
-      "DELETE FROM agent_sessions WHERE id=$1 AND user_id IS NOT DISTINCT FROM $2",
-      [sessionId, userId]
-    );
-    return (result.rowCount ?? 0) > 0;
+    const supabase = await getSupabaseServerClient();
+    const { rowCount, error } = await supabase.from("agent_sessions").delete().eq("id", sessionId).is("user_id", userId);
+    if (error) throw error;
+    return (rowCount ?? 0) > 0;
   },
 };

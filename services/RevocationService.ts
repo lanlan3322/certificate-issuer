@@ -1,4 +1,4 @@
-import { transaction, query } from "../lib/db";
+import { getSupabaseServerClient } from "../lib/supabase/server";
 
 export type RevocationAction = "revoke" | "suspend" | "reinstate";
 
@@ -21,7 +21,7 @@ const STATUS_FOR_ACTION: Record<RevocationAction, string> = {
   reinstate: "issued",
 };
 
-const mapRecord = (row: Record<string, unknown>): RevocationRecord => ({
+const mapRow = (row: Record<string, unknown>): RevocationRecord => ({
   id: String(row.id),
   credentialId: String(row.credential_id),
   issuerId: String(row.issuer_id),
@@ -33,27 +33,24 @@ const mapRecord = (row: Record<string, unknown>): RevocationRecord => ({
 
 export const RevocationService = {
   async list(issuerId: string, limit = 100) {
-    const result = await query<Record<string, unknown>>(
-      `SELECT r.*, c.external_id, c.status AS credential_status
-       FROM revocations r
-       JOIN credentials c ON c.id = r.credential_id
-       WHERE r.issuer_id = $1
-       ORDER BY r.created_at DESC
-       LIMIT $2`,
-      [issuerId, Math.min(Math.max(limit, 1), 500)]
-    );
-    return result.rows.map((row) => ({
-      ...mapRecord(row),
-      externalId: String(row.external_id),
-      credentialStatus: String(row.credential_status),
+    const supabase = await getSupabaseServerClient();
+    const result = Math.min(Math.max(limit, 1), 500);
+
+    const { data, error } = await supabase
+      .from("revocations")
+      .select("*, credentials(external_id, status)")
+      .eq("issuer_id", issuerId)
+      .order("created_at", { ascending: false })
+      .limit(result);
+
+    if (error) throw error;
+    return (data ?? []).map((row: any) => ({
+      ...mapRow(row),
+      externalId: row.credentials?.external_id ? String(row.credentials.external_id) : "",
+      credentialStatus: row.credentials?.status ? String(row.credentials.status) : "",
     }));
   },
 
-  /**
-   * Applies a revocation action atomically. The credential row is locked for
-   * the duration so concurrent requests cannot both pass the state check.
-   * `credentialRef` may be a credentials.id or an external_id.
-   */
   async apply(input: {
     credentialRef: string;
     issuerId: string;
@@ -61,40 +58,49 @@ export const RevocationService = {
     reason: string;
     transactionHash?: string;
   }) {
-    return transaction(async (client) => {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.credentialRef);
-      const found = await client.query<{ id: string; status: string; external_id: string }>(
-        `SELECT id, status, external_id FROM credentials
-         WHERE issuer_id = $2 AND (${isUuid ? "id = $1::uuid" : "external_id = $1"})
-         FOR UPDATE`,
-        [input.credentialRef, input.issuerId]
-      );
+    const supabase = await getSupabaseServerClient();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.credentialRef);
 
-      const credential = found.rows[0];
-      if (!credential) throw new CredentialNotFoundError("Credential not found for this issuer.");
+    let lookup: { data: any; error: Error | null };
+    if (isUuid) {
+      lookup = await supabase.from("credentials").select("id, status, external_id")
+        .eq("issuer_id", input.issuerId).eq("id", input.credentialRef).maybeSingle();
+    } else {
+      lookup = await supabase.from("credentials").select("id, status, external_id")
+        .eq("issuer_id", input.issuerId).eq("external_id", input.credentialRef).maybeSingle();
+    }
 
-      const nextStatus = STATUS_FOR_ACTION[input.action];
-      if (credential.status === "revoked" && input.action !== "reinstate") {
-        throw new RevocationStateError("Credential is already revoked.");
-      }
-      if (credential.status === "revoked" && input.action === "reinstate") {
-        throw new RevocationStateError("A revoked credential cannot be reinstated.");
-      }
-      if (credential.status === nextStatus) {
-        throw new RevocationStateError(`Credential is already ${nextStatus}.`);
-      }
+    if (lookup.error) throw lookup.error;
+    const credential = ***;
+    if (!credential) throw new CredentialNotFoundError("Credential not found for this issuer.");
 
-      const log = await client.query<Record<string, unknown>>(
-        "INSERT INTO revocations (credential_id,issuer_id,action,reason,transaction_hash) VALUES ($1,$2,$3,$4,$5) RETURNING *",
-        [credential.id, input.issuerId, input.action, input.reason, input.transactionHash ?? null]
-      );
-      await client.query("UPDATE credentials SET status=$2 WHERE id=$1", [credential.id, nextStatus]);
+    const nextStatus = STATUS_FOR_ACTION[input.action];
+    if (credential.status === "revoked" && input.action !== "reinstate") {
+      throw new RevocationStateError("Credential is already revoked.");
+    }
+    if (credential.status === "revoked" && input.action === "reinstate") {
+      throw new RevocationStateError("A revoked credential cannot be reinstated.");
+    }
+    if (credential.status === nextStatus) {
+      throw new RevocationStateError(`Credential is already ${nextStatus}.`);
+    }
 
-      return {
-        ...mapRecord(log.rows[0]),
-        externalId: credential.external_id,
-        credentialStatus: nextStatus,
-      };
-    });
+    const insertResult = await supabase.from("revocations").insert({
+      credential_id: credential.id,
+      issuer_id: input.issuerId,
+      action: input.action,
+      reason: input.reason,
+      transaction_hash: input.transactionHash ?? null,
+    }).select().single();
+
+    if (insertResult.error) throw insertResult.error;
+    const log = mapRow(insertResult.data);
+
+    const updateResult = await supabase.from("credentials")
+      .update({ status: nextStatus })
+      .eq("id", credential.id);
+    if (updateResult.error) throw updateResult.error;
+
+    return { ...log, externalId: credential.external_id, credentialStatus: nextStatus };
   },
 };

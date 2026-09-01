@@ -1,4 +1,4 @@
-import { query } from "../lib/db";
+import { getSupabaseServerClient } from "../lib/supabase/server";
 
 export interface CredentialInput {
   issuerId: string;
@@ -31,7 +31,7 @@ export interface CredentialRecord {
 
 export class DuplicateCredentialError extends Error {}
 
-const mapCredential = (row: Record<string, unknown>): CredentialRecord => ({
+const mapRow = (row: Record<string, unknown>): CredentialRecord => ({
   id: String(row.id),
   issuerId: String(row.issuer_id),
   templateId: row.template_id ? String(row.template_id) : null,
@@ -49,79 +49,103 @@ const mapCredential = (row: Record<string, unknown>): CredentialRecord => ({
 
 export const CredentialService = {
   async list(issuerId: string, options: { limit?: number; status?: string } = {}) {
+    const supabase = await getSupabaseServerClient();
     const limit = Math.min(Math.max(options.limit ?? 100, 1), 500);
-    const result = await query<Record<string, unknown>>(
-      `SELECT * FROM credentials
-       WHERE issuer_id = $1 AND ($2::text IS NULL OR status::text = $2)
-       ORDER BY issued_at DESC LIMIT $3`,
-      [issuerId, options.status ?? null, limit]
-    );
-    return result.rows.map(mapCredential);
+
+    let queryBuilder = supabase
+      .from("credentials")
+      .select("*")
+      .eq("issuer_id", issuerId)
+      .order("issued_at", { ascending: false })
+      .limit(limit);
+
+    if (options.status) {
+      queryBuilder = queryBuilder.eq("status", options.status);
+    }
+
+    const { data, error } = await queryBuilder;
+    if (error) throw error;
+    return (data ?? []).map(mapRow);
   },
 
   async get(id: string, issuerId: string) {
-    const result = await query<Record<string, unknown>>(
-      "SELECT * FROM credentials WHERE id=$1 AND issuer_id=$2 LIMIT 1",
-      [id, issuerId]
-    );
-    return result.rows[0] ? mapCredential(result.rows[0]) : null;
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("credentials")
+      .select("*")
+      .eq("id", id)
+      .eq("issuer_id", issuerId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapRow(data) : null;
   },
 
   async findByExternalId(externalId: string) {
-    const result = await query<Record<string, unknown>>(
-      "SELECT * FROM credentials WHERE external_id=$1 LIMIT 1",
-      [externalId]
-    );
-    return result.rows[0] ? mapCredential(result.rows[0]) : null;
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("credentials")
+      .select("*")
+      .eq("external_id", externalId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapRow(data) : null;
   },
 
   async create(input: CredentialInput) {
-    try {
-      const result = await query<Record<string, unknown>>(
-        `INSERT INTO credentials
-           (issuer_id,template_id,external_id,recipient_name,recipient_email,credential,document_hash,issuing_methods,valid_from,valid_until)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-        [
-          input.issuerId,
-          input.templateId ?? null,
-          input.externalId,
-          input.recipientName,
-          input.recipientEmail,
-          JSON.stringify(input.credential),
-          input.documentHash ?? null,
-          input.issuingMethods ?? [],
-          input.validFrom ?? null,
-          input.validUntil ?? null,
-        ]
-      );
-      return mapCredential(result.rows[0]);
-    } catch (error) {
-      // 23505 = unique_violation on credentials.external_id
-      if (typeof error === "object" && error !== null && (error as { code?: string }).code === "23505") {
-        throw new DuplicateCredentialError("A credential with this identifier has already been issued.");
-      }
+    const supabase = await getSupabaseServerClient();
+    const payload = {
+      issuer_id: input.issuerId,
+      template_id: input.templateId ?? null,
+      external_id: input.externalId,
+      recipient_name: input.recipientName,
+      recipient_email: input.recipientEmail,
+      credential: JSON.stringify(input.credential),
+      document_hash: input.documentHash ?? null,
+      issuing_methods: input.issuingMethods ?? [],
+      valid_from: input.validFrom ?? null,
+      valid_until: input.validUntil ?? null,
+    };
+
+    const { data, error } = await supabase
+      .from("credentials")
+      .insert(payload)
+      .select()
+      .single();
+    if (error) {
+      if (error.code === "23505") throw new DuplicateCredentialError("A credential with this identifier has already been issued.");
       throw error;
     }
+    return mapRow(data);
   },
 
-  /** Records the on-chain anchor once the wallet transaction confirms. */
   async attachDocumentHash(externalId: string, issuerId: string, documentHash: string) {
-    const result = await query<Record<string, unknown>>(
-      "UPDATE credentials SET document_hash=$3 WHERE external_id=$1 AND issuer_id=$2 RETURNING *",
-      [externalId, issuerId, documentHash]
-    );
-    return result.rows[0] ? mapCredential(result.rows[0]) : null;
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("credentials")
+      .update({ document_hash: documentHash })
+      .eq("external_id", externalId)
+      .eq("issuer_id", issuerId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data ? mapRow(data) : null;
   },
 
-  /** Marks credentials past valid_until as expired. Safe to run repeatedly. */
   async expireOverdue(issuerId?: string) {
-    const result = await query<{ id: string }>(
-      `UPDATE credentials SET status='expired'
-       WHERE status='issued' AND valid_until IS NOT NULL AND valid_until < now()
-         AND ($1::uuid IS NULL OR issuer_id = $1)
-       RETURNING id`,
-      [issuerId ?? null]
-    );
-    return result.rowCount ?? 0;
+    const supabase = await getSupabaseServerClient();
+    let q = supabase
+      .from("credentials")
+      .update({ status: "expired" })
+      .eq("status", "issued")
+      .lt("valid_until", new Date().toISOString())
+      .not("valid_until", "is", null);
+
+    if (issuerId) {
+      q = q.eq("issuer_id", issuerId);
+    }
+
+    const { count, error } = await q.select("id", { count: "exact", head: true });
+    if (error) throw error;
+    return count ?? 0;
   },
 };
