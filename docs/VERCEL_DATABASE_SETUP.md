@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Browser-safe key used for issuer sessions. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-only key used for registration and rate limiting. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-only key used for rate limiting and password resets. |
 | `AGENT_PROVIDER` | No | `openai`, `azure-openai`, `copilot-studio`, or omit for local assistant. |
 | `OPENAI_API_KEY` | Provider dependent | Server-only OpenAI-compatible key. |
 | `AZURE_OPENAI_API_KEY` | Provider dependent | Azure key; wire a dedicated Azure adapter before enabling. |
@@ -39,7 +39,7 @@ Do not use this project&apos;s own `/api/auth/reset-request` URL as the webhook 
 
 Never use `NEXT_PUBLIC_` for database URLs, Supabase service-role keys, or AI provider keys — those values are inlined into the browser bundle.
 
-Issuer registration and login require the Vercel server runtime and database migration `002_issuer_auth.sql`. Password reset requests are generic to prevent account enumeration. In production, configure `PASSWORD_RESET_WEBHOOK_URL` to deliver the generated reset link through an approved email provider; reset tokens are never returned to the browser in production. In local development, the API returns a development token to make the flow testable without an email provider.
+Issuer login requires the Vercel server runtime and database migration `002_issuer_auth.sql`. Password reset requests are generic to prevent account enumeration. In production, configure `PASSWORD_RESET_WEBHOOK_URL` to deliver the generated reset link through an approved email provider; reset tokens are never returned to the browser in production. In local development, the API returns a development token to make the flow testable without an email provider.
 
 ## 3. Run migrations
 
@@ -76,6 +76,7 @@ database/migrations/001_initial_schema.sql
 database/migrations/002_issuer_auth.sql
 database/migrations/003_supabase_auth.sql
 database/migrations/004_supabase_api_only.sql
+database/migrations/005_remove_self_registration.sql
 ```
 
 ## 5. Backup and recovery

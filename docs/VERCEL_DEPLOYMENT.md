@@ -63,6 +63,7 @@ database/migrations/001_initial_schema.sql
 database/migrations/002_issuer_auth.sql
 database/migrations/003_supabase_auth.sql
 database/migrations/004_supabase_api_only.sql
+database/migrations/005_remove_self_registration.sql
 ```
 
 4. Trigger a deployment (push to the production branch, or `vercel --prod`).

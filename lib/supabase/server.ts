@@ -50,7 +50,7 @@ let adminClient: SupabaseClient | undefined;
 
 /**
  * Service-role client — bypasses row level security. Only for operations that
- * legitimately span tenants (issuer registration). Never import from a client
+ * legitimately require elevated server-side access. Never import from a client
  * component and never return its results without an authorization check.
  */
 export function getSupabaseAdmin() {

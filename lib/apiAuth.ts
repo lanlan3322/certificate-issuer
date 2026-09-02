@@ -3,7 +3,6 @@ import {
   ForbiddenError,
   PasswordValidationError,
   RateLimitError,
-  RegistrationConflictError,
   UnauthorizedError,
   type AuthUser,
   getCurrentIssuerUser,
@@ -47,9 +46,6 @@ export function errorResponse(error: unknown, fallback: string, fallbackStatus =
   }
   if (error instanceof PasswordValidationError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-  if (error instanceof RegistrationConflictError) {
-    return NextResponse.json({ error: error.message }, { status: 409 });
   }
   if (error instanceof RateLimitError) {
     return NextResponse.json({ error: error.message }, { status: 429 });

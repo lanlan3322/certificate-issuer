@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS create_issuer_account(TEXT, TEXT, TEXT, CITEXT, TEXT, UUID);

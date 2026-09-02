@@ -12,7 +12,6 @@ export interface AuthUser {
 
 export class PasswordResetDeliveryError extends Error {}
 export class PasswordValidationError extends Error {}
-export class RegistrationConflictError extends Error {}
 export class RateLimitError extends Error {}
 
 function assertPassword(password: string) {
@@ -23,18 +22,6 @@ function assertPassword(password: string) {
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
-}
-
-function registrationConflict(error: unknown) {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "23505"
-  ) {
-    return new RegistrationConflictError("That issuer slug or email address is already registered.");
-  }
-  return null;
 }
 
 /**
@@ -87,68 +74,6 @@ async function deliverPasswordReset(input: { email: string; resetUrl: string }) 
     if (!response.ok) throw new PasswordResetDeliveryError(`Password reset email service returned HTTP ${response.status}.`);
   } finally {
     clearTimeout(timeout);
-  }
-}
-
-/**
- * Creates the GoTrue identity first, then the tenant rows in one transaction.
- * If the tenant transaction fails the auth user is deleted so a retry with the
- * same email is possible.
- */
-export async function registerIssuer(input: {
-  issuerName: string;
-  slug: string;
-  organizationName: string;
-  email: string;
-  displayName: string;
-  password: string;
-}) {
-  assertPassword(input.password);
-  const email = normalizeEmail(input.email);
-  const slug = input.slug.trim().toLowerCase();
-  const admin = getSupabaseAdmin();
-
-  const created = await admin.auth.admin.createUser({
-    email,
-    password: input.password,
-    // Registration signs the issuer in immediately below, so the account must
-    // not be held in an unconfirmed state.
-    email_confirm: true,
-    user_metadata: { display_name: input.displayName.trim() },
-  });
-  if (created.error || !created.data.user) {
-    if (created.error?.code === "email_exists") {
-      throw new RegistrationConflictError("An account already exists for this email address.");
-    }
-    throw new Error(created.error?.message ?? "Unable to create account.");
-  }
-  const authUserId = created.data.user.id;
-
-  try {
-    const provisioned = await admin.rpc("create_issuer_account", {
-      p_issuer_name: input.issuerName.trim(),
-      p_slug: slug,
-      p_organization_name: input.organizationName.trim(),
-      p_email: email,
-      p_display_name: input.displayName.trim(),
-      p_auth_user_id: authUserId,
-    });
-    if (provisioned.error) throw provisioned.error;
-    const account = provisioned.data?.[0];
-    if (!account) throw new Error("Unable to provision issuer account.");
-
-    const supabase = await getSupabaseServerClient();
-    const signIn = await supabase.auth.signInWithPassword({ email, password: input.password });
-    if (signIn.error) throw new Error(signIn.error.message);
-
-    return {
-      userId: account.user_id,
-      issuerId: account.issuer_id,
-      organizationId: account.organization_id,
-    };
-  } catch (error) {
-    await admin.auth.admin.deleteUser(authUserId).catch(() => undefined);
-    throw registrationConflict(error) ?? error;
   }
 }
 
