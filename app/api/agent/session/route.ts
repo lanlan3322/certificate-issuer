@@ -39,10 +39,16 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { currentPage?: string; workflow?: string; state?: Record<string, unknown> };
     const user = await getCurrentIssuerUser();
 
+    // Anonymous visitors keep their conversation in browser storage. Database
+    // sessions are RLS-scoped to an authenticated application user.
+    if (!user) {
+      return NextResponse.json({ session: null });
+    }
+
     // Attribution comes from the session, never the request body.
     const session = await AgentMemoryService.createSession({
-      issuerId: user?.issuerId,
-      userId: user?.id,
+      issuerId: user.issuerId,
+      userId: user.id,
       currentPage: body.currentPage,
       workflow: body.workflow,
       state: body.state,
