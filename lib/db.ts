@@ -3,6 +3,7 @@ import { Pool, type PoolClient, type QueryResultRow } from "pg";
 let pool: Pool | undefined;
 
 export class DatabaseConfigurationError extends Error {}
+export class DatabaseUnavailableError extends Error {}
 
 export function isDatabaseConfigured() {
   return Boolean(process.env.DATABASE_URL);
@@ -37,11 +38,23 @@ function getPool() {
 
 export async function query<T extends QueryResultRow>(text: string, values: unknown[] = []) {
   try { return await getPool().query<T>(text, values); }
-  catch (error) { console.error("Database query failed", { message: error instanceof Error ? error.message : "Unknown database error" }); throw error; }
+  catch (error) {
+    console.error("Database query failed", { message: error instanceof Error ? error.message : "Unknown database error" });
+    if (error instanceof DatabaseConfigurationError) throw error;
+    throw new DatabaseUnavailableError("Database unavailable.");
+  }
 }
 
 export async function transaction<T>(operation: (client: PoolClient) => Promise<T>) {
-  const client = await getPool().connect();
+  let client: PoolClient;
+  try {
+    client = await getPool().connect();
+  } catch (error) {
+    console.error("Database connection failed", { message: error instanceof Error ? error.message : "Unknown database error" });
+    if (error instanceof DatabaseConfigurationError) throw error;
+    throw new DatabaseUnavailableError("Database unavailable.");
+  }
+
   try { await client.query("BEGIN"); const result = await operation(client); await client.query("COMMIT"); return result; }
   catch (error) { await client.query("ROLLBACK"); throw error; }
   finally { client.release(); }

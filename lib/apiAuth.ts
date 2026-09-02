@@ -8,7 +8,7 @@ import {
   type AuthUser,
   getCurrentIssuerUser,
 } from "./auth";
-import { DatabaseConfigurationError } from "./db";
+import { DatabaseConfigurationError, DatabaseUnavailableError } from "./db";
 import { SupabaseConfigurationError } from "./supabase/server";
 
 export function clientIp(request: Request) {
@@ -35,7 +35,11 @@ export async function authorize(
 
 /** Maps known error types to status codes without leaking internals. */
 export function errorResponse(error: unknown, fallback: string, fallbackStatus = 400) {
-  if (error instanceof DatabaseConfigurationError || error instanceof SupabaseConfigurationError) {
+  if (
+    error instanceof DatabaseConfigurationError ||
+    error instanceof DatabaseUnavailableError ||
+    error instanceof SupabaseConfigurationError
+  ) {
     return NextResponse.json({ error: error.message }, { status: 503 });
   }
   if (error instanceof UnauthorizedError) {

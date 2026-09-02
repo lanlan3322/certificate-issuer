@@ -48,6 +48,8 @@ Use a privileged PostgreSQL connection from CI or an operator shell. Vercel buil
 
 ```sh
 psql "$DATABASE_URL" -f database/migrations/001_initial_schema.sql
+psql "$DATABASE_URL" -f database/migrations/002_issuer_auth.sql
+psql "$DATABASE_URL" -f database/migrations/003_supabase_auth.sql
 ```
 
 Record applied migrations in your deployment pipeline. Do not run unreviewed migrations automatically against production.
@@ -73,11 +75,12 @@ DATABASE_POOL_MAX=5
 
 The UI retains browser-only fallback behavior when server APIs are unavailable. Database features require the server-capable Vercel runtime; static GitHub Pages cannot serve these API routes.
 
-For a new database, apply both migrations in order:
+For a new database, apply all migrations in order:
 
 ```sh
 psql "$DATABASE_URL" -f database/migrations/001_initial_schema.sql
 psql "$DATABASE_URL" -f database/migrations/002_issuer_auth.sql
+psql "$DATABASE_URL" -f database/migrations/003_supabase_auth.sql
 ```
 
 ## 5. Backup and recovery

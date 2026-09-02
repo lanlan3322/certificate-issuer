@@ -68,6 +68,7 @@ Vercel serverless functions scale horizontally, and each instance opens its own 
 ```sh
 psql "$DATABASE_URL" -f database/migrations/001_initial_schema.sql
 psql "$DATABASE_URL" -f database/migrations/002_issuer_auth.sql
+psql "$DATABASE_URL" -f database/migrations/003_supabase_auth.sql
 ```
 
 4. Trigger a deployment (push to the production branch, or `vercel --prod`).
