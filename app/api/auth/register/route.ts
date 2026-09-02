@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { enforceRateLimit, registerIssuer } from "../../../../lib/auth";
+import { enforceRateLimit, getCurrentIssuerUser, registerIssuer } from "../../../../lib/auth";
 import { clientIp, errorResponse } from "../../../../lib/apiAuth";
 
 export const runtime = "nodejs";
@@ -35,7 +35,11 @@ export async function POST(request: Request) {
       displayName: body.displayName,
       password: body.password,
     });
-    return NextResponse.json({ account }, { status: 201 });
+    const user = await getCurrentIssuerUser();
+    if (!user) {
+      throw new Error("Registration completed but the new session could not be established.");
+    }
+    return NextResponse.json({ account, user }, { status: 201 });
   } catch (error) {
     return errorResponse(error, "Unable to register issuer.");
   }

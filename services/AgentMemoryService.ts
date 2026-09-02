@@ -64,8 +64,13 @@ export const AgentMemoryService = {
 
   async clearSession(sessionId: string, userId: string | null) {
     const supabase = await getSupabaseServerClient();
-    const { rowCount, error } = await supabase.from("agent_sessions").delete().eq("id", sessionId).is("user_id", userId);
+    const { data, error } = await supabase
+      .from("agent_sessions")
+      .delete()
+      .eq("id", sessionId)
+      .is("user_id", userId)
+      .select("id");
     if (error) throw error;
-    return (rowCount ?? 0) > 0;
+    return (data?.length ?? 0) > 0;
   },
 };

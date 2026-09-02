@@ -12,11 +12,12 @@ export interface AuthUser {
 }
 
 export class PasswordResetDeliveryError extends Error {}
+export class PasswordValidationError extends Error {}
 export class RateLimitError extends Error {}
 
 function assertPassword(password: string) {
   if (password.length < 10 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
-    throw new Error("Password must be at least 10 characters and include uppercase, lowercase, and a number.");
+    throw new PasswordValidationError("Password must be at least 10 characters and include uppercase, lowercase, and a number.");
   }
 }
 
@@ -95,7 +96,9 @@ export async function registerIssuer(input: {
   const created = await admin.auth.admin.createUser({
     email,
     password: input.password,
-    email_confirm: false,
+    // Registration signs the issuer in immediately below, so the account must
+    // not be held in an unconfirmed state.
+    email_confirm: true,
     user_metadata: { display_name: input.displayName.trim() },
   });
   if (created.error || !created.data.user) {

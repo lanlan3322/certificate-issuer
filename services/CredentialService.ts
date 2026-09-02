@@ -144,8 +144,8 @@ export const CredentialService = {
       q = q.eq("issuer_id", issuerId);
     }
 
-    const { count, error } = await q.select("id", { count: "exact", head: true });
+    const { data, error } = await q.select("id");
     if (error) throw error;
-    return count ?? 0;
+    return data?.length ?? 0;
   },
 };
