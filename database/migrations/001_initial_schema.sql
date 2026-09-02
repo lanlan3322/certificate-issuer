@@ -1,11 +1,20 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS citext;
 
-CREATE TYPE issuer_status AS ENUM ('active', 'disabled', 'suspended');
-CREATE TYPE credential_status AS ENUM ('issued', 'revoked', 'suspended', 'expired');
-CREATE TYPE agent_message_role AS ENUM ('user', 'assistant', 'system');
+DO $$ BEGIN
+  CREATE TYPE issuer_status AS ENUM ('active', 'disabled', 'suspended');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE TYPE credential_status AS ENUM ('issued', 'revoked', 'suspended', 'expired');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE TYPE agent_message_role AS ENUM ('user', 'assistant', 'system');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TABLE organizations (
+CREATE TABLE IF NOT EXISTS organizations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9-]+$'),
@@ -14,7 +23,7 @@ CREATE TABLE organizations (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
   email CITEXT NOT NULL UNIQUE,
@@ -24,7 +33,7 @@ CREATE TABLE users (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE issuers (
+CREATE TABLE IF NOT EXISTS issuers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -36,7 +45,7 @@ CREATE TABLE issuers (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE templates (
+CREATE TABLE IF NOT EXISTS templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   issuer_id UUID REFERENCES issuers(id) ON DELETE CASCADE,
   slug TEXT NOT NULL,
@@ -49,7 +58,7 @@ CREATE TABLE templates (
   UNIQUE (issuer_id, slug)
 );
 
-CREATE TABLE credentials (
+CREATE TABLE IF NOT EXISTS credentials (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   issuer_id UUID NOT NULL REFERENCES issuers(id) ON DELETE RESTRICT,
   template_id UUID REFERENCES templates(id) ON DELETE SET NULL,
@@ -67,7 +76,7 @@ CREATE TABLE credentials (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE revocations (
+CREATE TABLE IF NOT EXISTS revocations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   credential_id UUID NOT NULL REFERENCES credentials(id) ON DELETE CASCADE,
   issuer_id UUID NOT NULL REFERENCES issuers(id) ON DELETE RESTRICT,
@@ -78,7 +87,7 @@ CREATE TABLE revocations (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE verification_logs (
+CREATE TABLE IF NOT EXISTS verification_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   credential_id UUID REFERENCES credentials(id) ON DELETE SET NULL,
   credential_external_id TEXT,
@@ -89,7 +98,7 @@ CREATE TABLE verification_logs (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE agent_sessions (
+CREATE TABLE IF NOT EXISTS agent_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   issuer_id UUID REFERENCES issuers(id) ON DELETE SET NULL,
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -100,7 +109,7 @@ CREATE TABLE agent_sessions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE agent_messages (
+CREATE TABLE IF NOT EXISTS agent_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES agent_sessions(id) ON DELETE CASCADE,
   role agent_message_role NOT NULL,
@@ -110,7 +119,7 @@ CREATE TABLE agent_messages (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
   issuer_id UUID REFERENCES issuers(id) ON DELETE SET NULL,
@@ -123,7 +132,7 @@ CREATE TABLE audit_logs (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL UNIQUE REFERENCES organizations(id) ON DELETE CASCADE,
   plan_code TEXT NOT NULL,
@@ -134,7 +143,7 @@ CREATE TABLE subscriptions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE api_keys (
+CREATE TABLE IF NOT EXISTS api_keys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   issuer_id UUID REFERENCES issuers(id) ON DELETE CASCADE,
@@ -149,7 +158,7 @@ CREATE TABLE api_keys (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE password_reset_tokens (
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token_hash TEXT NOT NULL UNIQUE,
@@ -159,30 +168,43 @@ CREATE TABLE password_reset_tokens (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX credentials_issuer_status_idx ON credentials (issuer_id, status, issued_at DESC);
-CREATE INDEX credentials_recipient_email_idx ON credentials (recipient_email);
-CREATE INDEX revocations_credential_created_idx ON revocations (credential_id, created_at DESC);
-CREATE INDEX verification_logs_credential_created_idx ON verification_logs (credential_id, created_at DESC);
-CREATE INDEX agent_sessions_issuer_updated_idx ON agent_sessions (issuer_id, updated_at DESC);
-CREATE INDEX agent_messages_session_created_idx ON agent_messages (session_id, created_at);
-CREATE INDEX audit_logs_issuer_created_idx ON audit_logs (issuer_id, created_at DESC);
-CREATE INDEX audit_logs_action_created_idx ON audit_logs (action, created_at DESC);
-CREATE INDEX password_reset_tokens_user_expires_idx ON password_reset_tokens (user_id, expires_at);
+CREATE INDEX IF NOT EXISTS credentials_issuer_status_idx ON credentials (issuer_id, status, issued_at DESC);
+CREATE INDEX IF NOT EXISTS credentials_recipient_email_idx ON credentials (recipient_email);
+CREATE INDEX IF NOT EXISTS revocations_credential_created_idx ON revocations (credential_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS verification_logs_credential_created_idx ON verification_logs (credential_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS agent_sessions_issuer_updated_idx ON agent_sessions (issuer_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS agent_messages_session_created_idx ON agent_messages (session_id, created_at);
+CREATE INDEX IF NOT EXISTS audit_logs_issuer_created_idx ON audit_logs (issuer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS audit_logs_action_created_idx ON audit_logs (action, created_at DESC);
+CREATE INDEX IF NOT EXISTS password_reset_tokens_user_expires_idx ON password_reset_tokens (user_id, expires_at);
 
 CREATE OR REPLACE FUNCTION set_updated_at() RETURNS TRIGGER AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS organizations_updated_at ON organizations;
 CREATE TRIGGER organizations_updated_at BEFORE UPDATE ON organizations FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DROP TRIGGER IF EXISTS users_updated_at ON users;
 CREATE TRIGGER users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DROP TRIGGER IF EXISTS issuers_updated_at ON issuers;
 CREATE TRIGGER issuers_updated_at BEFORE UPDATE ON issuers FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DROP TRIGGER IF EXISTS templates_updated_at ON templates;
 CREATE TRIGGER templates_updated_at BEFORE UPDATE ON templates FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DROP TRIGGER IF EXISTS credentials_updated_at ON credentials;
 CREATE TRIGGER credentials_updated_at BEFORE UPDATE ON credentials FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DROP TRIGGER IF EXISTS revocations_updated_at ON revocations;
 CREATE TRIGGER revocations_updated_at BEFORE UPDATE ON revocations FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DROP TRIGGER IF EXISTS verification_logs_updated_at ON verification_logs;
 CREATE TRIGGER verification_logs_updated_at BEFORE UPDATE ON verification_logs FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DROP TRIGGER IF EXISTS agent_sessions_updated_at ON agent_sessions;
 CREATE TRIGGER agent_sessions_updated_at BEFORE UPDATE ON agent_sessions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DROP TRIGGER IF EXISTS agent_messages_updated_at ON agent_messages;
 CREATE TRIGGER agent_messages_updated_at BEFORE UPDATE ON agent_messages FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DROP TRIGGER IF EXISTS audit_logs_updated_at ON audit_logs;
 CREATE TRIGGER audit_logs_updated_at BEFORE UPDATE ON audit_logs FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DROP TRIGGER IF EXISTS subscriptions_updated_at ON subscriptions;
 CREATE TRIGGER subscriptions_updated_at BEFORE UPDATE ON subscriptions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DROP TRIGGER IF EXISTS api_keys_updated_at ON api_keys;
 CREATE TRIGGER api_keys_updated_at BEFORE UPDATE ON api_keys FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DROP TRIGGER IF EXISTS password_reset_tokens_updated_at ON password_reset_tokens;
 CREATE TRIGGER password_reset_tokens_updated_at BEFORE UPDATE ON password_reset_tokens FOR EACH ROW EXECUTE FUNCTION set_updated_at();
