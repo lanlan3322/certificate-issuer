@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   ForbiddenError,
+  PasswordResetDeliveryError,
   PasswordValidationError,
   RateLimitError,
   UnauthorizedError,
@@ -46,6 +47,9 @@ export function errorResponse(error: unknown, fallback: string, fallbackStatus =
   }
   if (error instanceof PasswordValidationError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  if (error instanceof PasswordResetDeliveryError) {
+    return NextResponse.json({ error: error.message }, { status: 502 });
   }
   if (error instanceof RateLimitError) {
     return NextResponse.json({ error: error.message }, { status: 429 });

@@ -140,10 +140,8 @@ export async function logoutIssuer() {
   await supabase.auth.signOut();
 }
 
-export async function requestPasswordReset(emailInput: string) {
+export async function requestPasswordReset(emailInput: string, baseUrl: string) {
   const email = normalizeEmail(emailInput);
-  const baseUrl = process.env.PASSWORD_RESET_BASE_URL?.replace(/\/$/, "");
-  if (!baseUrl) throw new PasswordResetDeliveryError("PASSWORD_RESET_BASE_URL is required.");
 
   const admin = getSupabaseAdmin();
   const link = await admin.auth.admin.generateLink({

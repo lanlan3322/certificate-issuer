@@ -36,9 +36,9 @@ SUPABASE_SERVICE_ROLE_KEY=...
 Optional:
 
 ```env
-PASSWORD_RESET_BASE_URL=https://your-project.vercel.app
 PASSWORD_RESET_WEBHOOK_URL=https://your-email-service.example/password-reset
 PASSWORD_RESET_WEBHOOK_SECRET=...
+PASSWORD_RESET_BASE_URL=https://your-project.vercel.app
 AGENT_PROVIDER=openai
 OPENAI_API_KEY=...
 AGENT_MODEL=gpt-4o-mini

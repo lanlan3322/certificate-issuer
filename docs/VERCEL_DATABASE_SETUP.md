@@ -18,7 +18,7 @@
 | `AZURE_OPENAI_API_KEY` | Provider dependent | Azure key; wire a dedicated Azure adapter before enabling. |
 | `AGENT_MODEL` | No | LLM model name. Default: `gpt-4o-mini`. |
 | `PASSWORD_RESET_WEBHOOK_URL` | Recommended | Server-side email delivery webhook for issuer password reset links. |
-| `PASSWORD_RESET_BASE_URL` | Recommended | Public URL used to construct reset links, for example `https://your-project.vercel.app`. |
+| `PASSWORD_RESET_BASE_URL` | Optional | Overrides the public URL inferred from the reset request when constructing reset links. |
 | `PASSWORD_RESET_WEBHOOK_SECRET` | Optional | Bearer token sent to the reset webhook for authenticating delivery requests. |
 
 The webhook receives a JSON `POST` body:

@@ -12,7 +12,9 @@ export async function POST(request: Request) {
 
     await enforceRateLimit("reset:ip", clientIp(request), 5, 60);
 
-    const result = await requestPasswordReset(body.email);
+    const configuredBaseUrl = process.env.PASSWORD_RESET_BASE_URL?.replace(/\/$/, "");
+    const baseUrl = configuredBaseUrl ?? new URL(request.url).origin;
+    const result = await requestPasswordReset(body.email, baseUrl);
     return NextResponse.json({
       message: "If the email is registered, reset instructions have been created.",
       developmentToken: result.resetToken,
