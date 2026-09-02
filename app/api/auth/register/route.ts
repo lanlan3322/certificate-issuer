@@ -41,6 +41,6 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ account, user }, { status: 201 });
   } catch (error) {
-    return errorResponse(error, "Unable to register issuer.");
+    return errorResponse(error, "Unable to register issuer.", 500);
   }
 }

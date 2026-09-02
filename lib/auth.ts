@@ -13,6 +13,7 @@ export interface AuthUser {
 
 export class PasswordResetDeliveryError extends Error {}
 export class PasswordValidationError extends Error {}
+export class RegistrationConflictError extends Error {}
 export class RateLimitError extends Error {}
 
 function assertPassword(password: string) {
@@ -23,6 +24,18 @@ function assertPassword(password: string) {
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
+}
+
+function registrationConflict(error: unknown) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "23505"
+  ) {
+    return new RegistrationConflictError("That issuer slug or email address is already registered.");
+  }
+  return null;
 }
 
 /**
@@ -102,6 +115,9 @@ export async function registerIssuer(input: {
     user_metadata: { display_name: input.displayName.trim() },
   });
   if (created.error || !created.data.user) {
+    if (created.error?.code === "email_exists") {
+      throw new RegistrationConflictError("An account already exists for this email address.");
+    }
     throw new Error(created.error?.message ?? "Unable to create account.");
   }
   const authUserId = created.data.user.id;
@@ -134,7 +150,7 @@ export async function registerIssuer(input: {
     return account;
   } catch (error) {
     await admin.auth.admin.deleteUser(authUserId).catch(() => undefined);
-    throw error;
+    throw registrationConflict(error) ?? error;
   }
 }
 
