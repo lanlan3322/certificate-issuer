@@ -2,18 +2,17 @@
 
 ## 1. Provision the database
 
-1. Provision a PostgreSQL database from the Vercel dashboard (**Storage → Create Database → Neon/Supabase**) or bring your own managed Postgres.
-2. Copy the **pooled** connection URL. Serverless functions scale horizontally, so a direct, unpooled connection will exhaust `max_connections`.
-3. Add `DATABASE_URL` in **Project Settings → Environment Variables** for Production, Preview, and Development. Point Preview at a non-production database.
+1. Create a Supabase project.
+2. Copy the project URL, publishable/anon key, and server-only service-role key.
+3. Add them in Vercel **Project Settings → Environment Variables** for Production, Preview, and Development.
 
 ## 2. Configure environment variables
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `DATABASE_URL` | Yes for database APIs | Pooled PostgreSQL connection URL. |
-| `DATABASE_POOL_MAX` | No | Maximum pooled connections per instance. Default: `5`. Keep low on serverless. |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase only | Supabase project URL. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase only | Server-only key; bypasses row level security. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Browser-safe key used for issuer sessions. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-only key used for registration and rate limiting. |
 | `AGENT_PROVIDER` | No | `openai`, `azure-openai`, `copilot-studio`, or omit for local assistant. |
 | `OPENAI_API_KEY` | Provider dependent | Server-only OpenAI-compatible key. |
 | `AZURE_OPENAI_API_KEY` | Provider dependent | Azure key; wire a dedicated Azure adapter before enabling. |
@@ -44,13 +43,7 @@ Issuer registration and login require the Vercel server runtime and database mig
 
 ## 3. Run migrations
 
-Use a privileged PostgreSQL connection from CI or an operator shell. Vercel builds run in an ephemeral sandbox and should not apply migrations:
-
-```sh
-psql "$DATABASE_URL" -f database/migrations/001_initial_schema.sql
-psql "$DATABASE_URL" -f database/migrations/002_issuer_auth.sql
-psql "$DATABASE_URL" -f database/migrations/003_supabase_auth.sql
-```
+Use the Supabase SQL Editor or Supabase CLI to apply each migration in numeric order. Vercel builds run in an ephemeral sandbox and should not apply migrations.
 
 Record applied migrations in your deployment pipeline. Do not run unreviewed migrations automatically against production.
 
@@ -65,8 +58,9 @@ npx vercel env pull .env.local
 Or set it manually:
 
 ```sh
-DATABASE_URL=postgresql://...
-DATABASE_POOL_MAX=5
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
 2. Apply the migration to a local or isolated development database.
@@ -75,12 +69,13 @@ DATABASE_POOL_MAX=5
 
 The UI retains browser-only fallback behavior when server APIs are unavailable. Database features require the server-capable Vercel runtime; static GitHub Pages cannot serve these API routes.
 
-For a new database, apply all migrations in order:
+For a new Supabase project, apply all migrations in order:
 
 ```sh
-psql "$DATABASE_URL" -f database/migrations/001_initial_schema.sql
-psql "$DATABASE_URL" -f database/migrations/002_issuer_auth.sql
-psql "$DATABASE_URL" -f database/migrations/003_supabase_auth.sql
+database/migrations/001_initial_schema.sql
+database/migrations/002_issuer_auth.sql
+database/migrations/003_supabase_auth.sql
+database/migrations/004_supabase_api_only.sql
 ```
 
 ## 5. Backup and recovery
@@ -92,6 +87,5 @@ psql "$DATABASE_URL" -f database/migrations/003_supabase_auth.sql
 
 ## Operational notes
 
-- Connection pooling is centralized in [lib/db.ts](../lib/db.ts), with a conservative default of five connections suitable for serverless runtimes.
-- Route handlers that use `pg` declare `export const runtime = "nodejs"`. The Edge runtime cannot load the driver.
+- Server routes access data through the Supabase APIs; no direct PostgreSQL connection is required.
 - The migration creates `pgcrypto` for UUID generation and `citext` for case-insensitive emails.

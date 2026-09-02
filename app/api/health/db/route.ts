@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import { isDatabaseConfigured, query } from "../../../../lib/db";
+import { getSupabaseAdmin, isSupabaseConfigured } from "../../../../lib/supabase/server";
 
 export async function GET() {
-  if (!isDatabaseConfigured()) return NextResponse.json({ ok: false, error: "DATABASE_URL is not configured." }, { status: 503 });
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({ ok: false, error: "Supabase is not configured." }, { status: 503 });
+  }
   try {
-    await query("SELECT 1");
-    return NextResponse.json({ ok: true, database: "postgresql" });
+    const { error } = await getSupabaseAdmin().from("organizations").select("id", { head: true });
+    if (error) throw error;
+    return NextResponse.json({ ok: true, database: "supabase" });
   } catch {
-    return NextResponse.json({ ok: false, error: "Database unavailable." }, { status: 503 });
+    return NextResponse.json({ ok: false, error: "Supabase unavailable." }, { status: 503 });
   }
 }

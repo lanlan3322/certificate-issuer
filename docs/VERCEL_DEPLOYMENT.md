@@ -4,7 +4,7 @@
 
 The Vercel deployment runs the Next.js application with its server runtime enabled. This is required for:
 
-- PostgreSQL access through `DATABASE_URL`
+- Supabase Auth and database APIs
 - issuer cookie sessions and password reset
 - Next.js API routes and the `proxy.ts` route guard
 - optional hosted AI providers
@@ -25,23 +25,20 @@ Vercel auto-detects Next.js, so no `vercel.json` is required. Configure the proj
 
 Do not set `output: "export"`; [next.config.js](../next.config.js) intentionally keeps the Next.js server runtime enabled.
 
-Route handlers that touch PostgreSQL declare `export const runtime = "nodejs"`. Do not switch them to the Edge runtime — the `pg` driver requires Node.js.
-
 ## Required environment variables
 
 ```env
-DATABASE_URL=postgresql://...
-PASSWORD_RESET_BASE_URL=https://your-project.vercel.app
-PASSWORD_RESET_WEBHOOK_URL=https://your-email-service.example/password-reset
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
 Optional:
 
 ```env
-DATABASE_POOL_MAX=5
+PASSWORD_RESET_BASE_URL=https://your-project.vercel.app
+PASSWORD_RESET_WEBHOOK_URL=https://your-email-service.example/password-reset
 PASSWORD_RESET_WEBHOOK_SECRET=...
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=...
 AGENT_PROVIDER=openai
 OPENAI_API_KEY=...
 AGENT_MODEL=gpt-4o-mini
@@ -55,27 +52,23 @@ Never prefix database, provider, password-reset, Supabase service-role, or webho
 
 Set each variable for the Production, Preview, and Development environments separately in **Project Settings → Environment Variables**. Preview deployments should point at a non-production database.
 
-## Connection pooling
-
-Vercel serverless functions scale horizontally, and each instance opens its own `pg` pool. Point `DATABASE_URL` at a pooled connection string (Supabase Supavisor, Neon pooled endpoint, or PgBouncer in transaction mode) and keep `DATABASE_POOL_MAX` low (2–5). A direct, unpooled Postgres connection will exhaust `max_connections` under load.
-
 ## Deployment procedure
 
 1. Import the GitHub repository into Vercel.
 2. Set the production environment variables in the Vercel project settings.
-3. Apply the database migrations in order:
+3. Apply the Supabase SQL migrations in order using the Supabase SQL Editor or CLI:
 
 ```sh
-psql "$DATABASE_URL" -f database/migrations/001_initial_schema.sql
-psql "$DATABASE_URL" -f database/migrations/002_issuer_auth.sql
-psql "$DATABASE_URL" -f database/migrations/003_supabase_auth.sql
+database/migrations/001_initial_schema.sql
+database/migrations/002_issuer_auth.sql
+database/migrations/003_supabase_auth.sql
+database/migrations/004_supabase_api_only.sql
 ```
 
 4. Trigger a deployment (push to the production branch, or `vercel --prod`).
 5. Verify:
 
 ```sh
-curl -i https://your-project.vercel.app/api/health/db
 curl -i https://your-project.vercel.app/api/health/supabase
 ```
 
@@ -87,7 +80,7 @@ All server logic is served by Next.js App Router route handlers under `app/api`.
 
 | Purpose | Route | Method | Auth |
 | --- | --- | --- | --- |
-| Database health | `/api/health/db` | GET | public |
+| Supabase health | `/api/health/db` | GET | public |
 | Supabase health | `/api/health/supabase` | GET | public |
 | Credential issuance | `/api/issue` | POST | public |
 | Credential persistence | `/api/credentials` | GET, POST | issuer session |
@@ -101,8 +94,7 @@ All server logic is served by Next.js App Router route handlers under `app/api`.
 
 ## Troubleshooting
 
-- `503 Database unavailable`: check `DATABASE_URL`, migration state, SSL requirements, and connection limits.
-- `too many connections` / intermittent 503s: switch `DATABASE_URL` to a pooled connection string and lower `DATABASE_POOL_MAX`.
+- `503 Supabase unavailable`: check the Supabase URL, service-role key, and migration state.
 - Auth route fails during static export: use the Vercel build, not `build:github-pages`.
 - Reset email not delivered: check webhook URL, bearer secret, webhook response status, and the Vercel function logs under **Deployments → Runtime Logs**.
 - Do not set `PASSWORD_RESET_WEBHOOK_URL` to `/api/auth/reset-request`; that route creates reset tokens and is not an email sender. Use an external email webhook or an email provider endpoint.

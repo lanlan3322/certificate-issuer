@@ -1,6 +1,6 @@
 # Database Schema
 
-The initial production schema is [001_initial_schema.sql](../database/migrations/001_initial_schema.sql). It uses PostgreSQL UUID primary keys, UTC timestamps, foreign keys, parameterized service access, and update triggers.
+The initial production schema is [001_initial_schema.sql](../database/migrations/001_initial_schema.sql). It uses Supabase APIs over PostgreSQL with UUID primary keys, UTC timestamps, foreign keys, row-level security, and update triggers.
 
 ## Core tenancy and identity
 
@@ -46,7 +46,7 @@ erDiagram
 
 ## Access rules
 
-- All queries are parameterized through [lib/db.ts](../lib/db.ts).
+- Server-side data access uses Supabase client APIs with typed filters and RLS policies.
 - Application authentication must scope every production query by organization and issuer before exposing multi-tenant data.
 - API keys are stored only as `key_hash`; never store plaintext keys.
 - Agent content is limited to 16,000 characters per message, and secrets are blocked by the agent guardrails before persistence.

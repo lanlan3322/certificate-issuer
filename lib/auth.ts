@@ -1,4 +1,3 @@
-import { transaction, query } from "./db";
 import { getSupabaseAdmin, getSupabaseServerClient } from "./supabase/server";
 
 export interface AuthUser {
@@ -43,14 +42,17 @@ function registrationConflict(error: unknown) {
  * unthrottled organization creation on the public auth routes.
  */
 export async function enforceRateLimit(bucket: string, identifier: string, limit: number, windowMinutes: number) {
-  const result = await query<{ count: string }>(
-    "SELECT count(*)::text AS count FROM auth_rate_limits WHERE bucket=$1 AND identifier=$2 AND attempted_at > now() - ($3 || ' minutes')::interval",
-    [bucket, identifier, String(windowMinutes)]
-  );
-  if (Number(result.rows[0]?.count ?? 0) >= limit) {
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin.rpc("enforce_auth_rate_limit", {
+    p_bucket: bucket,
+    p_identifier: identifier,
+    p_limit: limit,
+    p_window_minutes: windowMinutes,
+  });
+  if (error) throw error;
+  if (!data) {
     throw new RateLimitError("Too many attempts. Try again later.");
   }
-  await query("INSERT INTO auth_rate_limits (bucket, identifier) VALUES ($1,$2)", [bucket, identifier]);
 }
 
 async function deliverPasswordReset(input: { email: string; resetUrl: string }) {
@@ -123,31 +125,27 @@ export async function registerIssuer(input: {
   const authUserId = created.data.user.id;
 
   try {
-    const account = await transaction(async (client) => {
-      const organization = await client.query<{ id: string }>(
-        "INSERT INTO organizations (name,slug) VALUES ($1,$2) RETURNING id",
-        [input.organizationName.trim(), slug]
-      );
-      const issuer = await client.query<{ id: string }>(
-        "INSERT INTO issuers (organization_id,name,slug,contact_email) VALUES ($1,$2,$3,$4) RETURNING id",
-        [organization.rows[0].id, input.issuerName.trim(), slug, email]
-      );
-      const user = await client.query<{ id: string }>(
-        "INSERT INTO users (organization_id,email,display_name,auth_user_id,roles) VALUES ($1,$2,$3,$4,$5) RETURNING id",
-        [organization.rows[0].id, email, input.displayName.trim(), authUserId, ["issuer-admin", "issuer-operator"]]
-      );
-      await client.query(
-        "INSERT INTO subscriptions (organization_id,plan_code,status) VALUES ($1,'starter','trialing')",
-        [organization.rows[0].id]
-      );
-      return { userId: user.rows[0].id, issuerId: issuer.rows[0].id, organizationId: organization.rows[0].id };
+    const provisioned = await admin.rpc("create_issuer_account", {
+      p_issuer_name: input.issuerName.trim(),
+      p_slug: slug,
+      p_organization_name: input.organizationName.trim(),
+      p_email: email,
+      p_display_name: input.displayName.trim(),
+      p_auth_user_id: authUserId,
     });
+    if (provisioned.error) throw provisioned.error;
+    const account = provisioned.data?.[0];
+    if (!account) throw new Error("Unable to provision issuer account.");
 
     const supabase = await getSupabaseServerClient();
     const signIn = await supabase.auth.signInWithPassword({ email, password: input.password });
     if (signIn.error) throw new Error(signIn.error.message);
 
-    return account;
+    return {
+      userId: account.user_id,
+      issuerId: account.issuer_id,
+      organizationId: account.organization_id,
+    };
   } catch (error) {
     await admin.auth.admin.deleteUser(authUserId).catch(() => undefined);
     throw registrationConflict(error) ?? error;
@@ -176,34 +174,29 @@ export async function getCurrentIssuerUser(): Promise<AuthUser | null> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
 
-  const result = await query<{
-    user_id: string;
-    issuer_id: string;
-    organization_id: string;
-    email: string;
-    display_name: string;
-    issuer_name: string;
-    roles: string[];
-  }>(
-    `SELECT u.id AS user_id, i.id AS issuer_id, u.organization_id, u.email,
-            u.display_name, i.name AS issuer_name, u.roles
-     FROM users u
-     JOIN issuers i ON i.organization_id = u.organization_id
-     WHERE u.auth_user_id = $1 AND i.status = 'active'
-     LIMIT 1`,
-    [data.user.id]
-  );
+  const { data: appUser, error: appUserError } = await supabase
+    .from("users")
+    .select("id, organization_id, email, display_name, roles")
+    .eq("auth_user_id", data.user.id)
+    .maybeSingle();
+  if (appUserError || !appUser?.organization_id) return null;
 
-  const row = result.rows[0];
-  if (!row) return null;
+  const { data: issuer, error: issuerError } = await supabase
+    .from("issuers")
+    .select("id, name")
+    .eq("organization_id", appUser.organization_id)
+    .eq("status", "active")
+    .maybeSingle();
+  if (issuerError || !issuer) return null;
+
   return {
-    id: row.user_id,
-    issuerId: row.issuer_id,
-    organizationId: row.organization_id,
-    email: row.email,
-    displayName: row.display_name,
-    issuerName: row.issuer_name,
-    roles: row.roles ?? [],
+    id: appUser.id,
+    issuerId: issuer.id,
+    organizationId: appUser.organization_id,
+    email: appUser.email,
+    displayName: appUser.display_name,
+    roles: appUser.roles ?? [],
+    issuerName: issuer.name,
   };
 }
 

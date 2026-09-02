@@ -5,7 +5,6 @@ import { getAgentProvider } from "../../../lib/agent/providers";
 import type { AgentContext } from "../../../lib/agent/types";
 import { getCurrentIssuerUser, enforceRateLimit, RateLimitError } from "../../../lib/auth";
 import { clientIp } from "../../../lib/apiAuth";
-import { isDatabaseConfigured } from "../../../lib/db";
 import { AgentMemoryService } from "../../../services/AgentMemoryService";
 import { AuditService } from "../../../services/AuditService";
 
@@ -27,26 +26,25 @@ export async function POST(request: Request) {
 
   // A configured provider costs money per call, so anonymous callers are held
   // to a much tighter budget than signed-in issuers.
-  if (isDatabaseConfigured()) {
-    try {
-      await enforceRateLimit(
-        user ? "agent:user" : "agent:anon",
-        user ? user.id : clientIp(request),
-        user ? 120 : provider ? 10 : 60,
-        60
-      );
-    } catch (error) {
-      if (error instanceof RateLimitError) {
-        return NextResponse.json({ error: error.message }, { status: 429 });
-      }
+  try {
+    await enforceRateLimit(
+      user ? "agent:user" : "agent:anon",
+      user ? user.id : clientIp(request),
+      user ? 120 : provider ? 10 : 60,
+      60
+    );
+  } catch (error) {
+    if (error instanceof RateLimitError) {
+      return NextResponse.json({ error: error.message }, { status: 429 });
     }
+    throw error;
   }
 
   try {
     const response = provider ? await provider.respond(message, context) : createLocalAgentResponse(message, context);
     const safeResponse = { ...response, message: guardAgentOutput(response.message) };
 
-    if (body.sessionId && isDatabaseConfigured()) {
+    if (body.sessionId) {
       const owns = await AgentMemoryService.ownsSession(body.sessionId, user?.id ?? null);
       if (owns) {
         await AgentMemoryService.saveConversation(body.sessionId, "user", message, { page: context.currentPage });

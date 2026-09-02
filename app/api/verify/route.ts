@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { DatabaseConfigurationError } from "../../../lib/db";
 import { VerificationService } from "../../../services/VerificationService";
 
 export const runtime = "nodejs";
@@ -50,9 +49,6 @@ export async function POST(request: Request) {
         : null,
     });
   } catch (error) {
-    if (error instanceof DatabaseConfigurationError) {
-      return NextResponse.json({ error: error.message }, { status: 503 });
-    }
     console.error("Credential verification failed", error);
     return NextResponse.json({ error: "Unable to verify credential." }, { status: 400 });
   }
