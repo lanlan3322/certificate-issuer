@@ -2,7 +2,7 @@
 // Uses @trustvc/trustvc for W3C Verifiable Credentials.
 // The TrustVC crypto SDK is imported lazily so the browser bundle does not
 // pull in Node-only dependencies or expose signing keys to the client.
-import type { PrivateKeyPair } from "@trustvc/trustvc";
+import type { PrivateKeyPair } from "@trustvc/trustvc/w3c";
 import { ethers } from "ethers";
 import {
   DEFAULT_ISSUING_METHODS,
@@ -12,6 +12,9 @@ import {
   ISSUER_CONFIG,
   NETWORKS,
 } from "./constants";
+
+type TrustVCW3CModule = typeof import("@trustvc/trustvc/w3c");
+type TrustVCContextModule = typeof import("@trustvc/w3c-context");
 
 // Minimal ABI for the OpenAttestation DocumentStore `issue` function.
 // This avoids importing the full @trustvc/trustvc package (which pulls in
@@ -65,29 +68,41 @@ const LOCAL_DID_PUBLIC_KEY_MULTIBASE =
   process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE ||
   "zDnaepZZHFcKxZ9r1xgqMqMFELf67VEmhFUddFBt2LPajim5z";
 
-function getStaticDeploymentDIDMessage() {
+function getStaticDeploymentDIDMessage(cause?: unknown) {
+  const detail =
+    cause instanceof Error && cause.message
+      ? ` Underlying module error: ${cause.message}`
+      : "";
   return (
     "DID signing is unavailable in this static deployment. " +
     "The app generated an unsigned draft for preview only. " +
-    "Configure a server-side signing service to enable cryptographically signed credentials."
+    "Configure a server-side signing service to enable cryptographically signed credentials." +
+    detail
   );
 }
 
-async function loadTrustVCModules() {
+function loadCommonJSModule<T>(modulePath: string): T {
+  const dynamicRequire = new Function("modulePath", "return require(modulePath);") as (
+    modulePath: string
+  ) => T;
+  return dynamicRequire(modulePath);
+}
+
+async function loadTrustVCModules(): Promise<TrustVCW3CModule> {
   try {
-    const dynamicImport = new Function("modulePath", "return import(modulePath);");
-    return await dynamicImport("@trustvc/trustvc");
-  } catch {
-    throw new Error(getStaticDeploymentDIDMessage());
+    return loadCommonJSModule<TrustVCW3CModule>("@trustvc/trustvc/w3c");
+  } catch (error) {
+    console.error("TrustVC W3C module load failed", error);
+    throw new Error(getStaticDeploymentDIDMessage(error));
   }
 }
 
-async function loadTrustVCContext() {
+async function loadTrustVCContext(): Promise<TrustVCContextModule> {
   try {
-    const dynamicImport = new Function("modulePath", "return import(modulePath);");
-    return await dynamicImport("@trustvc/w3c-context");
-  } catch {
-    throw new Error(getStaticDeploymentDIDMessage());
+    return loadCommonJSModule<TrustVCContextModule>("@trustvc/w3c-context");
+  } catch (error) {
+    console.error("TrustVC W3C context load failed", error);
+    throw new Error(getStaticDeploymentDIDMessage(error));
   }
 }
 
@@ -301,42 +316,21 @@ export async function verifyCredential(
 
     const verificationInput = stripUnsupportedCredentialStatus(document);
 
-    const { verifyDocument } = await loadTrustVCModules();
+    const { verifyW3CSignature } = await loadTrustVCModules();
     const documentLoader = await createTrustVCDocumentLoader();
 
-    const verificationFragments = await verifyDocument(
-      verificationInput as Parameters<typeof verifyDocument>[0],
-      {
-        provider: new ethers.providers.JsonRpcProvider(NETWORKS.sepolia.rpcUrl),
-        documentLoader,
-      }
+    const verificationResult = await verifyW3CSignature(
+      verificationInput as Parameters<typeof verifyW3CSignature>[0],
+      { documentLoader }
     );
+    const shouldFailIssuerIdentity = !isIssuerVerificationMethodMatch(document);
 
-    const integrityFailure = verificationFragments.find(
-      (fragment: { type?: string; status?: string }) =>
-        fragment.type === "DOCUMENT_INTEGRITY" &&
-        (fragment.status === "INVALID" || fragment.status === "ERROR")
-    );
-
-    const issuerFailure = verificationFragments.find(
-      (fragment: { type?: string; status?: string }) =>
-        fragment.type === "ISSUER_IDENTITY" &&
-        (fragment.status === "INVALID" || fragment.status === "ERROR")
-    );
-
-    const shouldFailIssuerIdentity =
-      Boolean(issuerFailure) && !isIssuerVerificationMethodMatch(document);
-
-    if (integrityFailure || shouldFailIssuerIdentity) {
-      const failedFragment = integrityFailure ?? issuerFailure;
-      const failureReason =
-        failedFragment && "reason" in failedFragment
-          ? (failedFragment.reason as { message?: string } | undefined)
-          : undefined;
+    if (!verificationResult.verified || shouldFailIssuerIdentity) {
       const errorMsg =
-        failureReason?.message
-          ? failureReason.message
-          : "Signature verification failed.";
+        verificationResult.error ??
+        (shouldFailIssuerIdentity
+          ? "Credential issuer does not match the proof verification method."
+          : "Signature verification failed.");
       return {
         valid: false,
         message: errorMsg,
