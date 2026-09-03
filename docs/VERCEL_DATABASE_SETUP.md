@@ -31,6 +31,8 @@ Configure the Supabase password recovery email template to use a token hash link
 
 The dedicated recovery callback verifies this link with `verifyOtp({ token_hash, type: "recovery" })`. It intentionally does not call `exchangeCodeForSession()` for password resets because PKCE auth-code links require browser-local code verifier storage and fail when the email is opened without that verifier.
 
+The server sends recovery emails through a non-PKCE Supabase client (`flowType: "implicit"`) so Supabase does not generate `token=pkce_*` recovery URLs.
+
 ## 3. Run migrations
 
 Use the Supabase SQL Editor or Supabase CLI to apply each migration in numeric order. Vercel builds run in an ephemeral sandbox and should not apply migrations.

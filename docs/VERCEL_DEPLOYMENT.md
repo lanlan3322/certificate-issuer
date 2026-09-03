@@ -98,4 +98,5 @@ All server logic is served by Next.js App Router route handlers under `app/api`.
 - Auth route fails during static export: use the Vercel build, not `build:github-pages`.
 - Reset email not delivered: check Supabase Auth email settings and allowlist `https://www.verifiable.sg/auth/recovery`.
 - Reset link reports an unsupported PKCE code: update the Supabase password recovery email template to link to `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery` instead of using the default confirmation URL.
+- Reset emails still contain `token=pkce_*`: confirm the latest deployment is live; reset email sending must use the non-PKCE client and old emails must be discarded.
 - AI falls back to local responses: check `AGENT_PROVIDER` and server-only provider credentials.

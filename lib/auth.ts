@@ -1,4 +1,4 @@
-import { getSupabaseAdmin, getSupabaseServerClient } from "./supabase/server";
+import { getSupabaseAdmin, getSupabasePasswordResetClient, getSupabaseServerClient } from "./supabase/server";
 
 export interface AuthUser {
   id: string;
@@ -196,10 +196,11 @@ export async function requestPasswordReset(emailInput: string, baseUrl: string) 
   const email = normalizeEmail(emailInput);
   const redirectTo = passwordResetRedirectUrl(baseUrl);
 
-  const supabase = await getSupabaseServerClient();
+  const supabase = getSupabasePasswordResetClient();
   authLog("requesting password reset email", {
     emailDomain: email.split("@")[1] ?? null,
     redirectTo,
+    flowType: "implicit",
   });
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   authLog("resetPasswordForEmail response", {

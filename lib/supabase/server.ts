@@ -63,3 +63,16 @@ export function getSupabaseAdmin() {
   }
   return adminClient;
 }
+
+/**
+ * Non-PKCE client used only to ask Supabase Auth to send recovery emails.
+ * createServerClient forces PKCE, which generates token=pkce_* recovery links
+ * that require browser-local verifier storage when clicked from email.
+ */
+export function getSupabasePasswordResetClient() {
+  return createClient(
+    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+    { auth: { flowType: "implicit", persistSession: false, autoRefreshToken: false } }
+  );
+}
