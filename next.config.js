@@ -29,7 +29,7 @@ const nextConfig = {
     "@trustvc/trustvc",
     "@trustvc/w3c-context",
   ],
-    env: {
+  env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
   },
   turbopack: {

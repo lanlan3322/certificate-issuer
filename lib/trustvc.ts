@@ -68,41 +68,50 @@ const LOCAL_DID_PUBLIC_KEY_MULTIBASE =
   process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE ||
   "zDnaepZZHFcKxZ9r1xgqMqMFELf67VEmhFUddFBt2LPajim5z";
 
-function getStaticDeploymentDIDMessage(cause?: unknown) {
-  const detail =
-    cause instanceof Error && cause.message
-      ? ` Underlying module error: ${cause.message}`
-      : "";
-  return (
-    "DID signing is unavailable in this static deployment. " +
-    "The app generated an unsigned draft for preview only. " +
-    "Configure a server-side signing service to enable cryptographically signed credentials." +
-    detail
-  );
-}
-
-function loadCommonJSModule<T>(modulePath: string): T {
-  const dynamicRequire = new Function("modulePath", "return require(modulePath);") as (
-    modulePath: string
-  ) => T;
-  return dynamicRequire(modulePath);
+async function loadCommonJSModule<T>(modulePath: string): Promise<T> {
+  const nodeModule = (await new Function("modulePath", "return import(modulePath);")(
+    "module"
+  )) as typeof import("module");
+  const { createRequire } = nodeModule;
+  const moduleRequire = createRequire(import.meta.url);
+  return moduleRequire(modulePath) as T;
 }
 
 async function loadTrustVCModules(): Promise<TrustVCW3CModule> {
+  const modulePath = "@trustvc/trustvc/w3c";
   try {
-    return loadCommonJSModule<TrustVCW3CModule>("@trustvc/trustvc/w3c");
+    return await loadCommonJSModule<TrustVCW3CModule>(modulePath);
   } catch (error) {
-    console.error("TrustVC W3C module load failed", error);
-    throw new Error(getStaticDeploymentDIDMessage(error));
+    console.error("[trustvc-import-failure]", {
+      modulePath,
+      error,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      dependencyChain: [
+        "lib/trustvc.ts",
+        modulePath,
+        "@trustvc/w3c",
+        "@trustvc/w3c-vc",
+        "@trustvc/w3c-context",
+      ],
+    });
+    throw error;
   }
 }
 
 async function loadTrustVCContext(): Promise<TrustVCContextModule> {
+  const modulePath = "@trustvc/w3c-context";
   try {
-    return loadCommonJSModule<TrustVCContextModule>("@trustvc/w3c-context");
+    return await loadCommonJSModule<TrustVCContextModule>(modulePath);
   } catch (error) {
-    console.error("TrustVC W3C context load failed", error);
-    throw new Error(getStaticDeploymentDIDMessage(error));
+    console.error("[trustvc-import-failure]", {
+      modulePath,
+      error,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      dependencyChain: ["lib/trustvc.ts", modulePath],
+    });
+    throw error;
   }
 }
 
@@ -673,6 +682,13 @@ export function getDIDKeyPairFromEnv(): PrivateKeyPair | null {
   const publicKeyMultibase =
     process.env.DID_PUBLIC_KEY_MULTIBASE || process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE;
   const secretKeyMultibase = process.env.DID_PRIVATE_KEY_MULTIBASE;
+
+  console.log("[did-config]", {
+    hasKeyId: Boolean(id),
+    hasController: Boolean(controller),
+    hasPublicKey: Boolean(publicKeyMultibase),
+    hasPrivateKey: Boolean(secretKeyMultibase),
+  });
 
   if (!id || !controller || !publicKeyMultibase || !secretKeyMultibase) {
     return null;
