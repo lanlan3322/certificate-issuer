@@ -25,8 +25,39 @@ type PrivateKeyPair = {
 
 type TrustVCModule = Pick<
   typeof import("@trustvc/trustvc"),
-  "signW3C" | "verifyDocument" | "isValid" | "issuer"
+  "verifyDocument" | "isValid"
 >;
+
+type EcdsaSigningResult = {
+  signed?: Record<string, unknown>;
+  error?: string;
+};
+
+type EcdsaMultikeyModule = {
+  from(keyPair: Record<string, unknown>): Promise<{ signer(): unknown }>;
+};
+
+type EcdsaSd2023CryptosuiteModule = {
+  createSignCryptosuite(options: { mandatoryPointers: string[] }): unknown;
+};
+
+type DataIntegrityModule = {
+  DataIntegrityProof: new (options: { signer: unknown; cryptosuite: unknown }) => unknown;
+};
+
+type JsonLdSignaturesRuntime = {
+  sign(
+    credential: Record<string, unknown>,
+    options: { suite: unknown; purpose: unknown; documentLoader: unknown }
+  ): Promise<unknown>;
+  purposes: {
+    AssertionProofPurpose: new () => unknown;
+  };
+};
+
+type JsonLdSignaturesModule =
+  | JsonLdSignaturesRuntime
+  | { default: JsonLdSignaturesRuntime };
 
 // Minimal ABI for the OpenAttestation DocumentStore `issue` function.
 // This avoids importing the full @trustvc/trustvc package (which pulls in
@@ -89,12 +120,86 @@ async function loadCommonJSModule<T>(modulePath: string): Promise<T> {
   return moduleRequire(modulePath) as T;
 }
 
+async function loadESModule<T>(modulePath: string): Promise<T> {
+  return (await new Function("modulePath", "return import(modulePath);")(
+    modulePath
+  )) as T;
+}
+
 async function loadTrustVCModules(): Promise<TrustVCModule> {
   return loadCommonJSModule<TrustVCModule>("@trustvc/trustvc");
 }
 
 async function loadTrustVCContext(): Promise<TrustVCContextModule> {
   return loadCommonJSModule<TrustVCContextModule>("@trustvc/w3c-context");
+}
+
+async function signCredentialWithEcdsaSd2023(
+  credential: Record<string, unknown>,
+  keyPair: PrivateKeyPair,
+  options?: { mandatoryPointers?: string[] }
+): Promise<EcdsaSigningResult> {
+  try {
+    if (!keyPair.controller) {
+      throw new Error('"controller" property in keyPair is required.');
+    }
+    if (!keyPair.id) {
+      throw new Error('"id" property in keyPair is required.');
+    }
+    if (!keyPair.secretKeyMultibase) {
+      throw new Error('"secretKeyMultibase" property in keyPair is required.');
+    }
+    if (!keyPair.publicKeyMultibase) {
+      throw new Error('"publicKeyMultibase" property in keyPair is required.');
+    }
+    if (credential.proof) {
+      throw new Error('"proof" property is already there.');
+    }
+
+    const [
+      ecdsaMultikey,
+      ecdsaSd2023Cryptosuite,
+      dataIntegrity,
+      jsonldSignaturesModule,
+    ] = await Promise.all([
+      loadESModule<EcdsaMultikeyModule>("@digitalbazaar/ecdsa-multikey"),
+      loadESModule<EcdsaSd2023CryptosuiteModule>(
+        "@digitalbazaar/ecdsa-sd-2023-cryptosuite"
+      ),
+      loadESModule<DataIntegrityModule>("@digitalbazaar/data-integrity"),
+      loadESModule<JsonLdSignaturesModule>("jsonld-signatures"),
+    ]);
+    const jsonldSignatures =
+      "default" in jsonldSignaturesModule
+        ? jsonldSignaturesModule.default
+        : jsonldSignaturesModule;
+    const documentLoader = await createTrustVCDocumentLoader();
+    const signingCredential = await prefillEcdsaSdCredentialId(credential);
+    const mandatoryPointers = getEcdsaSdMandatoryPointers(
+      signingCredential,
+      options?.mandatoryPointers ?? []
+    );
+    const keyPairInstance = await ecdsaMultikey.from({ ...keyPair });
+    const cryptosuite = ecdsaSd2023Cryptosuite.createSignCryptosuite({
+      mandatoryPointers,
+    });
+    const suite = new dataIntegrity.DataIntegrityProof({
+      signer: keyPairInstance.signer(),
+      cryptosuite,
+    });
+    const { AssertionProofPurpose } = jsonldSignatures.purposes;
+    const signed = await jsonldSignatures.sign(signingCredential, {
+      suite,
+      purpose: new AssertionProofPurpose(),
+      documentLoader,
+    });
+
+    return { signed: signed as Record<string, unknown> };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "An error occurred while signing the credential.",
+    };
+  }
 }
 
 // Certificate data structure
@@ -586,6 +691,69 @@ function getMandatoryCredentialPointers(document: Record<string, unknown>): stri
   return [...pointers];
 }
 
+async function prefillEcdsaSdCredentialId(
+  credential: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const { randomUUID, createHash } = await import("crypto");
+  const signingCredential = { ...credential };
+  const type = signingCredential.type;
+  const credentialTypes = Array.isArray(type) ? type : [type];
+  const isStatusListCredential = credentialTypes.some(
+    (entry) => entry === "BitstringStatusListCredential" || entry === "StatusList2021Credential"
+  );
+
+  if (!(signingCredential.id && isStatusListCredential)) {
+    signingCredential.id = `urn:uuid:${randomUUID()}`;
+  }
+
+  const credentialStatus = signingCredential.credentialStatus;
+  if (
+    credentialStatus &&
+    typeof credentialStatus === "object" &&
+    !Array.isArray(credentialStatus) &&
+    (credentialStatus as Record<string, unknown>).type === "TransferableRecords"
+  ) {
+    signingCredential.credentialStatus = {
+      ...(credentialStatus as Record<string, unknown>),
+      tokenId: createHash("sha256").update(String(signingCredential.id)).digest("hex"),
+    };
+  }
+
+  return signingCredential;
+}
+
+function getEcdsaSdMandatoryPointers(
+  credential: Record<string, unknown>,
+  userMandatoryPointers: string[]
+): string[] {
+  const contexts = credential["@context"];
+  const firstContext = Array.isArray(contexts) ? contexts[0] : contexts;
+  const coreMandatoryPointers = ["/issuer"];
+
+  if (firstContext === "https://www.w3.org/ns/credentials/v2") {
+    if (credential.validFrom) {
+      coreMandatoryPointers.push("/validFrom");
+    }
+    if (credential.validUntil) {
+      coreMandatoryPointers.push("/validUntil");
+    }
+  } else {
+    coreMandatoryPointers.push("/issuanceDate");
+    if (credential.expirationDate) {
+      coreMandatoryPointers.push("/expirationDate");
+    }
+  }
+
+  if (credential.credentialStatus) {
+    coreMandatoryPointers.push("/credentialStatus");
+  }
+
+  return [
+    ...coreMandatoryPointers,
+    ...userMandatoryPointers.filter((pointer) => !coreMandatoryPointers.includes(pointer)),
+  ];
+}
+
 function resolveProvider(
   providerOrSender: ethers.providers.Provider | ethers.Signer
 ): ethers.providers.Provider | null {
@@ -789,13 +957,9 @@ export async function signDocumentWithDID(
   const unsignedCredential = stripExistingProof(credential);
 
   try {
-    const { signW3C, issuer } = await loadTrustVCModules();
-    const result = await signW3C(
-      unsignedCredential as Parameters<typeof signW3C>[0],
-      keyPair as Parameters<typeof signW3C>[1],
-      issuer.CryptoSuite.EcdsaSd2023,
-      { mandatoryPointers: getMandatoryCredentialPointers(unsignedCredential) }
-    );
+    const result = await signCredentialWithEcdsaSd2023(unsignedCredential, keyPair, {
+      mandatoryPointers: getMandatoryCredentialPointers(unsignedCredential),
+    });
     if (result.error) {
       return { credential: unsignedCredential, signed: false, error: result.error };
     }
@@ -848,13 +1012,9 @@ export async function issueDIDCertificate(
   }
 
   try {
-    const { signW3C, issuer } = await loadTrustVCModules();
-    const result = await signW3C(
-      credential as Parameters<typeof signW3C>[0],
-      keyPair as Parameters<typeof signW3C>[1],
-      issuer.CryptoSuite.EcdsaSd2023,
-      { mandatoryPointers: getMandatoryCredentialPointers(credential) }
-    );
+    const result = await signCredentialWithEcdsaSd2023(credential, keyPair, {
+      mandatoryPointers: getMandatoryCredentialPointers(credential),
+    });
     if (result.error) {
       return { credential, signed: false, error: result.error };
     }

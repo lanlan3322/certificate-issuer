@@ -8,14 +8,17 @@
     "build:github-pages": "DEPLOY_TARGET=github-pages next build",
     "start": "next start",
     "lint": "next lint",
-    "build:vercel": "DEPLOY_TARGET=vercel next build",
-    "postinstall": "node scripts/patch-trustvc-cjs.js"
+    "build:vercel": "DEPLOY_TARGET=vercel next build"
   },
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",
+    "@digitalbazaar/data-integrity": "^2.5.0",
+    "@digitalbazaar/ecdsa-multikey": "^1.8.0",
+    "@digitalbazaar/ecdsa-sd-2023-cryptosuite": "^3.4.1",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
     "@trustvc/trustvc": "^2.15.2",
+    "@trustvc/w3c-context": "^2.4.0",
     "aes-js": "^3.0.0",
     "bech32": "^1.1.4",
     "bn.js": "^5.2.5",
@@ -23,6 +26,7 @@
     "elliptic": "^6.6.1",
     "ethers": "^5.8.0",
     "html2canvas": "^1.4.1",
+    "jsonld-signatures": "^11.6.0",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.400.0",
