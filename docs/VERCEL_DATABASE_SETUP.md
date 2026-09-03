@@ -23,6 +23,14 @@ Never use `NEXT_PUBLIC_` for database URLs, Supabase service-role keys, or AI pr
 
 Issuer login requires the Vercel server runtime and database migration `002_issuer_auth.sql`. Password reset requests use Supabase Auth's built-in email delivery via `resetPasswordForEmail` and redirect users back through `/auth/callback`. Add `https://your-project.vercel.app/auth/callback` to the Supabase Auth redirect URL allowlist. Password reset responses remain generic to prevent account enumeration.
 
+Configure the Supabase password recovery email template to use a token hash link instead of the default PKCE confirmation URL:
+
+```html
+<a href="{{ .SiteURL }}/auth/callback?mode=reset&token_hash={{ .TokenHash }}&type=recovery">Reset password</a>
+```
+
+The application callback verifies this link with `verifyOtp({ token_hash, type: "recovery" })`. It intentionally does not call `exchangeCodeForSession()` for password resets because PKCE auth-code links require browser-local code verifier storage and fail when the email is opened without that verifier.
+
 ## 3. Run migrations
 
 Use the Supabase SQL Editor or Supabase CLI to apply each migration in numeric order. Vercel builds run in an ephemeral sandbox and should not apply migrations.

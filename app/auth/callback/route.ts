@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "../../../lib/supabase/server";
-import type { AuthResponse, EmailOtpType } from "@supabase/supabase-js";
+import type { EmailOtpType } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,13 +15,13 @@ function authCallbackLog(message: string, details?: Record<string, unknown>) {
 }
 
 /**
- * Establishes a Supabase session from email links. Supabase may return either
- * an auth code or an email OTP token hash depending on the configured template.
+ * Establishes a Supabase password-recovery session from an email token hash.
+ * Do not exchange PKCE auth codes here; password recovery links must not depend
+ * on browser-local code verifier storage.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const flowId = url.searchParams.get("sb_flow_id");
   const tokenHash = url.searchParams.get("token_hash") ?? url.searchParams.get("token");
   const type = url.searchParams.get("type") as EmailOtpType | null;
   const mode = url.searchParams.get("mode") ?? "reset";
@@ -33,31 +33,28 @@ export async function GET(request: Request) {
     type,
     hasCode: Boolean(code),
     hasTokenHash: Boolean(tokenHash),
-    hasFlowId: Boolean(flowId),
     code: redacted(code),
     tokenHash: redacted(tokenHash),
-    flowId: redacted(flowId),
   });
 
-  if (!code && !tokenHash) {
-    authCallbackLog("missing code or token hash", { mode, type });
+  if (code) {
+    authCallbackLog("pkce auth code rejected for password recovery", {
+      mode,
+      type,
+      reason: "Password reset must use token_hash/token and verifyOtp, not exchangeCodeForSession.",
+    });
+    return NextResponse.redirect(new URL("/issuer/?error=pkce_recovery_link", url.origin));
+  }
+
+  if (!tokenHash) {
+    authCallbackLog("missing recovery token hash", { mode, type });
     return NextResponse.redirect(new URL("/issuer/?error=missing_code", url.origin));
   }
 
   const supabase = await getSupabaseServerClient();
-  let authResult: AuthResponse;
-  if (tokenHash) {
-    authResult = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type ?? "recovery" });
-  } else {
-    if (!code) {
-      authCallbackLog("missing auth code in exchange branch", { mode, type });
-      return NextResponse.redirect(new URL("/issuer/?error=missing_code", url.origin));
-    }
-    authResult = await supabase.auth.exchangeCodeForSession(code, flowId ? { flowId } : undefined);
-  }
-  const { data, error } = authResult;
+  const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type ?? "recovery" });
 
-  authCallbackLog(tokenHash ? "verifyOtp response" : "exchangeCodeForSession response", {
+  authCallbackLog("verifyOtp response", {
     type: type ?? null,
     hasSession: Boolean(data.session),
     userId: data.user?.id ?? null,

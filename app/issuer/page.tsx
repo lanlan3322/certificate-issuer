@@ -43,6 +43,7 @@ export default function IssuerPortalPage() {
     }
     if (params.get("error") === "invalid_link") setError("That reset link is invalid or has expired.");
     if (params.get("error") === "missing_code") setError("That reset link is missing the recovery token.");
+    if (params.get("error") === "pkce_recovery_link") setError("That reset link uses an unsupported PKCE code. Request a new reset email after the recovery email template is updated.");
     void loadSession().catch(() => undefined);
   }, []);
 
