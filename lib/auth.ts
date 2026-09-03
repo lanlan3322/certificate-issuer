@@ -77,6 +77,10 @@ async function deliverPasswordReset(input: { email: string; resetUrl: string }) 
   }
 }
 
+function passwordResetRedirectUrl(baseUrl: string) {
+  return `${baseUrl}/auth/callback?mode=reset`;
+}
+
 export async function loginIssuer(emailInput: string, password: string) {
   const email = normalizeEmail(emailInput);
   const supabase = await getSupabaseServerClient();
@@ -142,19 +146,28 @@ export async function logoutIssuer() {
 
 export async function requestPasswordReset(emailInput: string, baseUrl: string) {
   const email = normalizeEmail(emailInput);
+  const redirectTo = passwordResetRedirectUrl(baseUrl);
 
+  const webhookConfigured = Boolean(process.env.PASSWORD_RESET_WEBHOOK_URL);
+  if (!webhookConfigured && process.env.NODE_ENV === "production") {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) throw new PasswordResetDeliveryError(error.message);
+    return { resetToken: null };
+  }
+
+  // Always respond the same way so the endpoint cannot be used to enumerate
+  // registered accounts.
   const admin = getSupabaseAdmin();
   const link = await admin.auth.admin.generateLink({
     type: "recovery",
     email,
-    options: { redirectTo: `${baseUrl}/issuer/?mode=reset` },
+    options: { redirectTo },
   });
 
-  // Always respond the same way so the endpoint cannot be used to enumerate
-  // registered accounts.
   if (link.error || !link.data.properties?.action_link) return { resetToken: null };
 
-  await deliverPasswordReset({ email, resetUrl: link.data.properties.action_link });
+  if (webhookConfigured) await deliverPasswordReset({ email, resetUrl: link.data.properties.action_link });
   return {
     resetToken: process.env.NODE_ENV === "production" ? null : link.data.properties.action_link,
   };

@@ -36,9 +36,10 @@ SUPABASE_SERVICE_ROLE_KEY=...
 Optional:
 
 ```env
+PASSWORD_RESET_BASE_URL=https://your-project.vercel.app
+# Optional custom Resend sender. If omitted, Supabase Auth sends reset emails.
 PASSWORD_RESET_WEBHOOK_URL=https://your-project.vercel.app/api/email/password-reset
 PASSWORD_RESET_WEBHOOK_SECRET=...
-PASSWORD_RESET_BASE_URL=https://your-project.vercel.app
 RESEND_API_KEY=re_...
 PASSWORD_RESET_FROM="Verifiable <no-reply@your-domain.example>"
 AGENT_PROVIDER=openai
@@ -75,7 +76,7 @@ database/migrations/005_remove_self_registration.sql
 curl -i https://your-project.vercel.app/api/health/supabase
 ```
 
-6. Register a test issuer, log in, create a reset request, and verify that the configured webhook receives the reset event.
+6. Register a test issuer, log in, create a reset request, and verify that either Supabase Auth sends the reset email or the configured webhook receives the reset event.
 
 ## API endpoints
 
@@ -99,6 +100,6 @@ All server logic is served by Next.js App Router route handlers under `app/api`.
 
 - `503 Supabase unavailable`: check the Supabase URL, service-role key, and migration state.
 - Auth route fails during static export: use the Vercel build, not `build:github-pages`.
-- Reset email not delivered: check webhook URL, bearer secret, webhook response status, and the Vercel function logs under **Deployments → Runtime Logs**.
+- Reset email not delivered: if `PASSWORD_RESET_WEBHOOK_URL` is unset, check Supabase Auth email settings and allowlist `https://your-project.vercel.app/auth/callback`; if it is set, check webhook URL, bearer secret, webhook response status, and the Vercel function logs under **Deployments → Runtime Logs**.
 - Do not set `PASSWORD_RESET_WEBHOOK_URL` to `/api/auth/reset-request`; that route creates reset tokens and is not an email sender. Use an external email webhook or an email provider endpoint.
 - AI falls back to local responses: check `AGENT_PROVIDER` and server-only provider credentials.

@@ -17,7 +17,7 @@
 | `OPENAI_API_KEY` | Provider dependent | Server-only OpenAI-compatible key. |
 | `AZURE_OPENAI_API_KEY` | Provider dependent | Azure key; wire a dedicated Azure adapter before enabling. |
 | `AGENT_MODEL` | No | LLM model name. Default: `gpt-4o-mini`. |
-| `PASSWORD_RESET_WEBHOOK_URL` | Recommended | Server-side email delivery webhook for issuer password reset links. |
+| `PASSWORD_RESET_WEBHOOK_URL` | Optional | Custom server-side email delivery webhook for issuer password reset links. If omitted in production, Supabase Auth sends the reset email. |
 | `PASSWORD_RESET_BASE_URL` | Optional | Overrides the public URL inferred from the reset request when constructing reset links. |
 | `PASSWORD_RESET_WEBHOOK_SECRET` | Optional | Bearer token sent to the reset webhook for authenticating delivery requests. |
 
@@ -27,7 +27,7 @@ The webhook receives a JSON `POST` body:
 {
 	"event": "issuer.password_reset_requested",
 	"email": "issuer@example.com",
-	"resetUrl": "https://your-project.vercel.app/issuer?mode=reset&token=...",
+	"resetUrl": "https://your-project.supabase.co/auth/v1/verify?...",
 	"expiresInMinutes": 30,
 	"requestedAt": "2026-08-17T12:00:00.000Z"
 }
@@ -37,9 +37,11 @@ It must return a `2xx` response. The request includes `Authorization: Bearer <PA
 
 Do not use this project&apos;s own `/api/auth/reset-request` URL as the webhook URL. That route processes reset requests; it does not send email and would recursively call itself. Configure an external email webhook instead.
 
+When using this project's internal Resend sender route (`/api/email/password-reset`), set `PASSWORD_RESET_WEBHOOK_SECRET`; the route rejects unauthenticated delivery requests.
+
 Never use `NEXT_PUBLIC_` for database URLs, Supabase service-role keys, or AI provider keys — those values are inlined into the browser bundle.
 
-Issuer login requires the Vercel server runtime and database migration `002_issuer_auth.sql`. Password reset requests are generic to prevent account enumeration. In production, configure `PASSWORD_RESET_WEBHOOK_URL` to deliver the generated reset link through an approved email provider; reset tokens are never returned to the browser in production. In local development, the API returns a development token to make the flow testable without an email provider.
+Issuer login requires the Vercel server runtime and database migration `002_issuer_auth.sql`. Password reset requests are generic to prevent account enumeration. In production, either configure `PASSWORD_RESET_WEBHOOK_URL` to deliver the generated reset link through an approved email provider or leave it unset to use Supabase Auth email delivery. Reset tokens are never returned to the browser in production. In local development, the API returns a development token to make the flow testable without an email provider.
 
 ## 3. Run migrations
 
