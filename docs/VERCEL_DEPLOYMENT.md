@@ -36,7 +36,8 @@ SUPABASE_SERVICE_ROLE_KEY=...
 Optional:
 
 ```env
-PASSWORD_RESET_BASE_URL=https://your-project.vercel.app
+# Optional for non-production local/preview testing. Production uses the request origin.
+PASSWORD_RESET_BASE_URL=https://preview-or-local.example
 AGENT_PROVIDER=openai
 OPENAI_API_KEY=...
 AGENT_MODEL=gpt-4o-mini
@@ -96,5 +97,5 @@ All server logic is served by Next.js App Router route handlers under `app/api`.
 - `503 Supabase unavailable`: check the Supabase URL, service-role key, and migration state.
 - Auth route fails during static export: use the Vercel build, not `build:github-pages`.
 - Reset email not delivered: check Supabase Auth email settings and allowlist `https://www.verifiable.sg/auth/recovery`.
-- Reset link reports an unsupported PKCE code: update the Supabase password recovery email template to link to `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=recovery` instead of using the default confirmation URL.
+- Reset link reports an unsupported PKCE code: update the Supabase password recovery email template to link to `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery` instead of using the default confirmation URL.
 - AI falls back to local responses: check `AGENT_PROVIDER` and server-only provider credentials.

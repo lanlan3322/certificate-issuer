@@ -13,7 +13,7 @@
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Browser-safe key used for issuer sessions. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-only key used for rate limiting. |
-| `PASSWORD_RESET_BASE_URL` | Optional | Overrides the public URL inferred from the reset request when constructing the Supabase Auth redirect URL. |
+| `PASSWORD_RESET_BASE_URL` | Optional | Non-production override for the public URL used when constructing the Supabase Auth redirect URL. Production uses the incoming request origin. |
 | `AGENT_PROVIDER` | No | `openai`, `azure-openai`, `copilot-studio`, or omit for local assistant. |
 | `OPENAI_API_KEY` | Provider dependent | Server-only OpenAI-compatible key. |
 | `AZURE_OPENAI_API_KEY` | Provider dependent | Azure key; wire a dedicated Azure adapter before enabling. |
@@ -21,12 +21,12 @@
 
 Never use `NEXT_PUBLIC_` for database URLs, Supabase service-role keys, or AI provider keys; those values are inlined into the browser bundle.
 
-Issuer login requires the Vercel server runtime and database migration `002_issuer_auth.sql`. Password reset requests use Supabase Auth's built-in email delivery via `resetPasswordForEmail` and redirect users back through `/auth/recovery`. For production, set `PASSWORD_RESET_BASE_URL=https://www.verifiable.sg` or ensure reset requests originate from that host, and add `https://www.verifiable.sg/auth/recovery` to the Supabase Auth redirect URL allowlist. Password reset responses remain generic to prevent account enumeration.
+Issuer login requires the Vercel server runtime and database migration `002_issuer_auth.sql`. Password reset requests use Supabase Auth's built-in email delivery via `resetPasswordForEmail` and redirect users back through `/auth/recovery`. For production, send reset requests from `https://www.verifiable.sg` and add `https://www.verifiable.sg/auth/recovery` to the Supabase Auth redirect URL allowlist. Password reset responses remain generic to prevent account enumeration.
 
 Configure the Supabase password recovery email template to use a token hash link instead of the default PKCE confirmation URL:
 
 ```html
-<a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=recovery">Reset password</a>
+<a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery">Reset password</a>
 ```
 
 The dedicated recovery callback verifies this link with `verifyOtp({ token_hash, type: "recovery" })`. It intentionally does not call `exchangeCodeForSession()` for password resets because PKCE auth-code links require browser-local code verifier storage and fail when the email is opened without that verifier.

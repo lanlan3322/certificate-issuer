@@ -126,7 +126,7 @@ export async function enforceRateLimit(bucket: string, identifier: string, limit
 }
 
 function passwordResetRedirectUrl(baseUrl: string) {
-  return `${baseUrl}/auth/recovery?mode=reset`;
+  return `${baseUrl}/auth/recovery`;
 }
 
 export async function loginIssuer(emailInput: string, password: string) {
