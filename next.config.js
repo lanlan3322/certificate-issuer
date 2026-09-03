@@ -18,13 +18,18 @@ const stubbedModules = [
   "rdf-canonize-native",
 ];
 
+
 const nextConfig = {
   // Vercel runs the Next.js server runtime for auth, PostgreSQL, and API routes.
   basePath,
   assetPrefix: basePath ? `${basePath}/` : undefined,
   images: { unoptimized: true },
   trailingSlash: true,
-  env: {
+  serverExternalPackages: [
+    "@trustvc/trustvc",
+    "@trustvc/w3c-context",
+  ],
+    env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
   },
   turbopack: {
