@@ -11,6 +11,7 @@
     "build:vercel": "DEPLOY_TARGET=vercel next build"
   },
   "dependencies": {
+    "@adraffy/ens-normalize": "^1.11.1",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
     "@trustvc/trustvc": "^2.15.2",
