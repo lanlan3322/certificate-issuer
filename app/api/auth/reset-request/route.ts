@@ -14,10 +14,9 @@ export async function POST(request: Request) {
 
     const configuredBaseUrl = process.env.PASSWORD_RESET_BASE_URL?.replace(/\/$/, "");
     const baseUrl = configuredBaseUrl ?? new URL(request.url).origin;
-    const result = await requestPasswordReset(body.email, baseUrl);
+    await requestPasswordReset(body.email, baseUrl);
     return NextResponse.json({
       message: "If the email is registered, reset instructions have been created.",
-      developmentToken: result.resetToken,
     });
   } catch (error) {
     return errorResponse(error, "Unable to create reset request.");

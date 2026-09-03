@@ -42,41 +42,6 @@ export async function enforceRateLimit(bucket: string, identifier: string, limit
   }
 }
 
-async function deliverPasswordReset(input: { email: string; resetUrl: string }) {
-  const webhookUrl = process.env.PASSWORD_RESET_WEBHOOK_URL;
-  if (!webhookUrl) return;
-
-  if (/\/api\/auth\/reset(-request)?\/?$/i.test(webhookUrl)) {
-    throw new PasswordResetDeliveryError(
-      "PASSWORD_RESET_WEBHOOK_URL cannot point to this project's password-reset route. Configure an external email webhook that sends the resetUrl."
-    );
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8_000);
-  try {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (process.env.PASSWORD_RESET_WEBHOOK_SECRET) {
-      headers.Authorization = `Bearer ${process.env.PASSWORD_RESET_WEBHOOK_SECRET}`;
-    }
-    const response = await fetch(webhookUrl, {
-      method: "POST",
-      headers,
-      signal: controller.signal,
-      body: JSON.stringify({
-        event: "issuer.password_reset_requested",
-        email: input.email,
-        resetUrl: input.resetUrl,
-        expiresInMinutes: 30,
-        requestedAt: new Date().toISOString(),
-      }),
-    });
-    if (!response.ok) throw new PasswordResetDeliveryError(`Password reset email service returned HTTP ${response.status}.`);
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
 function passwordResetRedirectUrl(baseUrl: string) {
   return `${baseUrl}/auth/callback?mode=reset`;
 }
@@ -148,29 +113,9 @@ export async function requestPasswordReset(emailInput: string, baseUrl: string) 
   const email = normalizeEmail(emailInput);
   const redirectTo = passwordResetRedirectUrl(baseUrl);
 
-  const webhookConfigured = Boolean(process.env.PASSWORD_RESET_WEBHOOK_URL);
-  if (!webhookConfigured && process.env.NODE_ENV === "production") {
-    const supabase = await getSupabaseServerClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-    if (error) throw new PasswordResetDeliveryError(error.message);
-    return { resetToken: null };
-  }
-
-  // Always respond the same way so the endpoint cannot be used to enumerate
-  // registered accounts.
-  const admin = getSupabaseAdmin();
-  const link = await admin.auth.admin.generateLink({
-    type: "recovery",
-    email,
-    options: { redirectTo },
-  });
-
-  if (link.error || !link.data.properties?.action_link) return { resetToken: null };
-
-  if (webhookConfigured) await deliverPasswordReset({ email, resetUrl: link.data.properties.action_link });
-  return {
-    resetToken: process.env.NODE_ENV === "production" ? null : link.data.properties.action_link,
-  };
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw new PasswordResetDeliveryError(error.message);
 }
 
 /**

@@ -52,7 +52,7 @@ export default function IssuerPortalPage() {
       const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/reset-request";
       const body = mode === "login" ? { email, password } : { email };
       const response = await fetch(withBasePath(endpoint), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const payload = await response.json() as { error?: string; user?: User; message?: string; developmentToken?: string | null };
+      const payload = await response.json() as { error?: string; user?: User; message?: string };
       if (!response.ok) throw new Error(payload.error ?? "Request failed.");
       if (mode === "login") {
         setUser(payload.user ?? null);
@@ -61,7 +61,7 @@ export default function IssuerPortalPage() {
         const nextPath = new URLSearchParams(window.location.search).get("next");
         router.push(nextPath?.startsWith("/") ? nextPath : "/issuer/");
       }
-      else { setMessage(payload.message ?? "If the email is registered, reset instructions have been created."); if (payload.developmentToken) setRecoverySession(true); }
+      else { setMessage(payload.message ?? "If the email is registered, reset instructions have been created."); }
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Request failed."); }
     finally { setLoading(false); }
   };
