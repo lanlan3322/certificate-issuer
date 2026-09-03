@@ -8,7 +8,8 @@
     "build:github-pages": "DEPLOY_TARGET=github-pages next build",
     "start": "next start",
     "lint": "next lint",
-    "build:vercel": "DEPLOY_TARGET=vercel next build"
+    "build:vercel": "DEPLOY_TARGET=vercel next build",
+    "postinstall": "node scripts/patch-trustvc-cjs.js"
   },
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",
