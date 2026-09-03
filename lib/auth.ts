@@ -24,6 +24,10 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+function authLog(message: string, details?: Record<string, unknown>) {
+  console.info(`[auth] ${message}`, details ?? {});
+}
+
 /**
  * Fixed-window limiter backed by Postgres. Prevents credential stuffing and
  * unthrottled organization creation on the public auth routes.
@@ -114,7 +118,17 @@ export async function requestPasswordReset(emailInput: string, baseUrl: string) 
   const redirectTo = passwordResetRedirectUrl(baseUrl);
 
   const supabase = await getSupabaseServerClient();
+  authLog("requesting password reset email", {
+    emailDomain: email.split("@")[1] ?? null,
+    redirectTo,
+  });
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  authLog("resetPasswordForEmail response", {
+    ok: !error,
+    errorName: error?.name ?? null,
+    errorMessage: error?.message ?? null,
+    errorStatus: error?.status ?? null,
+  });
   if (error) throw new PasswordResetDeliveryError(error.message);
 }
 
@@ -126,8 +140,22 @@ export async function resetPassword(password: string) {
   assertPassword(password);
   const supabase = await getSupabaseServerClient();
   const { data, error: sessionError } = await supabase.auth.getUser();
+  authLog("password reset session lookup", {
+    hasUser: Boolean(data.user),
+    userId: data.user?.id ?? null,
+    errorName: sessionError?.name ?? null,
+    errorMessage: sessionError?.message ?? null,
+    errorStatus: sessionError?.status ?? null,
+  });
   if (sessionError || !data.user) throw new Error("Reset link is invalid or expired.");
 
   const { error } = await supabase.auth.updateUser({ password });
+  authLog("updateUser password response", {
+    ok: !error,
+    userId: data.user.id,
+    errorName: error?.name ?? null,
+    errorMessage: error?.message ?? null,
+    errorStatus: error?.status ?? null,
+  });
   if (error) throw new Error(error.message);
 }
