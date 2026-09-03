@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     if (!body.email) return NextResponse.json({ error: "Registered email is required." }, { status: 400 });
 
     const ip = clientIp(request);
-    const resetLimit = isProductionRuntime() ? 50 : 50;
+    const resetLimit = isProductionRuntime() ? 5 : 50;
     console.info("[auth] reset password rate-limit request", {
       ip,
       limit: resetLimit,

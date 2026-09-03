@@ -44,6 +44,7 @@ const nextConfig = {
       "./node_modules/ethers/**/*",
       "./node_modules/ethersV6/**/*",
       "./node_modules/@ethersproject/**/*",
+      "./node_modules/bn.js/**/*",
     ],
     "/api/verify": [
       "./node_modules/@trustvc/**/*",
@@ -59,6 +60,7 @@ const nextConfig = {
       "./node_modules/ethers/**/*",
       "./node_modules/ethersV6/**/*",
       "./node_modules/@ethersproject/**/*",
+      "./node_modules/bn.js/**/*",
     ],
     "/api/debug-trustvc": [
       "./node_modules/@trustvc/**/*",
@@ -74,6 +76,7 @@ const nextConfig = {
       "./node_modules/ethers/**/*",
       "./node_modules/ethersV6/**/*",
       "./node_modules/@ethersproject/**/*",
+      "./node_modules/bn.js/**/*",
     ],
   },
   env: {
