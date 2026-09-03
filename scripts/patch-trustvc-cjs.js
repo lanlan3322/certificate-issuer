@@ -7,7 +7,8 @@ function replaceOnce(filePath, search, replacement) {
     if (source.includes(replacement)) {
       return false;
     }
-    throw new Error(`Patch target not found in ${filePath}`);
+    console.warn(`Patch target not found in ${filePath}; skipping obsolete TrustVC patch.`);
+    return false;
   }
   fs.writeFileSync(filePath, source.replace(search, replacement));
   return true;
@@ -19,7 +20,8 @@ function replaceEvery(filePath, search, replacement) {
     if (source.includes(replacement)) {
       return false;
     }
-    throw new Error(`Patch target not found in ${filePath}`);
+    console.warn(`Patch target not found in ${filePath}; skipping obsolete TrustVC patch.`);
+    return false;
   }
   fs.writeFileSync(filePath, source.split(search).join(replacement));
   return true;
