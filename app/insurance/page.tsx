@@ -30,7 +30,6 @@ import {
   generateCertificateId,
   buildVCPayload,
   issueCertificateToEthereum,
-  issueDIDCertificate,
   signCredentialWithEthereum,
   type DIDIssuanceResult,
   type EthereumIssuanceResult,

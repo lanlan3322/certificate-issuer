@@ -22,7 +22,6 @@ import {
   CertificateData,
   generateCertificateId,
   buildVCPayload,
-  issueDIDCertificate,
 } from "../lib/trustvc";
 import {
   getISODateString,

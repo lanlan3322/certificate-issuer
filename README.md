@@ -239,7 +239,7 @@ TrustVC is an open-source framework managed by IMDA for issuing and verifying W3
 ### Key Functions Used
 
 ```typescript
-import { signW3C } from '@trustvc/trustvc/w3c';
+import { signW3C } from '@trustvc/trustvc';
 
 // Sign a credential (requires configured key pair via NEXT_PUBLIC_DID_* env vars)
 const result = await signW3C(credential, keyPair);

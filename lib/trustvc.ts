@@ -2,7 +2,6 @@
 // Uses @trustvc/trustvc for W3C Verifiable Credentials.
 // The TrustVC crypto SDK is imported lazily so the browser bundle does not
 // pull in Node-only dependencies or expose signing keys to the client.
-import type { PrivateKeyPair } from "@trustvc/trustvc/w3c";
 import { ethers } from "ethers";
 import {
   DEFAULT_ISSUING_METHODS,
@@ -13,8 +12,21 @@ import {
   NETWORKS,
 } from "./constants";
 
-type TrustVCW3CModule = typeof import("@trustvc/trustvc/w3c");
 type TrustVCContextModule = typeof import("@trustvc/w3c-context");
+
+type PrivateKeyPair = {
+  "@context"?: string;
+  id: string;
+  type: "Multikey";
+  controller: string;
+  publicKeyMultibase: string;
+  secretKeyMultibase: string;
+};
+
+type TrustVCModule = Pick<
+  typeof import("@trustvc/trustvc"),
+  "signW3C" | "verifyDocument" | "isValid" | "issuer"
+>;
 
 // Minimal ABI for the OpenAttestation DocumentStore `issue` function.
 // This avoids importing the full @trustvc/trustvc package (which pulls in
@@ -77,42 +89,12 @@ async function loadCommonJSModule<T>(modulePath: string): Promise<T> {
   return moduleRequire(modulePath) as T;
 }
 
-async function loadTrustVCModules(): Promise<TrustVCW3CModule> {
-  const modulePath = "@trustvc/trustvc/w3c";
-  try {
-    return await loadCommonJSModule<TrustVCW3CModule>(modulePath);
-  } catch (error) {
-    console.error("[trustvc-import-failure]", {
-      modulePath,
-      error,
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      dependencyChain: [
-        "lib/trustvc.ts",
-        modulePath,
-        "@trustvc/w3c",
-        "@trustvc/w3c-vc",
-        "@trustvc/w3c-context",
-      ],
-    });
-    throw error;
-  }
+async function loadTrustVCModules(): Promise<TrustVCModule> {
+  return loadCommonJSModule<TrustVCModule>("@trustvc/trustvc");
 }
 
 async function loadTrustVCContext(): Promise<TrustVCContextModule> {
-  const modulePath = "@trustvc/w3c-context";
-  try {
-    return await loadCommonJSModule<TrustVCContextModule>(modulePath);
-  } catch (error) {
-    console.error("[trustvc-import-failure]", {
-      modulePath,
-      error,
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      dependencyChain: ["lib/trustvc.ts", modulePath],
-    });
-    throw error;
-  }
+  return loadCommonJSModule<TrustVCContextModule>("@trustvc/w3c-context");
 }
 
 // Certificate data structure
@@ -167,7 +149,6 @@ export function buildVCPayload(data: CertificateData) {
       OPEN_ATTESTATION_CONTEXT,
     ],
     type: ["VerifiableCredential", "OpenAttestationCredential"],
-    issuanceDate: data.issueDate,
     validFrom: data.validFrom,
     ...(data.validUntil ? { validUntil: data.validUntil } : {}),
     credentialSubject: {
@@ -325,18 +306,25 @@ export async function verifyCredential(
 
     const verificationInput = stripUnsupportedCredentialStatus(document);
 
-    const { verifyW3CSignature } = await loadTrustVCModules();
+    const { verifyDocument, isValid } = await loadTrustVCModules();
     const documentLoader = await createTrustVCDocumentLoader();
 
-    const verificationResult = await verifyW3CSignature(
-      verificationInput as Parameters<typeof verifyW3CSignature>[0],
-      { documentLoader }
+    const verificationFragments = await verifyDocument(
+      verificationInput as Parameters<typeof verifyDocument>[0],
+      {
+        rpcProviderUrl: NETWORKS.sepolia.rpcUrl,
+        documentLoader,
+      }
     );
+    const signatureAndIdentityValid = isValid(verificationFragments);
     const shouldFailIssuerIdentity = !isIssuerVerificationMethodMatch(document);
 
-    if (!verificationResult.verified || shouldFailIssuerIdentity) {
+    if (!signatureAndIdentityValid || shouldFailIssuerIdentity) {
+      const failingFragment = verificationFragments.find(
+        (fragment) => fragment.status === "INVALID" || fragment.status === "ERROR"
+      );
       const errorMsg =
-        verificationResult.error ??
+        getVerificationFragmentMessage(failingFragment) ??
         (shouldFailIssuerIdentity
           ? "Credential issuer does not match the proof verification method."
           : "Signature verification failed.");
@@ -351,6 +339,7 @@ export async function verifyCredential(
           credentialId: getCredentialIdentifier(document),
           cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
           verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
+          fragments: verificationFragments,
           credentialStatus:
             verificationInput === document ? "verified" : "skipped (placeholder status list)",
         },
@@ -373,6 +362,7 @@ export async function verifyCredential(
           credentialType: document["type"] as string[],
           cryptosuite: String(proof["cryptosuite"] ?? "unknown"),
           verificationMethod: String(proof["verificationMethod"] ?? "unknown"),
+          fragments: verificationFragments,
           credentialStatus:
             verificationInput === document ? "verified" : "skipped (placeholder status list)",
           blockchainVerification: "skipped",
@@ -560,6 +550,42 @@ function getCredentialIdentifier(document: Record<string, unknown>): string | un
   return undefined;
 }
 
+function getVerificationFragmentMessage(fragment: unknown): string | undefined {
+  if (!fragment || typeof fragment !== "object") {
+    return undefined;
+  }
+
+  const record = fragment as Record<string, unknown>;
+  const reason = record.reason;
+  const reasonMessage =
+    reason && typeof reason === "object"
+      ? (reason as Record<string, unknown>).message
+      : reason;
+
+  if (typeof reasonMessage === "string" && reasonMessage.trim()) {
+    return reasonMessage;
+  }
+
+  const name = typeof record.name === "string" ? record.name : "TradeTrust verifier";
+  const status = typeof record.status === "string" ? record.status : "failed";
+  return `${name} returned ${status}.`;
+}
+
+function getMandatoryCredentialPointers(document: Record<string, unknown>): string[] {
+  const pointers = new Set<string>(["/credentialSubject/certificateId", "/credentialSubject/name"]);
+  const credentialSubject = document.credentialSubject;
+
+  if (credentialSubject && typeof credentialSubject === "object") {
+    for (const key of Object.keys(credentialSubject)) {
+      if (["id", "certificateId", "name", "email", "certificateType"].includes(key)) {
+        pointers.add(`/credentialSubject/${key.replace(/~/g, "~0").replace(/\//g, "~1")}`);
+      }
+    }
+  }
+
+  return [...pointers];
+}
+
 function resolveProvider(
   providerOrSender: ethers.providers.Provider | ethers.Signer
 ): ethers.providers.Provider | null {
@@ -683,17 +709,11 @@ export function getDIDKeyPairFromEnv(): PrivateKeyPair | null {
     process.env.DID_PUBLIC_KEY_MULTIBASE || process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE;
   const secretKeyMultibase = process.env.DID_PRIVATE_KEY_MULTIBASE;
 
-  console.log("[did-config]", {
-    hasKeyId: Boolean(id),
-    hasController: Boolean(controller),
-    hasPublicKey: Boolean(publicKeyMultibase),
-    hasPrivateKey: Boolean(secretKeyMultibase),
-  });
-
   if (!id || !controller || !publicKeyMultibase || !secretKeyMultibase) {
     return null;
   }
   return {
+    "@context": "https://w3id.org/security/multikey/v1",
     id,
     type: "Multikey",
     controller,
@@ -758,6 +778,7 @@ export async function signDocumentWithDID(
   }
 
   const keyPair: PrivateKeyPair = {
+    "@context": "https://w3id.org/security/multikey/v1",
     id: id,
     type: "Multikey",
     controller: controller,
@@ -768,10 +789,12 @@ export async function signDocumentWithDID(
   const unsignedCredential = stripExistingProof(credential);
 
   try {
-    const { signW3C } = await loadTrustVCModules();
+    const { signW3C, issuer } = await loadTrustVCModules();
     const result = await signW3C(
       unsignedCredential as Parameters<typeof signW3C>[0],
-      keyPair
+      keyPair as Parameters<typeof signW3C>[1],
+      issuer.CryptoSuite.EcdsaSd2023,
+      { mandatoryPointers: getMandatoryCredentialPointers(unsignedCredential) }
     );
     if (result.error) {
       return { credential: unsignedCredential, signed: false, error: result.error };
@@ -784,15 +807,11 @@ export async function signDocumentWithDID(
       signed: true,
     };
   } catch (err) {
-    console.error("FULL SIGN ERROR");
-    console.error(err);
+    console.error("DID signing failed", err);
     return {
       credential: unsignedCredential,
       signed: false,
-      error:
-        err instanceof Error
-          ? `${err.name}: ${err.message}\n${err.stack}`
-          : JSON.stringify(err, null, 2),
+      error: err instanceof Error ? err.message : "Unknown signing error.",
     };
   }
 }
@@ -829,10 +848,12 @@ export async function issueDIDCertificate(
   }
 
   try {
-    const { signW3C } = await loadTrustVCModules();
+    const { signW3C, issuer } = await loadTrustVCModules();
     const result = await signW3C(
       credential as Parameters<typeof signW3C>[0],
-      keyPair
+      keyPair as Parameters<typeof signW3C>[1],
+      issuer.CryptoSuite.EcdsaSd2023,
+      { mandatoryPointers: getMandatoryCredentialPointers(credential) }
     );
     if (result.error) {
       return { credential, signed: false, error: result.error };
@@ -849,10 +870,7 @@ export async function issueDIDCertificate(
     return {
       credential,
       signed: false,
-      error:
-        message.startsWith("DID signing is unavailable")
-          ? message
-          : `DID signing failed: ${message}`,
+      error: `DID signing failed: ${message}`,
     };
   }
 }

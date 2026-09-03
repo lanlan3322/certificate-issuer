@@ -9,7 +9,6 @@ import { useWalletConnection } from "../../hooks/useWalletConnection";
 import { DOCUMENT_STORE_CONFIG, TRUSTVC_CONFIG } from "../../lib/constants";
 import { withBasePath } from "../../lib/site";
 import {
-  verifyCredential,
   VerificationResult,
   RevocationHashMode,
   revokeCertificateViaOcspResponder,
@@ -44,7 +43,15 @@ export default function VerifyPage() {
     try {
       const doc = JSON.parse(credentialJson);
       setVerifiedDocument(doc);
-      const verificationResult = await verifyCredential(doc);
+      const response = await fetch(withBasePath("/api/verify"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: doc }),
+      });
+      const verificationResult = (await response.json()) as VerificationResult & { error?: string };
+      if (!response.ok) {
+        throw new Error(verificationResult.message || verificationResult.error || "Unable to verify credential.");
+      }
       setResult(verificationResult);
     } catch (e) {
       setVerifiedDocument(null);
