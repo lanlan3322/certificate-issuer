@@ -72,8 +72,8 @@ export default function IssuerPortalPage() {
     event.preventDefault(); setLoading(true); setError(null); setMessage(null);
     try {
       const response = await fetch(withBasePath("/api/auth/reset"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: newPassword }) });
-      const payload = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "Unable to reset password.");
+      const payload = await response.json() as { error?: string; errorMessage?: string };
+      if (!response.ok) throw new Error(payload.errorMessage ?? payload.error ?? "Unable to reset password.");
       setMessage("Password reset successfully. You can now log in."); setMode("login"); setNewPassword(""); setRecoverySession(false);
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Unable to reset password."); }
     finally { setLoading(false); }

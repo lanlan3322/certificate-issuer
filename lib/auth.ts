@@ -11,6 +11,7 @@ export interface AuthUser {
 }
 
 export class PasswordResetDeliveryError extends Error {}
+export class PasswordUpdateError extends Error {}
 export class PasswordValidationError extends Error {}
 export class RateLimitError extends Error {}
 
@@ -133,10 +134,20 @@ export async function loginIssuer(emailInput: string, password: string) {
   const email = normalizeEmail(emailInput);
   const supabase = await getSupabaseServerClient();
 
-  const signIn = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+  console.log("[auth] signInWithPassword result", {
+    success: !error,
+    userId: data?.user?.id,
+    email: data?.user?.email,
+    errorMessage: error?.message,
+    errorName: error?.name,
+    errorStatus: error?.status,
+  });
+
   // GoTrue already returns a generic message; do not distinguish unknown email
   // from wrong password.
-  if (signIn.error || !signIn.data.user) throw new Error("Invalid email or password.");
+  if (error || !data.user) throw new Error("Invalid email or password.");
 
   const user = await getCurrentIssuerUser();
   if (!user) {
@@ -237,5 +248,5 @@ export async function resetPassword(password: string) {
     errorMessage: error?.message ?? null,
     errorStatus: error?.status ?? null,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new PasswordUpdateError(error.message);
 }
