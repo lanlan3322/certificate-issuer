@@ -37,7 +37,7 @@ export default function IssuerPortalPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("mode") === "reset") {
       setMode("reset");
-      // Arriving here from an email link means /auth/callback established
+      // Arriving here from an email link means /auth/recovery established
       // the recovery session, so the new-password form can be shown.
       setRecoverySession(true);
     }

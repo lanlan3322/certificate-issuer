@@ -126,7 +126,7 @@ export async function enforceRateLimit(bucket: string, identifier: string, limit
 }
 
 function passwordResetRedirectUrl(baseUrl: string) {
-  return `${baseUrl}/auth/callback?mode=reset`;
+  return `${baseUrl}/auth/recovery?mode=reset`;
 }
 
 export async function loginIssuer(emailInput: string, password: string) {
@@ -213,7 +213,7 @@ export async function requestPasswordReset(emailInput: string, baseUrl: string) 
 
 /**
  * Completes a recovery flow. The caller must already hold the recovery session
- * established by the emailed link, which GoTrue exchanges for cookies.
+ * established by the emailed recovery link.
  */
 export async function resetPassword(password: string) {
   assertPassword(password);
