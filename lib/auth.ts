@@ -14,6 +14,13 @@ export class PasswordResetDeliveryError extends Error {}
 export class PasswordValidationError extends Error {}
 export class RateLimitError extends Error {}
 
+interface RateLimitSnapshot {
+  count: number;
+  windowStartedAt: string;
+  oldestAttemptAt: string | null;
+  limitReachedUntil: string | null;
+}
+
 function assertPassword(password: string) {
   if (password.length < 10 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
     throw new PasswordValidationError("Password must be at least 10 characters and include uppercase, lowercase, and a number.");
@@ -28,11 +35,63 @@ function authLog(message: string, details?: Record<string, unknown>) {
   console.info(`[auth] ${message}`, details ?? {});
 }
 
+function windowStart(windowMinutes: number) {
+  return new Date(Date.now() - windowMinutes * 60_000);
+}
+
+function addMinutes(timestamp: string, minutes: number) {
+  return new Date(new Date(timestamp).getTime() + minutes * 60_000).toISOString();
+}
+
+function safeRateLimitIdentifier(bucket: string, identifier: string) {
+  if (bucket.endsWith(":ip")) return identifier;
+  return `${identifier.slice(0, 3)}...${identifier.slice(-3)}`;
+}
+
+async function getRateLimitSnapshot(
+  bucket: string,
+  identifier: string,
+  limit: number,
+  windowMinutes: number
+): Promise<RateLimitSnapshot> {
+  const admin = getSupabaseAdmin();
+  const windowStartedAt = windowStart(windowMinutes).toISOString();
+  const { data, count, error } = await admin
+    .from("auth_rate_limits")
+    .select("attempted_at", { count: "exact" })
+    .eq("bucket", bucket)
+    .eq("identifier", identifier)
+    .gt("attempted_at", windowStartedAt)
+    .order("attempted_at", { ascending: true });
+
+  if (error) throw error;
+
+  const oldestAttemptAt = data?.[0]?.attempted_at ?? null;
+  return {
+    count: count ?? data?.length ?? 0,
+    windowStartedAt,
+    oldestAttemptAt,
+    limitReachedUntil: oldestAttemptAt && (count ?? data?.length ?? 0) >= limit ? addMinutes(oldestAttemptAt, windowMinutes) : null,
+  };
+}
+
 /**
  * Fixed-window limiter backed by Postgres. Prevents credential stuffing and
  * unthrottled organization creation on the public auth routes.
  */
 export async function enforceRateLimit(bucket: string, identifier: string, limit: number, windowMinutes: number) {
+  const before = await getRateLimitSnapshot(bucket, identifier, limit, windowMinutes);
+  const safeIdentifier = safeRateLimitIdentifier(bucket, identifier);
+  authLog("rate limit configuration", {
+    bucket,
+    identifier: safeIdentifier,
+    limit,
+    windowMinutes,
+    currentCount: before.count,
+    windowStartedAt: before.windowStartedAt,
+    limitReachedUntil: before.limitReachedUntil,
+  });
+
   const admin = getSupabaseAdmin();
   const { data, error } = await admin.rpc("enforce_auth_rate_limit", {
     p_bucket: bucket,
@@ -42,8 +101,28 @@ export async function enforceRateLimit(bucket: string, identifier: string, limit
   });
   if (error) throw error;
   if (!data) {
+    authLog("rate limit blocked", {
+      bucket,
+      identifier: safeIdentifier,
+      limit,
+      windowMinutes,
+      currentCount: before.count,
+      limitReachedUntil: before.limitReachedUntil,
+    });
     throw new RateLimitError("Too many attempts. Try again later.");
   }
+  const currentCount = before.count + 1;
+  authLog("rate limit allowed", {
+    bucket,
+    identifier: safeIdentifier,
+    limit,
+    windowMinutes,
+    currentCount,
+    limitReachedUntil:
+      currentCount >= limit
+        ? addMinutes(before.oldestAttemptAt ?? new Date().toISOString(), windowMinutes)
+        : null,
+  });
 }
 
 function passwordResetRedirectUrl(baseUrl: string) {
