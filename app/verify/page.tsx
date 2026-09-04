@@ -181,11 +181,14 @@ export default function VerifyPage() {
     typeof signatureObj?.targetHash === "string" && /^0x[a-fA-F0-9]{64}$/.test(signatureObj.targetHash);
   const hasMerkleRoot =
     typeof signatureObj?.merkleRoot === "string" && /^0x[a-fA-F0-9]{64}$/.test(signatureObj.merkleRoot);
-  const issuer = verifiedDocument?.["issuer"];
-  const issuerRevocation =
-    issuer && typeof issuer === "object"
-      ? (issuer as Record<string, unknown>)["revocation"]
+  const issuerValue = verifiedDocument?.["issuer"];
+  const issuerObject: Record<string, unknown> | null =
+    issuerValue && typeof issuerValue === "object"
+      ? (issuerValue as Record<string, unknown>)
       : null;
+  const issuerRevocation = issuerObject
+    ? (issuerObject as Record<string, unknown>)["revocation"]
+    : null;
   const revocationType =
     issuerRevocation && typeof issuerRevocation === "object"
       ? String((issuerRevocation as Record<string, unknown>)["type"] ?? "")
@@ -221,7 +224,13 @@ export default function VerifyPage() {
         recipientName: String(certificateSubject.name ?? "Certificate recipient"),
         recipientEmail: String(certificateSubject.email ?? ""),
         certificateType: String(certificateSubject.certificateType ?? "Certificate"),
-        issuerName: String(certificateIssuer.name ?? certificateIssuer.id ?? "Certificate Issuer"),
+        issuerName: String(
+          typeof certificateIssuer === "object"
+            ? (certificateIssuer as Record<string, unknown>).name ??
+              (certificateIssuer as Record<string, unknown>).id ??
+              "Certificate Issuer"
+            : certificateIssuer
+        ),
         issueDate: String(verifiedDocument.issuanceDate ?? verifiedDocument.validFrom ?? ""),
         description: String(certificateSubject.description ?? ""),
         validFrom: String(verifiedDocument.validFrom ?? verifiedDocument.issuanceDate ?? ""),
@@ -288,11 +297,7 @@ export default function VerifyPage() {
         "name": "Sample Recipient",
         "certificateType": "Professional Certificate",
       },
-      "issuer": {
-        "id": "did:web:example.com",
-        "type": "OpenAttestationIssuer",
-        "name": "IMDA Training Academy",
-      },
+      "issuer": "did:web:example.com",
       "validFrom": "2026-01-01T00:00:00Z",
       "proof": {
         "type": "DataIntegrityProof",
