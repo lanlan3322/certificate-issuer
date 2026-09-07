@@ -93,6 +93,24 @@ const DOCUMENT_STORE_ABI = [
   },
 ] as const;
 
+// Inline (embedded) JSON-LD term definitions for the credentialSubject fields
+// this issuer emits. These terms have no definition in the W3C VC v2 or Data
+// Integrity contexts, so without them jsonld expands them to relative IRIs and
+// the ecdsa-sd-2023 canonicalization step aborts with
+// "Safe mode validation error." (jsonld event code: "invalid property").
+//
+// The object is embedded directly in "@context" rather than referenced by URL,
+// so no network fetch or context resolution is required at sign or verify time.
+const CERTIFICATE_SUBJECT_CONTEXT = {
+  "@version": 1.1,
+  // Maps the remaining schema.org terms this issuer uses — name, email,
+  // description and the "Person" subject type.
+  "@vocab": "https://schema.org/",
+  certificateId: "https://schemas.tradetrust.io/credentials#certificateId",
+  certificateType: "https://schemas.tradetrust.io/credentials#certificateType",
+  templateId: "https://schemas.tradetrust.io/credentials#templateId",
+} as const;
+
 const LOCAL_DID_VERIFICATION_METHOD_ID = `${TRUSTVC_CONFIG.didUrl}#key-1`;
 const LOCAL_DID_PUBLIC_KEY_MULTIBASE =
   process.env.DID_PUBLIC_KEY_MULTIBASE ||
@@ -184,6 +202,30 @@ async function signCredentialWithEcdsaSd2023(
 
     return { signed: signed as Record<string, unknown> };
   } catch (err) {
+    const proof =
+      credential.proof && typeof credential.proof === "object"
+        ? (credential.proof as Record<string, unknown>)
+        : undefined;
+    const validationResult = {
+      error: err instanceof Error ? err.message : String(err),
+      name: err instanceof Error ? err.name : undefined,
+    };
+    const credentialType = credential.type;
+    const issuer = credential.issuer;
+    const proofType = proof?.type;
+    const verificationMethod =
+      typeof proof?.verificationMethod === "string"
+        ? proof.verificationMethod
+        : keyPair.id;
+
+    console.error("[safe-mode]", {
+      validationResult,
+      credentialType,
+      issuer,
+      proofType,
+      verificationMethod,
+    });
+
     return {
       error: err instanceof Error ? err.message : "An error occurred while signing the credential.",
     };
@@ -212,9 +254,11 @@ export function generateCertificateId(): string {
 
 // Build a minimal W3C VC that TrustVC's w3cVerifiers can verify.
 // Uses a plain DID string as issuer (not an object) and only standard W3C
-// VC / Data Integrity contexts.  The inline OPEN_ATTESTATION_CONTEXT was
-// causing JSON-LD context-resolution failures when the credential was sent
-// over the network API round-trip, because it is not a resolvable URL.
+// VC / Data Integrity contexts, plus an embedded term definition object for
+// the issuer-specific credentialSubject fields.  The embedded context is
+// required: without it jsonld safe mode rejects the undefined terms during
+// ecdsa-sd-2023 canonicalization.  It is inlined rather than referenced by
+// URL so no context resolution over the network is needed.
 export function buildVCPayload(data: CertificateData) {
   const issuingMethods =
     data.issuingMethods && data.issuingMethods.length > 0
@@ -230,6 +274,7 @@ export function buildVCPayload(data: CertificateData) {
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
       "https://w3id.org/security/data-integrity/v2",
+      CERTIFICATE_SUBJECT_CONTEXT,
     ],
     type: ["VerifiableCredential"],
     validFrom: data.validFrom,
@@ -242,6 +287,8 @@ export function buildVCPayload(data: CertificateData) {
       name: data.recipientName,
       email: data.recipientEmail,
       certificateType: data.certificateType,
+      ...(data.templateId ? { templateId: data.templateId } : {}),
+      ...(data.description ? { description: data.description } : {}),
     },
   };
 }
