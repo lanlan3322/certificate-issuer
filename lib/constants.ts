@@ -107,7 +107,7 @@ export const CERTIFICATE_TEMPLATES = {
 
 // TrustVC configuration used in VC payloads
 export const TRUSTVC_CONFIG = {
-  didUrl: `did:web:lanlan3322.github.io:certificate-issuer`,
+  didUrl: `did:web:verifiable.sg`,
   revocation: {
     type: "OCSP_RESPONDER" as const,
     // Open Attestation OCSP Responder for DID revocation.
