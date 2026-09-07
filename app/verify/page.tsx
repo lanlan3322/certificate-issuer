@@ -40,8 +40,19 @@ export default function VerifyPage() {
     setLoading(true);
     setRevokeMessage(null);
     setRevokeError(null);
+    let doc: Record<string, unknown>;
     try {
-      const doc = JSON.parse(credentialJson);
+      doc = JSON.parse(credentialJson) as Record<string, unknown>;
+    } catch (e) {
+      setResult({
+        valid: false,
+        message: `Invalid JSON: ${(e as Error).message}`,
+      });
+      setLoading(false);
+      return;
+    }
+
+    try {
       setVerifiedDocument(doc);
       const response = await fetch(withBasePath("/api/verify"), {
         method: "POST",
@@ -57,7 +68,7 @@ export default function VerifyPage() {
       setVerifiedDocument(null);
       setResult({
         valid: false,
-        message: `Invalid JSON: ${(e as Error).message}`,
+        message: `Verification failed: ${(e as Error).message}`,
       });
     } finally {
       setLoading(false);

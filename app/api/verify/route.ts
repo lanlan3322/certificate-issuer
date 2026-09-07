@@ -39,7 +39,17 @@ export async function POST(request: Request) {
 
     const externalId =
       requestedExternalId || (submittedCredential ? getCredentialIdentifier(submittedCredential) : "");
-    const record = externalId ? await CredentialService.findByExternalId(externalId) : null;
+    let record: Awaited<ReturnType<typeof CredentialService.findByExternalId>> = null;
+    if (externalId) {
+      try {
+        record = await CredentialService.findByExternalId(externalId);
+      } catch (lookupError) {
+        if (!submittedCredential) {
+          throw lookupError;
+        }
+        console.error("Credential lookup failed during submitted credential verification", lookupError);
+      }
+    }
     const credentialToVerify = submittedCredential ?? record?.credential ?? null;
     const found = Boolean(record);
     const status = record?.status ? String(record.status) : null;
@@ -57,13 +67,17 @@ export async function POST(request: Request) {
     const forwardedFor = request.headers.get("x-forwarded-for");
     const sourceIp = forwardedFor?.split(",")[0].trim() || undefined;
 
-    await VerificationService.log({
-      credentialId: record?.id,
-      externalId: externalId || undefined,
-      verified,
-      result: { found, status, expired, cryptographicResult },
-      sourceIp,
-    });
+    try {
+      await VerificationService.log({
+        credentialId: record?.id,
+        externalId: externalId || undefined,
+        verified,
+        result: { found, status, expired, cryptographicResult },
+        sourceIp,
+      });
+    } catch (logError) {
+      console.error("Credential verification log failed", logError);
+    }
 
     // This endpoint is public, so only the credential's verification state is
     // returned — never the stored recipient details.
