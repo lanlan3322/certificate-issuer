@@ -1,15 +1,21 @@
 {
   "@context": [
     "https://www.w3.org/ns/did/v1",
-    "https://w3id.org/security/multikey/v1"
+    "https://w3id.org/security/suites/jws-2020/v1"
   ],
   "id": "did:web:verifiable.sg",
   "verificationMethod": [
     {
       "id": "did:web:verifiable.sg#key-1",
-      "type": "Multikey",
+      "type": "JsonWebKey2020",
       "controller": "did:web:verifiable.sg",
-      "publicKeyMultibase": "zDnaepZZHFcKxZ9r1xgqMqMFELf67VEmhFUddFBt2LPajim5z"
+      "publicKeyJwk": {
+        "kty": "EC",
+        "crv": "secp256k1",
+        "kid": "key-1",
+        "x": "6NwdlHgLC4V9MvUsaKgDUsihlhcSTS7-GxADwNc6e_8",
+        "y": "0LqHumCtQa7FdwuLzvN4lWnR7R4IB3sxMDhoGpH-V3k"
+      }
     }
   ],
   "authentication": [
@@ -18,10 +24,11 @@
   "assertionMethod": [
     "did:web:verifiable.sg#key-1"
   ],
-  "capabilityInvocation": [
-    "did:web:verifiable.sg#key-1"
-  ],
-  "capabilityDelegation": [
-    "did:web:verifiable.sg#key-1"
+  "service": [
+    {
+      "id": "did:web:verifiable.sg#verification",
+      "type": "OpenCertsVerificationService2021",
+      "serviceEndpoint": "https://verifiable.sg/verify"
+    }
   ]
 }

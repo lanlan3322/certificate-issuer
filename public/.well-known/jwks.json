@@ -1,0 +1,12 @@
+{
+  "keys": [
+    {
+      "kty": "EC",
+      "crv": "secp256k1",
+      "kid": "key-1",
+      "use": "sig",
+      "x": "6NwdlHgLC4V9MvUsaKgDUsihlhcSTS7-GxADwNc6e_8",
+      "y": "0LqHumCtQa7FdwuLzvN4lWnR7R4IB3sxMDhoGpH-V3k"
+    }
+  ]
+}
