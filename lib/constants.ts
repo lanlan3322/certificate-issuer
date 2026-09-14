@@ -70,39 +70,77 @@ export const ISSUER_CONFIG = {
   identityProof: DOCUMENT_STORE_CONFIG.identityProof,
 };
 
-// Certificate templates with OpenAttestation compatibility
+// Certificate templates with OpenCerts compatibility
 export const CERTIFICATE_TEMPLATES = {
   ProfessionalCertificate: {
     name: "Professional Certificate",
     description: "Awarded for completing professional development courses",
     validForYears: 2,
-    // OpenAttestation $template field
-    oaTemplate: {
-      name: "PROFESSIONAL_CERTIFICATE",
+    // Canonical OpenCerts $template definition (TradeTrust naming)
+    template: {
+      name: "professional-certificate",
       type: "EMBEDDED_RENDERER",
-      url: "https://templates.openattestation.com",
+      url: "https://certificates.openattestation.com",
+      version: "2.0.0",
     },
   },
   CompletionCertificate: {
     name: "Certificate of Completion",
     description: "Awarded for attending workshops and seminars",
     validForYears: 1,
-    oaTemplate: {
-      name: "COMPLETION_CERTIFICATE",
+    template: {
+      name: "completion-certificate",
       type: "EMBEDDED_RENDERER",
-      url: "https://templates.openattestation.com",
+      url: "https://certificates.openattestation.com",
+      version: "2.0.0",
     },
   },
   AchievementCertificate: {
     name: "Certificate of Achievement",
     description: "Recognizes outstanding performance and achievements",
     validForYears: 3,
-    oaTemplate: {
-      name: "ACHIEVEMENT_CERTIFICATE",
+    template: {
+      name: "achievement-certificate",
       type: "EMBEDDED_RENDERER",
-      url: "https://templates.openattestation.com",
+      url: "https://certificates.openattestation.com",
+      version: "2.0.0",
     },
   },
+} as const;
+
+// Canonical OpenCerts schema URLs (replaces custom schema.trustvc.io references)
+export const OPENCERTS_SCHEMA_URLS = {
+  credentialDefinition:
+    "https://schema.openattestation.com/openattestation.jsonld",
+  credentialTemplate: "https://templates.openattestation.com/opencerts/v1",
+  credentialSchemaOpenCertsV2:
+    "https://schema.openattestation.com/definitions/schema-openattestation-v2.json",
+} as const;
+
+// OpenCerts credential subject field mapping (internal name → canonical field).
+// NOTE: "id" is reserved for JSON-LD subject identity (@id), so certificateId maps
+// to "certificateId" (the tradetrust.io schema field), not to "id".
+export const OPEN_CERTS_SUBJECT_FIELD_MAP = {
+  certificateId: "certificateId",
+  certificateType: "type",
+  templateId: "templateId",
+  recipientName: "name",
+  recipientEmail: "email",
+  description: "description",
+} as const;
+
+// Credential subject field definitions for the OpenCerts JSON-LD context
+export const OPENCERTS_SUBJECT_CONTEXT_FIELDS = {
+  id: "https://schema.org/identifier",
+  name: "https://schema.org/name",
+  email: "https://schema.org/email",
+  type: "https://schema.org/Thing",
+  description: "https://schema.org/description",
+  certificateId:
+    "https://schemas.tradetrust.io/credentials#certificateId",
+  certificateType:
+    "https://schemas.tradetrust.io/credentials#certificateType",
+  templateId: "https://schemas.tradetrust.io/credentials#templateId",
 } as const;
 
 // TrustVC configuration used in VC payloads

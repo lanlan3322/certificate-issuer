@@ -2,10 +2,15 @@
 // Uses @trustvc/trustvc for W3C Verifiable Credentials.
 // The TrustVC crypto SDK is imported lazily so the browser bundle does not
 // pull in Node-only dependencies or expose signing keys to the client.
+import bs58 from "bs58";
 import { ethers } from "ethers";
+import { resolvePublicKeyMultibase } from "./did-utils";
 import {
+  CERTIFICATE_TEMPLATES,
   DEFAULT_ISSUING_METHODS,
   IssuingMethod,
+  OPENCERTS_SCHEMA_URLS,
+  OPEN_CERTS_SUBJECT_FIELD_MAP,
   TRUSTVC_CONFIG,
   DOCUMENT_STORE_CONFIG,
   ISSUER_CONFIG,
@@ -112,10 +117,17 @@ const CERTIFICATE_SUBJECT_CONTEXT = {
 } as const;
 
 const LOCAL_DID_VERIFICATION_METHOD_ID = `${TRUSTVC_CONFIG.didUrl}#key-1`;
-const LOCAL_DID_PUBLIC_KEY_MULTIBASE =
-  process.env.DID_PUBLIC_KEY_MULTIBASE ||
-  process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE ||
-  "zDnaepZZHFcKxZ9r1xgqMqMFELf67VEmhFUddFBt2LPajim5z";
+// Convert hex-encoded public key (0x || x32 || y32) to Base58 multibase for trustvc compatibility.
+function hexPubKeyToMultibase(hex: string): string {
+  const clean = hex.startsWith("0x") ? hex.slice(2) : hex;
+  const bytes = Buffer.from(clean, "hex");
+  return `z${bs58.encode(bytes).toString()}`;
+}
+
+// Resolve the public key multibase from env vars, supporting both:
+//   • Base58 z-prefixed multibase (W3C Multikey format)
+//   • Hex-encoded uncompressed secp256k1 point (0x || x || y)
+let LOCAL_DID_PUBLIC_KEY_MULTIBASE = resolvePublicKeyMultibase();
 
 async function loadCommonJSModule<T>(modulePath: string): Promise<T> {
   const nodeModule = (await new Function("modulePath", "return import(modulePath);")(
@@ -259,6 +271,43 @@ export function generateCertificateId(): string {
 // required: without it jsonld safe mode rejects the undefined terms during
 // ecdsa-sd-2023 canonicalization.  It is inlined rather than referenced by
 // URL so no context resolution over the network is needed.
+// Map internal certificate data to OpenCerts credential subject standard fields
+export function toOpenCertsCredentialSubject(
+  data: CertificateData
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  const idPrefix = "urn:uuid:";
+
+  // Generate a unique subject identifier (required by OpenCerts for RDFa/JSON-LD identity).
+  // This is the credentialSubject's JSON-LD @id — distinct from certificate numbers.
+  result["id"] = idPrefix + crypto.randomUUID();
+
+  // Set subject type — the inline context has "@vocab": "https://schema.org/" so this
+  // resolves to "https://schema.org/Person" which is what OpenCerts renderer pipelines expect.
+  result["@type"] = "Person";
+
+  // Map data fields to canonical OpenCerts names using the constant as source of truth.
+  if (data.id) result[OPEN_CERTS_SUBJECT_FIELD_MAP.certificateId] = data.id;
+  if (data.recipientName) result[OPEN_CERTS_SUBJECT_FIELD_MAP.recipientName] = data.recipientName;
+  if (data.recipientEmail) result[OPEN_CERTS_SUBJECT_FIELD_MAP.recipientEmail] = data.recipientEmail;
+  if (data.certificateType) result[OPEN_CERTS_SUBJECT_FIELD_MAP.certificateType] = data.certificateType;
+  if (data.templateId) result[OPEN_CERTS_SUBJECT_FIELD_MAP.templateId] = data.templateId;
+  if (data.description) result[OPEN_CERTS_SUBJECT_FIELD_MAP.description] = data.description;
+
+  return result;
+}
+
+// Determine the $template value for a given certificate type
+function getTemplateForCertificateType(
+  certType: string | undefined
+): { name: string; type: string; url: string } | undefined {
+  if (!certType) return undefined;
+  const key = Object.keys(CERTIFICATE_TEMPLATES).find(
+    (k) => k.toLowerCase().replace(/[-_]/g, "") === certType.toLowerCase().replace(/[-_]/g, "")
+  );
+  return key ? CERTIFICATE_TEMPLATES[key as keyof typeof CERTIFICATE_TEMPLATES].template : undefined;
+}
+
 export function buildVCPayload(data: CertificateData) {
   const issuingMethods =
     data.issuingMethods && data.issuingMethods.length > 0
@@ -270,10 +319,19 @@ export function buildVCPayload(data: CertificateData) {
   // type/name fields breaks DID resolution in the verification pipeline.
   const issuer = TRUSTVC_CONFIG.didUrl;
 
+  // Build credential subject using canonical OpenCerts field mapping
+  const subject = toOpenCertsCredentialSubject(data);
+
+  // Determine $template from certificate type for verifier-side template resolution
+  const issuedTemplate = getTemplateForCertificateType(data.certificateType);
+
   return {
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
       "https://w3id.org/security/data-integrity/v2",
+      OPENCERTS_SCHEMA_URLS.credentialDefinition,
+      // OpenCerts v2 schema — supersedes the deprecated opencerts/v1 template context.
+      OPENCERTS_SCHEMA_URLS.credentialSchemaOpenCertsV2,
       CERTIFICATE_SUBJECT_CONTEXT,
     ],
     type: ["VerifiableCredential"],
@@ -281,15 +339,25 @@ export function buildVCPayload(data: CertificateData) {
     ...(data.validUntil ? { validUntil: data.validUntil } : {}),
     issuer,
     credentialSubject: {
-      id: 'urn:uuid:' + crypto.randomUUID(),
-      certificateId: data.id,
-      type: ["Person"],
-      name: data.recipientName,
-      email: data.recipientEmail,
-      certificateType: data.certificateType,
-      ...(data.templateId ? { templateId: data.templateId } : {}),
-      ...(data.description ? { description: data.description } : {}),
+      ...subject,
+      ...(issuedTemplate
+        ? {
+            $template: issuedTemplate.name,
+            $templateVersion: issuedTemplate.version ?? "2.0.0",
+          }
+        : {}),
     },
+    // TradeTrust/OpenCerts mandates credentialStatus for revocation checking via the document store.
+    // Uses the OpenAttestationDocumentStore status type so that verifiers
+    // can cross-reference the document hash on-chain and check OCSP revocation.
+    credentialStatus: [
+      {
+        id: `${TRUSTVC_CONFIG.didUrl}#key-1`,
+        type: "OpenAttestationDocumentStore",
+        documentId: data.id,
+        revocation: TRUSTVC_CONFIG.revocation,
+      },
+    ],
   };
 }
 
@@ -907,7 +975,7 @@ async function createTrustVCDocumentLoader() {
  * Required variables (all must be set together):
  *   DID_KEY_ID              – full key URL, e.g. did:web:example.com#key-1
  *   DID_CONTROLLER          – DID controller, e.g. did:web:example.com
- *   DID_PUBLIC_KEY_MULTIBASE  – multibase-encoded public key (starts with "z")
+ *   DID_PUBLIC_KEY_MULTIBASE  – multibase-encoded (z-prefixed) OR hex-encoded (0x||x32||y32) public key
  *   DID_PRIVATE_KEY_MULTIBASE – multibase-encoded private key (starts with "z")
  *
  * The private key is deliberately server-only: a NEXT_PUBLIC_ variant would be
@@ -916,13 +984,13 @@ async function createTrustVCDocumentLoader() {
 export function getDIDKeyPairFromEnv(): PrivateKeyPair | null {
   const id = process.env.DID_KEY_ID || process.env.NEXT_PUBLIC_DID_KEY_ID;
   const controller = process.env.DID_CONTROLLER || process.env.NEXT_PUBLIC_DID_CONTROLLER;
-  const publicKeyMultibase =
-    process.env.DID_PUBLIC_KEY_MULTIBASE || process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE;
+  let publicKeyMultibase = resolvePublicKeyMultibase();
   const secretKeyMultibase = process.env.DID_PRIVATE_KEY_MULTIBASE;
 
   if (!id || !controller || !publicKeyMultibase || !secretKeyMultibase) {
     return null;
   }
+
   return {
     "@context": "https://w3id.org/security/multikey/v1",
     id,
@@ -965,15 +1033,13 @@ export async function signDocumentWithDID(
 ): Promise<DIDIssuanceResult> {
   const id = process.env.DID_KEY_ID || process.env.NEXT_PUBLIC_DID_KEY_ID;
   const controller = process.env.DID_CONTROLLER || process.env.NEXT_PUBLIC_DID_CONTROLLER;
-  const publicKeyMultibase =
-    process.env.DID_PUBLIC_KEY_MULTIBASE || process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE;
+  const publicKeyMultibase = resolvePublicKeyMultibase();
   const secretKeyMultibase =
     secretKeyOverride?.trim() || process.env.DID_PRIVATE_KEY_MULTIBASE;
 
   const missing: string[] = [];
   if (!id) missing.push("DID_KEY_ID");
   if (!controller) missing.push("DID_CONTROLLER");
-  if (!publicKeyMultibase) missing.push("DID_PUBLIC_KEY_MULTIBASE");
   if (!secretKeyMultibase)
     missing.push("DID_PRIVATE_KEY_MULTIBASE (or provide private key override)");
 

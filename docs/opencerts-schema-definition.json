@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.tradetrust.io/opencerts/v1.0/credential-subject.json",
+  "title": "OpenCerts Credential Subject Schema",
+  "description": "Canonical OpenCerts credential subject schema used by the certificate-issuer for TradeTrust-compliant verifiable credentials.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uri",
+      "description": "Unique identifier for the credential subject (recipient). Generated as urn:uuid:<random-uuid>.",
+      "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "name": {
+      "type": "string",
+      "description": "Full name of the credential recipient."
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Email address of the credential recipient."
+    },
+    "certificateId": {
+      "type": "string",
+      "description": "Internal certificate identifier assigned at issuance.",
+      "examples": ["cert-001", "demo-cert-001"]
+    },
+    "certificateType": {
+      "type": "string",
+      "enum": [
+        "professional-certificate",
+        "completion-certificate",
+        "achievement-certificate"
+      ],
+      "description": "Canonical OpenCerts template name identifying the certificate type."
+    },
+    "templateId": {
+      "type": "string",
+      "description": "Optional internal template identifier for rendering."
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description of what the certificate recognizes."
+    },
+    "$template": {
+      "type": "object",
+      "description": "OpenCerts/OpenAttestation template metadata for verifier-side template resolution.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "professional-certificate",
+            "completion-certificate",
+            "achievement-certificate"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "enum": ["EMBEDDED_RENDERER"],
+          "description": "Rendering type used by OpenAttestation template engine."
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "default": "https://certificates.openattestation.com",
+          "description": "Base URL for the OpenCerts certificate templates."
+        },
+        "version": {
+          "type": "string",
+          "default": "2.0.0"
+        }
+      },
+      "required": ["name", "type", "url"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["id", "certificateType"],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "id": "urn:uuid:12345678-1234-1234-1234-123456789012",
+      "name": "Ahmad bin Rahman",
+      "email": "ahmad@example.com",
+      "certificateId": "demo-cert-001",
+      "certificateType": "professional-certificate",
+      "$template": {
+        "name": "professional-certificate",
+        "type": "EMBEDDED_RENDERER",
+        "url": "https://certificates.openattestation.com",
+        "version": "2.0.0"
+      }
+    },
+    {
+      "id": "urn:uuid:87654321-4321-4321-4321-210987654321",
+      "name": "Sarah Tan",
+      "certificateType": "completion-certificate",
+      "$template": {
+        "name": "completion-certificate",
+        "type": "EMBEDDED_RENDERER",
+        "url": "https://certificates.openattestation.com",
+        "version": "2.0.0"
+      }
+    }
+  ]
+}
