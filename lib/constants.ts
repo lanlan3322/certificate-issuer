@@ -58,14 +58,14 @@ export const DOCUMENT_STORE_CONFIG = {
   // Value: openatts net=ethereum netId=11155111 addr=0xYourDocumentStoreAddress
   identityProof: {
     type: "DNS-TXT" as const,
-    location: "lanlan3322.github.io",
+    location: "verifiable.sg",
   },
 };
 
 // Issuer Configuration
 export const ISSUER_CONFIG = {
   name: "Certificate Issuer",
-  url: "https://lanlan3322.github.io/certificate-issuer",
+  url: "https://verifiable.sg",
   documentStore: DOCUMENT_STORE_CONFIG.address,
   identityProof: DOCUMENT_STORE_CONFIG.identityProof,
 };
