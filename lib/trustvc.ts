@@ -300,7 +300,7 @@ export function toOpenCertsCredentialSubject(
 // Determine the $template value for a given certificate type
 function getTemplateForCertificateType(
   certType: string | undefined
-): { name: string; type: string; url: string } | undefined {
+): { name: string; type: string; url: string; version?: string } | undefined {
   if (!certType) return undefined;
   const key = Object.keys(CERTIFICATE_TEMPLATES).find(
     (k) => k.toLowerCase().replace(/[-_]/g, "") === certType.toLowerCase().replace(/[-_]/g, "")
