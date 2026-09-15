@@ -9,7 +9,8 @@ import {
   CERTIFICATE_TEMPLATES,
   DEFAULT_ISSUING_METHODS,
   IssuingMethod,
-  OPENCERTS_SCHEMA_URLS,
+  OPENCERTS_CONTEXT,
+  OPENCERTS_SCHEMA_V2_CONTEXT,
   OPEN_CERTS_SUBJECT_FIELD_MAP,
   TRUSTVC_CONFIG,
   DOCUMENT_STORE_CONFIG,
@@ -329,9 +330,9 @@ export function buildVCPayload(data: CertificateData) {
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
       "https://w3id.org/security/data-integrity/v2",
-      OPENCERTS_SCHEMA_URLS.credentialDefinition,
-      // OpenCerts v2 schema — supersedes the deprecated opencerts/v1 template context.
-      OPENCERTS_SCHEMA_URLS.credentialSchemaOpenCertsV2,
+      OPENCERTS_CONTEXT,
+      // Inline equivalent of `https://schema.openattestation.com/definitions/schema-openattestation-v2.json`
+      OPENCERTS_SCHEMA_V2_CONTEXT,
       CERTIFICATE_SUBJECT_CONTEXT,
     ],
     type: ["VerifiableCredential"],

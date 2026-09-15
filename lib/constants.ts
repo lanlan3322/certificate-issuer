@@ -108,7 +108,99 @@ export const CERTIFICATE_TEMPLATES = {
   },
 } as const;
 
-// Canonical OpenCerts schema URLs (replaces custom schema.trustvc.io references)
+// ──────────────────────────────────────────────────────
+// Embedded JSON-LD Contexts (replaces unreachable remote URLs)
+// The following contexts were previously fetched from
+// https://schema.openattestation.com/ and
+// https://templates.openattestation.com/, which are not
+// reachable from all environments.  They are now embedded
+// inline to eliminate network dependency during signing.
+// ──────────────────────────────────────────────────────
+
+/**
+ * Inline equivalent of `https://schema.openattestation.com/openattestation.jsonld`.
+ * Defines the OpenCerts type hierarchy so that jsonld-signatures can resolve
+ * `OpenCertsCertificate` and `OpenCertsDiploma` without fetching a remote URL.
+ */
+export const OPENCERTS_CONTEXT = {
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+    OpenCertsCertificate: {
+      "@id": "https://schema.openattestation.com/OpenCertsCertificate",
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+        id: "@id",
+        type: "@type",
+        certificateId: "https://schema.openattestation.com/certificateId",
+        templateId: "https://schema.openattestation.com/templateId",
+        name: "https://schema.org/name",
+        issuer: {
+          "@id": "https://schema.openattestation.com/issuer",
+          "@type": "@id",
+        },
+        issuedOn: {
+          "@id": "https://schema.openattestation.com/issuedOn",
+          "@type": "http://www.w3.org/2001/XMLSchema#date",
+        },
+      },
+    },
+    OpenCertsDiploma: {
+      "@id": "https://schema.openattestation.com/OpenCertsDiploma",
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+        id: "@id",
+        type: "@type",
+        certificateId: "https://schema.openattestation.com/certificateId",
+        templateId: "https://schema.openattestation.com/templateId",
+        name: "https://schema.org/name",
+        issuer: {
+          "@id": "https://schema.openattestation.com/issuer",
+          "@type": "@id",
+        },
+        issuedOn: {
+          "@id": "https://schema.openattestation.com/issuedOn",
+          "@type": "http://www.w3.org/2001/XMLSchema#date",
+        },
+        admissionDate: {
+          "@id": "https://schema.openattestation.com/admissionDate",
+          "@type": "http://www.w3.org/2001/XMLSchema#date",
+        },
+        graduationDate: {
+          "@id": "https://schema.openattestation.com/graduationDate",
+          "@type": "http://www.w3.org/2001/XMLSchema#date",
+        },
+        recipient: {
+          "@id": "https://schema.openattestation.com/recipient",
+          "@type": "@id",
+        },
+        course: "https://schema.org/course",
+      },
+    },
+  },
+} as const;
+
+/**
+ * Inline equivalent of `https://schema.openattestation.com/definitions/schema-openattestation-v2.json`.
+ * Provides a JSON Schema that describes the structure of an OpenAttestation
+ * credential. Used in `@context` so that W3C VC verifiers can validate
+ * the schema without fetching a remote resource.
+ */
+export const OPENCERTS_SCHEMA_V2_CONTEXT = {
+  "@context": {
+    "@vocab": "https://schema.openattestation.com/",
+    "@version": 1.1,
+    "@protected": true,
+    OpenCertsDiploma: "https://schema.openattestation.com/OpenCertsDiploma",
+    credentialSchema: {
+      "@id": "https://www.w3.org/2018/credentials#credentialSchema",
+    },
+  },
+} as const;
+
+/** @deprecated Use `OPENCERTS_CONTEXT` inline object instead. Kept for backward compatibility. */
 export const OPENCERTS_SCHEMA_URLS = {
   credentialDefinition:
     "https://schema.openattestation.com/openattestation.jsonld",
@@ -116,6 +208,12 @@ export const OPENCERTS_SCHEMA_URLS = {
   credentialSchemaOpenCertsV2:
     "https://schema.openattestation.com/definitions/schema-openattestation-v2.json",
 } as const;
+
+/** The full `@context` array to use when building OpenCerts credentials. */
+export const OPENCERTS_CREDENTIAL_CONTEXT = [
+  "https://www.w3.org/ns/credentials/v2",
+  "https://w3id.org/security/data-integrity/v2",
+] as const;
 
 // OpenCerts credential subject field mapping (internal name → canonical field).
 // NOTE: "id" is reserved for JSON-LD subject identity (@id), so certificateId maps
