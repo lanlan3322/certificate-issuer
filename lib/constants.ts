@@ -193,7 +193,6 @@ export const OPENCERTS_SCHEMA_V2_CONTEXT = {
     "@vocab": "https://schema.openattestation.com/",
     "@version": 1.1,
     "@protected": true,
-    OpenCertsDiploma: "https://schema.openattestation.com/OpenCertsDiploma",
     credentialSchema: {
       "@id": "https://www.w3.org/2018/credentials#credentialSchema",
     },
