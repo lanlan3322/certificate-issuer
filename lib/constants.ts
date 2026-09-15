@@ -184,18 +184,15 @@ export const OPENCERTS_CONTEXT = {
 
 /**
  * Inline equivalent of `https://schema.openattestation.com/definitions/schema-openattestation-v2.json`.
- * Provides a JSON Schema that describes the structure of an OpenAttestation
- * credential. Used in `@context` so that W3C VC verifiers can validate
- * the schema without fetching a remote resource.
+ * Provides a @vocab for OpenAttestation-specific term expansion. The credentialSchema
+ * IRI is provided by the W3C VC v2 context (item 1 in OPENCERTS_CREDENTIAL_CONTEXT) so we
+ * do not redefine it here — doing so would conflict with jsonld-signatures' strict merge mode.
  */
 export const OPENCERTS_SCHEMA_V2_CONTEXT = {
   "@context": {
     "@vocab": "https://schema.openattestation.com/",
     "@version": 1.1,
     "@protected": true,
-    credentialSchema: {
-      "@id": "https://www.w3.org/2018/credentials#credentialSchema",
-    },
   },
 } as const;
 
