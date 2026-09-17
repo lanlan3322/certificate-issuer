@@ -42,7 +42,7 @@ const mapRow = (row: Record<string, unknown>): CredentialRecord => ({
   documentHash: row.document_hash ? String(row.document_hash) : null,
   issuingMethods: (row.issuing_methods as string[]) ?? [],
   status: row.status as CredentialRecord["status"],
-  issuedAt: String(row.issued_at),
+  issuedAt: row.issued_at ? String(row.issued_at) : new Date().toISOString(),
   validFrom: row.valid_from ? String(row.valid_from) : null,
   validUntil: row.valid_until ? String(row.valid_until) : null,
 });

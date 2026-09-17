@@ -13,7 +13,7 @@ export default function UserManualPage() {
         <p className="mt-4">For Ethereum issuance, connect MetaMask, switch to Sepolia, confirm the wallet has ETH, and approve the transaction.</p>
         <p className="mt-4">Use the Verify page to check a credential’s validity, signature, and revocation state before sending or accepting it.</p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link href="/docs" className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Back to docs</Link>
+          <Link href="/" className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Back to docs</Link>
           <Link href="/verify" className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-400">Open verify</Link>
         </div>
       </div>

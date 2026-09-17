@@ -17,7 +17,7 @@ export default function QuickStartPage() {
           <li>Review the gallery for templates and examples before final issuance.</li>
         </ol>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link href="/docs" className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Back to docs</Link>
+          <Link href="/" className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Back to docs</Link>
           <Link href="/" className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-400">Issue page</Link>
         </div>
       </div>

@@ -13,7 +13,7 @@ import {
   Sun,
   KeyRound,
   LayoutDashboard,
-  BookOpen,
+
   Palette,
   Wallet,
   Send,
@@ -59,7 +59,6 @@ export default function NavBar() {
     { href: "/verify", label: "Verification", icon: CheckCircle },
     { href: "/gallery/", label: "View", icon: Images },
     { href: "/platform", label: "Platform", icon: KeyRound },
-    { href: "/docs", label: "Docs", icon: BookOpen },
   ];
   const issuerNavItems = [
     { href: "/insurance", label: "Issue", icon: FilePlus2 },

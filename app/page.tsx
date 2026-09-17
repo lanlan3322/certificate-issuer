@@ -471,29 +471,29 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <section className="bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.16),_transparent_35%),linear-gradient(135deg,#0f172a_0%,#111827_18%,#0f172a_100%)] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-          <div className="grid items-center gap-10 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-20">
+          <div className="grid items-center gap-8 sm:gap-10 md:gap-10 lg:grid-cols-[1.2fr_0.8fr]">
             <div>
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200">
                 <Shield className="h-3.5 w-3.5" />
                 TrustVC platform
               </div>
-              <h1 className="max-w-xl text-4xl font-black tracking-tight text-white md:text-5xl lg:text-6xl">
+              <h1 className="max-w-xl text-3xl font-black tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl">
                 Trusted digital credentials for institutions that need scale and trust.
               </h1>
-              <p className="mt-5 max-w-xl text-base text-slate-200 md:text-lg">
+              <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-200 sm:text-base md:text-lg">
                 Issue, verify, and manage verifiable credentials with enterprise controls,
                 DID-backed identity, and secure wallet-ready delivery workflows.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <a
                   href="/insurance"
-                  className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                  className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100 min-h-[48px]"
                 >
                   Launch Insurance
                 </a>
               </div>
-              <div className="mt-8 flex flex-wrap gap-6 text-sm text-slate-200">
+              <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-300 sm:text-base">
                 <div><span className="font-semibold text-white">W3C</span> native</div>
                 <div><span className="font-semibold text-white">DID</span> ready</div>
                 <div><span className="font-semibold text-white">Multi-issuer</span> support</div>
@@ -505,15 +505,15 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <section className="mb-12 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+        <section className="mb-10 sm:mb-12 grid gap-5 sm:gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="section-card">
             <p className="pill mb-4">Solutions</p>
-            <h3 className="text-2xl font-bold text-slate-900">A platform built for institutional trust</h3>
+            <h3 className="text-xl font-bold text-slate-900 sm:text-2xl">A platform built for institutional trust</h3>
             <p className="mt-4 text-sm leading-6 text-slate-600">
               TrustVC brings together credential creation, identity management, verification, and wallet delivery in one secure operating layer for modern organizations.
             </p>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="mt-5 grid gap-2 sm:gap-3 sm:grid-cols-2">
               {[
                 "Certificates",
                 "Templates",
@@ -530,11 +530,11 @@ export default function HomePage() {
           </div>          
         </section>
 
-        <section className="mb-12 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-3xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm md:p-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Issuers we serve</p>
-            <h2 className="mt-3 text-3xl font-bold">Education, compliance, and public-sector trust</h2>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <section className="mb-10 sm:mb-12 grid gap-5 sm:gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-3xl border border-slate-200 bg-slate-900 p-5 text-white shadow-sm sm:p-6 md:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300 sm:text-sm">Issuers we serve</p>
+            <h2 className="mt-3 text-2xl font-bold sm:text-3xl">Education, compliance, and public-sector trust</h2>
+            <div className="mt-5 grid gap-2 sm:gap-3 sm:grid-cols-2">
               {[
                 "Training providers",
                 "Certification bodies",
@@ -543,7 +543,7 @@ export default function HomePage() {
                 "Professional associations",
                 "Compliance programs",
               ].map((item) => (
-                <div key={item} className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200">
+                <div key={item} className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs leading-relaxed sm:text-sm text-slate-200">
                   {item}
                 </div>
               ))}
@@ -551,61 +551,61 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="mb-12 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">FAQ</p>
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <section className="mb-10 sm:mb-12 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 md:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700 sm:text-sm">FAQ</p>
+          <div className="mt-5 grid gap-3 sm:gap-4 md:grid-cols-2">
             {[
               ["What is TrustVC?", "A verifiable credentials platform for issuing and validating trusted digital certificates across multiple institutional scenarios."],
               ["Can it support multiple issuers?", "Yes. The platform is designed to support multi-issuer operations with role-based governance and controlled issuance flows."],
               ["Does it support verification?", "Yes. Recipients and institutions can inspect credential authenticity and revocation status using a public verification experience."],
               ["Can it integrate with wallets?", "Yes. The platform is designed for wallet-ready delivery and compatibility with modern verifiable credential ecosystems."],
             ].map(([question, answer]) => (
-              <div key={question} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <h3 className="font-semibold text-slate-900">{question}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{answer}</p>
+              <div key={question} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+                <h3 className="text-sm font-semibold text-slate-900 sm:text-base">{question}</h3>
+                <p className="mt-2 text-xs leading-relaxed text-slate-600 sm:text-sm">{answer}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="mb-12 rounded-3xl bg-slate-900 p-8 text-center text-white shadow-[0_20px_50px_rgba(15,23,42,0.22)]">
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-cyan-300">Ready to launch</p>
-          <h2 className="mt-3 text-3xl font-bold md:text-4xl">Build trust into every credential.</h2>
-          <p className="mx-auto mt-4 max-w-2xl text-slate-300">
+        <section className="mb-10 sm:mb-12 rounded-3xl bg-slate-900 p-6 text-center text-white shadow-[0_20px_50px_rgba(15,23,42,0.22)] sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300 sm:text-sm">Ready to launch</p>
+          <h2 className="mt-3 text-2xl font-bold sm:text-3xl md:text-4xl">Build trust into every credential.</h2>
+          <p className="mx-auto mt-4 max-w-xl sm:max-w-2xl text-sm leading-relaxed text-slate-300">
             TrustVC gives teams a clear path from certificate creation to public verification in a secure, scalable, and enterprise-ready platform.
           </p>
-          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-            <a href="/insurance" className="btn-primary bg-white text-slate-900 hover:bg-slate-100">Launch Insurance</a>
-            <a href="/enterprise" className="btn-secondary border-slate-700 bg-slate-800 text-white hover:border-slate-600 hover:bg-slate-700">Talk to sales</a>
+          <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
+            <a href="/insurance" className="btn-primary inline-flex items-center justify-center min-h-[48px] bg-white text-slate-900 hover:bg-slate-100">Launch Insurance</a>
+            <a href="/enterprise" className="btn-secondary inline-flex items-center justify-center min-h-[48px] border border-slate-700 bg-slate-800 text-white hover:border-slate-600 hover:bg-slate-700">Talk to sales</a>
           </div>
         </section>
 
         {/* Info Cards - Responsive Grid */}
-        <div className="mt-8 md:mt-12 grid md:grid-cols-3 gap-4 md:gap-6">
+        <div className="mt-8 md:mt-12 grid gap-3 sm:gap-4 md:grid-cols-3">
           <div className="card text-center">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
-              <ShieldCheck className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+              <ShieldCheck className="w-5 h-5 text-primary" />
             </div>
-            <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">W3C Standard</h3>
-            <p className="text-xs md:text-sm text-gray-600">
+            <h3 className="font-semibold mb-1 text-sm">W3C Standard</h3>
+            <p className="text-xs text-gray-600">
               Verifiable Credentials following international W3C standards
             </p>
           </div>
           <div className="card text-center">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
-              <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-secondary" />
+            <div className="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+              <CheckCircle className="w-5 h-5 text-secondary" />
             </div>
-            <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">On-Chain</h3>
-            <p className="text-xs md:text-sm text-gray-600">
+            <h3 className="font-semibold mb-1 text-sm">On-Chain</h3>
+            <p className="text-xs text-gray-600">
               Document hashes stored on Ethereum for tamper-proof verification
             </p>
           </div>
           <div className="card text-center">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
-              <FileText className="w-5 h-5 md:w-6 md:h-6 text-accent" />
+            <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-3">
+              <FileText className="w-5 h-5 text-accent" />
             </div>
-            <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">TradeTrust</h3>
-            <p className="text-xs md:text-sm text-gray-600">
+            <h3 className="font-semibold mb-1 text-sm">TradeTrust</h3>
+            <p className="text-xs text-gray-600">
               OpenAttestation-compatible for universal verification
             </p>
           </div>
