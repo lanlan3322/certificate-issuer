@@ -21,14 +21,24 @@ const stubbedModules = [
 const trustvcRuntimeTraceIncludes = ["./node_modules/**/*"];
 
 const nextConfig = {
-  // Vercel runs the Next.js server runtime for auth, PostgreSQL, and API routes.
   basePath,
   assetPrefix: basePath ? `${basePath}/` : undefined,
   images: { unoptimized: true },
   trailingSlash: true,
   serverExternalPackages: [
+    // @trustvc packages - they bundle native Node.js code and pull in ESM deps
     "@trustvc/trustvc",
     "@trustvc/w3c-context",
+    // @digitalbazaar packages are native ESM. Keeping them external lets Node's
+    // require() handle interop instead of webpack/bundler (which loses named
+    // exports on ESM namespace objects). Combined with the patched _interopNamespace
+    // in w3c-vc/dist/lib/w3c-vc.js, this prevents:
+    //   "createEcdsaSd2023VerifyCryptosuite is not a function"
+    "@digitalbazaar/ecdsa-sd-2023-cryptosuite",
+    "@digitalbazaar/bbs-2023-cryptosuite",
+    "@digitalbazaar/data-integrity",
+    "@digitalbazaar/ecdsa-multikey",
+    "@digitalbazaar/bls12-381-multikey",
   ],
   outputFileTracingIncludes: {
     "/api/issue": trustvcRuntimeTraceIncludes,

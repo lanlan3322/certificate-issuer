@@ -1,0 +1,30 @@
+/**
+ * Shim for @digitalbazaar/ecdsa-sd-2023-cryptosuite.
+ *
+ * @trustvc/w3c-vc v2.x destructures the cryptosuite namespace expecting
+ * names that match its own export conventions. This shim re-exports from the
+ * real package under the names w3c-vc expects, preventing
+ * "createEcdsaSd2023VerifyCryptosuite is not a function" errors that occur
+ * when Next.js's bundler produces native ESM namespace objects whose keys are
+ * inaccessible via Object.keys().
+ */
+
+import {
+  createConfirmCryptosuite,
+  createDiscloseCryptosuite,
+  createSignCryptosuite,
+  createVerifyCryptosuite,
+} from "@digitalbazaar/ecdsa-sd-2023-cryptosuite";
+
+export const createEcdsaSd2023SignCryptosuite = createSignCryptosuite;
+export const createEcdsaSd2023DiscloseCryptosuite = createDiscloseCryptosuite;
+export const createEcdsaSd2023VerifyCryptosuite = createVerifyCryptosuite;
+export const createEcdsaSd2023ConfirmCryptosuite = createConfirmCryptosuite;
+
+// Also re-export with original names for compatibility
+export {
+  createConfirmCryptosuite,
+  createDiscloseCryptosuite,
+  createSignCryptosuite,
+  createVerifyCryptosuite,
+};

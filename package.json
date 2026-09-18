@@ -8,7 +8,8 @@
     "build:github-pages": "DEPLOY_TARGET=github-pages next build",
     "start": "next start",
     "lint": "next lint",
-    "build:vercel": "DEPLOY_TARGET=vercel next build"
+    "build:vercel": "DEPLOY_TARGET=vercel next build",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",
@@ -46,7 +47,9 @@
     "autoprefixer": "^10.4.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^16.3.3",
+    "patch-package": "^8.0.1",
     "postcss": "^8.4.0",
+    "postinstall-postinstall": "^2.1.0",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.4.0"
   },

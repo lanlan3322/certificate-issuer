@@ -1,0 +1,44 @@
+diff --git a/dist/lib/w3c-vc.js b/dist/lib/w3c-vc.js
+--- a/dist/lib/w3c-vc.js
++++ b/dist/lib/w3c-vc.js
+@@ -14,12 +14,38 @@ var Bls12381Multikey = __importDefault(require("@digitalbazaar/bls12-381-multike)
+
+ // Original _interopNamespace loses named exports from ESM modules under bundlers.
++// Patched to handle native ESM modules that set __esModule - iterate keys
++// so w3c-vc destructuring (createEcdsaSd2023VerifyCryptosuite, etc.) works
++// correctly in both Node.js require() and bundled contexts.
+ function _interopNamespace(e) {
+   if (e && e.__esModule) {
+-    return e;
++    var n = Object.create(null);
++    if (e) {
++      Object.keys(e).forEach(function (k) {
++        if (k !== "default") {
++          var d = Object.getOwnPropertyDescriptor(e, k);
++          Object.defineProperty(n, k, d.get ? d : {
++            enumerable: true,
++            get: function () { return e[k]; }
++          });
++        }
++      });
++    }
++    n.default = e;
++    return Object.freeze(n);
+   }
+-  var n = {};
+-  if (e) for (var k in e) { if (k !== "default" && Object.prototype.hasOwnProperty.call(_disableInteropFallback, k)) return; n[k] = e[k]; }
++  var n = Object.create(null);
++  if (e) {
++    Object.keys(e).forEach(function (k) {
++      if (k !== "default") {
++        var d = Object.getOwnPropertyDescriptor(e, k);
++        Object.defineProperty(n, k, d.get ? d : {
++          enumerable: true,
++          get: function () { return e[k]; }
++        });
++      }
++    });
++  }
+   n.default = e;
+   return Object.freeze(n);
+ }
