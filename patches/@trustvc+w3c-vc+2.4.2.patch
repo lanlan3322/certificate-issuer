@@ -1,15 +1,11 @@
-diff --git a/node_modules/@trustvc/w3c-vc/dist/lib/w3c-vc.js b/node_modules/@trustvc/w3c-vc/dist/lib/w3c-vc.js
-index original..patched 100644
 --- a/node_modules/@trustvc/w3c-vc/dist/lib/w3c-vc.js
 +++ b/node_modules/@trustvc/w3c-vc/dist/lib/w3c-vc.js
-@@ -15,7 +15,25 @@
+@@ -15,7 +15,23 @@
  function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
  
  function _interopNamespace(e) {
 -  if (e && e.__esModule) return e;
-+  // Patched to handle native ESM modules that set __esModule - iterate keys
-+  // so w3c-vc destructuring (createEcdsaSd2023VerifyCryptosuite, etc.) works
-+  // correctly in both Node.js require() and bundled contexts.
++  // Patched to handle native ESM modules that set __esModule
 +  if (e && e.__esModule) {
 +    var n = Object.create(null);
 +    if (e) {
@@ -29,12 +25,3 @@ index original..patched 100644
    var n = Object.create(null);
    if (e) {
      Object.keys(e).forEach(function (k) {
-@@ -29,7 +47,7 @@
-     });
-   }
-   n.default = e;
--  return Object.freeze(n);
-+  return n;
- }
- 
- var EcdsaMultikey__namespace = /*#__PURE__*/_interopNamespace(EcdsaMultikey);
