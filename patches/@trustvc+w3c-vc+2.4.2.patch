@@ -1,19 +1,20 @@
-diff --git a/dist/lib/w3c-vc.js b/dist/lib/w3c-vc.js
---- a/dist/lib/w3c-vc.js
-+++ b/dist/lib/w3c-vc.js
-@@ -14,12 +14,38 @@ var Bls12381Multikey = __importDefault(require("@digitalbazaar/bls12-381-multike)
-
- // Original _interopNamespace loses named exports from ESM modules under bundlers.
-+// Patched to handle native ESM modules that set __esModule - iterate keys
-+// so w3c-vc destructuring (createEcdsaSd2023VerifyCryptosuite, etc.) works
-+// correctly in both Node.js require() and bundled contexts.
+diff --git a/node_modules/@trustvc/w3c-vc/dist/lib/w3c-vc.js b/node_modules/@trustvc/w3c-vc/dist/lib/w3c-vc.js
+index original..patched 100644
+--- a/node_modules/@trustvc/w3c-vc/dist/lib/w3c-vc.js
++++ b/node_modules/@trustvc/w3c-vc/dist/lib/w3c-vc.js
+@@ -15,7 +15,25 @@
+ function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
+ 
  function _interopNamespace(e) {
-   if (e && e.__esModule) {
--    return e;
+-  if (e && e.__esModule) return e;
++  // Patched to handle native ESM modules that set __esModule - iterate keys
++  // so w3c-vc destructuring (createEcdsaSd2023VerifyCryptosuite, etc.) works
++  // correctly in both Node.js require() and bundled contexts.
++  if (e && e.__esModule) {
 +    var n = Object.create(null);
 +    if (e) {
 +      Object.keys(e).forEach(function (k) {
-+        if (k !== "default") {
++        if (k !== 'default') {
 +          var d = Object.getOwnPropertyDescriptor(e, k);
 +          Object.defineProperty(n, k, d.get ? d : {
 +            enumerable: true,
@@ -24,21 +25,16 @@ diff --git a/dist/lib/w3c-vc.js b/dist/lib/w3c-vc.js
 +    }
 +    n.default = e;
 +    return Object.freeze(n);
-   }
--  var n = {};
--  if (e) for (var k in e) { if (k !== "default" && Object.prototype.hasOwnProperty.call(_disableInteropFallback, k)) return; n[k] = e[k]; }
-+  var n = Object.create(null);
-+  if (e) {
-+    Object.keys(e).forEach(function (k) {
-+      if (k !== "default") {
-+        var d = Object.getOwnPropertyDescriptor(e, k);
-+        Object.defineProperty(n, k, d.get ? d : {
-+          enumerable: true,
-+          get: function () { return e[k]; }
-+        });
-+      }
-+    });
 +  }
+   var n = Object.create(null);
+   if (e) {
+     Object.keys(e).forEach(function (k) {
+@@ -29,7 +47,7 @@
+     });
+   }
    n.default = e;
-   return Object.freeze(n);
+-  return Object.freeze(n);
++  return n;
  }
+ 
+ var EcdsaMultikey__namespace = /*#__PURE__*/_interopNamespace(EcdsaMultikey);
