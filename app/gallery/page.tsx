@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useMemo, useState } from "react";
+import { useRef, useMemo, useState, useEffect } from "react";
 import { Shield, FileText, CheckCircle, ExternalLink, Upload, X as XIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { DEMO_CERTIFICATES } from "../../lib/constants";
+import { mapVcsToCertEntries } from "../../lib/credential-mapper";
 import { formatDate } from "../../lib/certificate";
 import { withBasePath } from "../../lib/site";
 import {
@@ -13,7 +14,7 @@ import {
   resolveTemplateId,
 } from "../templates";
 
-type CertEntry = {
+export type CertEntry = {
   id?: string;
   recipientName: string;
   recipientEmail: string;
@@ -31,9 +32,59 @@ export default function GalleryPage() {
   const [selectedCert, setSelectedCert] = useState<CertEntry | null>(null);
   const [uploadedCerts, setUploadedCerts] = useState<CertEntry[] | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const certificates: CertEntry[] = uploadedCerts ?? DEMO_CERTIFICATES;
+  // Fetch real credentials from the API on mount (falls back to demo data)
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    fetch("/api/credentials")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.credentials && Array.isArray(data.credentials)) {
+          const unwrapped: unknown[] = [];
+          for (const raw of data.credentials) {
+            if (!raw || typeof raw !== "object") continue;
+            const obj = raw as Record<string, unknown>;
+            // CredentialRecord shape — unwrap the inner VC
+            const vcData = obj.credential;
+            let payload: unknown;
+            if (typeof vcData === "string") {
+              try { payload = JSON.parse(vcData); } catch { payload = null; }
+            } else {
+              payload = vcData;
+            }
+            // Push inner VC; fall back to the raw object itself as fallback
+            unwrapped.push(payload ?? obj);
+          }
+          const entries = unwrapped.filter((c: unknown) => {
+            if (!c || typeof c !== "object") return false;
+            const o = c as Record<string, unknown>;
+            // Accept if it has the core flat fields or nested VC structure
+            return (
+              typeof o.recipientName === "string" ||
+              typeof o.credentialSubject === "object" ||
+              typeof o.recipient_name === "string"
+            );
+          });
+          if (entries.length > 0) {
+            const mapped = mapVcsToCertEntries(entries);
+            setUploadedCerts(mapped);
+          }
+        }
+      })
+      .catch(() => {
+        // Silently fall back to demo data if API is unavailable
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const certificates: CertEntry[] = isLoading ? [] : uploadedCerts ?? DEMO_CERTIFICATES;
   const verificationUrl = typeof window === "undefined"
     ? withBasePath("/verify")
     : `${window.location.origin}${withBasePath("/verify")}`;
