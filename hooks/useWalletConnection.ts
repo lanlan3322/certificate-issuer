@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ethers } from "ethers";
+import { formatEther, BrowserProvider, Provider } from "ethers";
 
 // Wallet state
 interface WalletState {
@@ -44,7 +44,7 @@ export function useWalletConnection() {
   // Get provider
   const getProvider = useCallback(() => {
     if (!window.ethereum) return null;
-    return new ethers.providers.Web3Provider(window.ethereum);
+    return new BrowserProvider(window.ethereum);
   }, []);
 
   // Connect wallet
@@ -69,11 +69,11 @@ export function useWalletConnection() {
       }
 
       const provider = getProvider()!;
-      const signer = provider.getSigner();
+      const signer = await provider.getSigner();
       const address = await signer.getAddress();
       const network = (await provider.getNetwork()).name;
       const balance = await provider.getBalance(address);
-      const balanceEth = ethers.utils.formatEther(balance);
+      const balanceEth = formatEther(balance);
 
       setWallet({
         connected: true,

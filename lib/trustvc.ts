@@ -3,7 +3,16 @@
 // The TrustVC crypto SDK is imported lazily so the browser bundle does not
 // pull in Node-only dependencies or expose signing keys to the client.
 import bs58 from "bs58";
-import { ethers } from "ethers";
+import {
+  Contract,
+  formatEther,
+  JsonRpcProvider,
+  keccak256,
+  Provider,
+  Signer,
+  toUtf8Bytes,
+  verifyMessage,
+} from "ethers";
 import { resolvePublicKeyMultibase } from "./did-utils";
 import {
   CERTIFICATE_TEMPLATES,
@@ -20,19 +29,37 @@ import {
 
 type TrustVCContextModule = typeof import("@trustvc/w3c-context");
 
-type PrivateKeyPair = {
+// Runtime type for @trustvc/trustvc verifyDocument output (fragments).
+// The package's .d.ts files are empty, so we define our own based on actual runtime usage.
+interface VerificationFragment {
+  name: string;
+  status: "VALID" | "INVALID" | "SKIPPED" | "ERROR";
+  message?: string;
+}
+
+type VerifyDocumentFn = (
+  document: Record<string, unknown>,
+  options: { rpcProviderUrl: string; documentLoader: (url: string) => Promise<{ document: string; contextUrl: string | null }> }
+) => Promise<VerificationFragment[]>;
+
+type IsValidFn = (fragments: VerificationFragment[]) => boolean;
+
+type TrustVCModule = {
+  verifyDocument: (
+    document: Record<string, unknown>,
+    options: { rpcProviderUrl: string; documentLoader: (url: string) => Promise<{ document: unknown; contextUrl: string | null }> }
+  ) => Promise<VerificationFragment[]>;
+  isValid: (fragments: VerificationFragment[]) => boolean;
+};
+
+interface PrivateKeyPair {
   "@context"?: string;
   id: string;
   type: "Multikey";
   controller: string;
   publicKeyMultibase: string;
   secretKeyMultibase: string;
-};
-
-type TrustVCModule = Pick<
-  typeof import("@trustvc/trustvc"),
-  "verifyDocument" | "isValid"
->;
+}
 
 type EcdsaSigningResult = {
   signed?: Record<string, unknown>;
@@ -427,7 +454,7 @@ export async function verifyCredential(
 
     if (isWalletProof && walletSignature && walletAddress) {
       try {
-        const recoveredAddress = ethers.utils.verifyMessage(
+        const recoveredAddress = verifyMessage(
           canonicalJson(stripExistingProof(document)),
           walletSignature
         );
@@ -468,7 +495,7 @@ export async function verifyCredential(
       const onChainResult = await verifyDocumentOnChain(
         document,
         ISSUER_CONFIG.documentStore,
-        new ethers.providers.JsonRpcProvider(NETWORKS.sepolia.rpcUrl)
+        new JsonRpcProvider(NETWORKS.sepolia.rpcUrl)
       );
 
       if (onChainResult.revoked) {
@@ -592,7 +619,7 @@ export async function verifyCredential(
     const onChainResult = await verifyDocumentOnChain(
       document,
       ISSUER_CONFIG.documentStore,
-      new ethers.providers.JsonRpcProvider(NETWORKS.sepolia.rpcUrl)
+      new JsonRpcProvider(NETWORKS.sepolia.rpcUrl)
     );
 
     if (onChainResult.revoked) {
@@ -700,7 +727,7 @@ export { TRUSTVC_CONFIG };
 export async function verifyDocumentOnChain(
   credential: Record<string, unknown>,
   documentStoreAddress: string,
-  providerOrSender: ethers.providers.Provider | ethers.Signer
+  providerOrSender: Provider | Signer
 ): Promise<{ verified: boolean; revoked?: boolean; txHash?: string; blockNumber?: number }> {
   if (!documentStoreAddress) {
     return { verified: false };
@@ -714,7 +741,7 @@ export async function verifyDocumentOnChain(
       return { verified: false };
     }
 
-    const contract = new ethers.Contract(
+    const contract = new Contract(
       documentStoreAddress,
       DOCUMENT_STORE_ABI,
       provider
@@ -867,17 +894,17 @@ function getEcdsaSdMandatoryPointers(
 }
 
 function resolveProvider(
-  providerOrSender: ethers.providers.Provider | ethers.Signer
-): ethers.providers.Provider | null {
-  if ((providerOrSender as ethers.Signer).provider) {
-    return (providerOrSender as ethers.Signer).provider ?? null;
+  providerOrSender: Provider | Signer
+): Provider | null {
+  if ((providerOrSender as Signer).provider) {
+    return (providerOrSender as Signer).provider ?? null;
   }
 
   if (
-    typeof (providerOrSender as ethers.providers.Provider).getNetwork === "function" &&
-    typeof (providerOrSender as ethers.providers.Provider).getBlockNumber === "function"
+    typeof (providerOrSender as Provider).getNetwork === "function" &&
+    typeof (providerOrSender as Provider).getBlockNumber === "function"
   ) {
-    return providerOrSender as ethers.providers.Provider;
+    return providerOrSender as Provider;
   }
 
   return null;
@@ -1221,7 +1248,7 @@ function canonicalJson(value: unknown): string {
  */
 export async function signCredentialWithEthereum(
   credential: Record<string, unknown>,
-  signer: ethers.Signer
+  signer: Signer
 ): Promise<EthereumCredentialSigningResult> {
   const walletAddress = await signer.getAddress();
   const message = canonicalJson(stripExistingProof(credential));
@@ -1252,7 +1279,7 @@ export async function signCredentialWithEthereum(
 export async function issueCertificateToEthereum(
   credential: Record<string, unknown>,
   documentStoreAddress: string,
-  signer: ethers.Signer
+  signer: Signer
 ): Promise<EthereumIssuanceResult> {
   if (!documentStoreAddress) {
     return { error: "Document store address is required." };
@@ -1261,19 +1288,19 @@ export async function issueCertificateToEthereum(
   try {
     const documentHash = computeDocumentStoreHash(credential);
 
-    // Use ethers v5 directly with a minimal DocumentStore ABI to avoid
+    // Use ethers v6 with a minimal DocumentStore ABI to avoid
     // pulling in Node.js-only dependencies from @trustvc/trustvc.
-    const contract = new ethers.Contract(
+    const contract = new Contract(
       documentStoreAddress,
       DOCUMENT_STORE_ABI,
       signer
-    );
+    ) as any;
 
     // callStatic.issue simulates the transaction without sending it.
     // This catches permission errors and "already issued" conditions
     // before spending gas on a transaction that would revert.
     try {
-      await contract.callStatic.issue(documentHash);
+      await (contract.callStatic as any).issue(documentHash);
     } catch (staticErr) {
       const staticMsg = (staticErr as Error).message ?? String(staticErr);
       if (
@@ -1290,7 +1317,7 @@ export async function issueCertificateToEthereum(
       };
     }
 
-    const tx: ethers.ContractTransaction = await contract.issue(documentHash);
+    const tx = await (contract as any).issue(documentHash);
     const receipt = await tx.wait();
 
     return {
@@ -1333,7 +1360,7 @@ export async function issueCertificateToEthereum(
 export async function revokeCertificateOnEthereum(
   credential: Record<string, unknown>,
   documentStoreAddress: string,
-  signer: ethers.Signer,
+  signer: Signer,
   options?: { hashMode?: RevocationHashMode }
 ): Promise<EthereumRevocationResult> {
   if (!documentStoreAddress) {
@@ -1346,11 +1373,11 @@ export async function revokeCertificateOnEthereum(
       options?.hashMode ?? "auto"
     );
 
-    const contract = new ethers.Contract(
+    const contract = new Contract(
       documentStoreAddress,
       DOCUMENT_STORE_ABI,
       signer
-    );
+    ) as any;
 
     const isRevoked = await contract.isRevoked(documentHash);
 
@@ -1359,7 +1386,7 @@ export async function revokeCertificateOnEthereum(
     }
 
     try {
-      await contract.callStatic.revoke(documentHash);
+      await (contract.callStatic as any).revoke(documentHash);
     } catch (staticErr) {
       const staticMsg = (staticErr as Error).message ?? String(staticErr);
       return {
@@ -1370,7 +1397,7 @@ export async function revokeCertificateOnEthereum(
       };
     }
 
-    const tx: ethers.ContractTransaction = await contract.revoke(documentHash);
+    const tx = await (contract as any).revoke(documentHash);
     const receipt = await tx.wait();
 
     return {
@@ -1507,8 +1534,8 @@ function computeDocumentStoreHash(
     return targetHash;
   }
 
-  return ethers.utils.keccak256(
-    ethers.utils.toUtf8Bytes(canonicalJson(credential))
+  return keccak256(
+    toUtf8Bytes(canonicalJson(credential))
   );
 }
 
