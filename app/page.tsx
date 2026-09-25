@@ -490,7 +490,7 @@ export default function HomePage() {
                   href="/insurance"
                   className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100 min-h-[48px]"
                 >
-                  Launch Insurance
+                  Issue Certificate
                 </a>
               </div>
               <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-300 sm:text-base">
@@ -524,13 +524,13 @@ export default function HomePage() {
         </section>
 
         <section className="mb-10 sm:mb-12 rounded-3xl bg-slate-900 p-6 text-center text-white shadow-[0_20px_50px_rgba(15,23,42,0.22)] sm:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300 sm:text-sm">Ready to launch</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300 sm:text-sm">Ready to issue</p>
           <h2 className="mt-3 text-2xl font-bold sm:text-3xl md:text-4xl">Build trust into every credential.</h2>
           <p className="mx-auto mt-4 max-w-xl sm:max-w-2xl text-sm leading-relaxed text-slate-300">
             TrustVC gives teams a clear path from certificate creation to public verification in a secure, scalable, and enterprise-ready platform.
           </p>
           <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
-            <a href="/insurance" className="btn-primary inline-flex items-center justify-center min-h-[48px] bg-white text-slate-900 hover:bg-slate-100">Launch Insurance</a>
+            <a href="/insurance" className="btn-primary inline-flex items-center justify-center min-h-[48px] bg-white text-slate-900 hover:bg-slate-100">Issue Certificate</a>
             <a href="/enterprise" className="btn-secondary inline-flex items-center justify-center min-h-[48px] border border-slate-700 bg-slate-800 text-white hover:border-slate-600 hover:bg-slate-700">Talk to sales</a>
           </div>
         </section>

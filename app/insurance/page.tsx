@@ -485,7 +485,7 @@ export default function InsurancePage() {
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-3 py-8 sm:px-4 sm:py-10 lg:px-8">
         <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700 sm:text-sm">Insurance launch</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700 sm:text-sm">Issue Certificates</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Issue trusted certificates</h1>
           <p className="mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
             Launch a verifiable credential workflow from a dedicated insurance operations console.
