@@ -47,63 +47,6 @@ export default function PlatformPage() {
         ))}
       </div>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Issuer workspace queue</p>
-              <h2 className="mt-2 text-xl font-semibold text-slate-900">Operational readiness</h2>
-            </div>
-            <Building2 className="h-5 w-5 text-cyan-700" />
-          </div>
-
-          <div className="space-y-3">
-            {issuerQueue.map((issuer) => (
-              <div key={issuer.name} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="font-semibold text-slate-900">{issuer.name}</div>
-                  <div className="text-sm text-slate-600">{issuer.org} • Lead: {issuer.lead}</div>
-                </div>
-                <span className="inline-flex w-fit rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-700">
-                  {issuer.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Trust layer</p>
-              <h2 className="mt-2 text-xl font-semibold text-slate-900">Security posture</h2>
-            </div>
-            <ShieldCheck className="h-5 w-5 text-emerald-700" />
-          </div>
-
-          <div className="space-y-4">
-            <div className="rounded-xl bg-emerald-50 p-4">
-              <div className="flex items-center gap-2 text-emerald-700">
-                <BadgeCheck className="h-4 w-4" />
-                <span className="text-sm font-semibold">Server-side signing enabled</span>
-              </div>
-            </div>
-            <div className="rounded-xl bg-cyan-50 p-4">
-              <div className="flex items-center gap-2 text-cyan-700">
-                <KeyRound className="h-4 w-4" />
-                <span className="text-sm font-semibold">DID key rotation supported</span>
-              </div>
-            </div>
-            <div className="rounded-xl bg-amber-50 p-4">
-              <div className="flex items-center gap-2 text-amber-700">
-                <FileCheck2 className="h-4 w-4" />
-                <span className="text-sm font-semibold">Revocation checkpoint active</span>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
