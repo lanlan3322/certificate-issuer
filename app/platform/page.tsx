@@ -72,7 +72,7 @@ export default function PlatformPage() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Enterprise auth</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Enterprise auth (Coming Soon)</p>
               <h2 className="mt-2 text-xl font-semibold text-slate-900">SSO and access</h2>
             </div>
             <ShieldCheck className="h-5 w-5 text-cyan-700" />

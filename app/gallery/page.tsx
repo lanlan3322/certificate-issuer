@@ -236,7 +236,7 @@ const id =
             <div>
               <h1 className="text-3xl font-bold">Certificate View</h1>
               <p className="text-white/80">
-                Browse sample certificates issued via TrustVC + OpenCerts
+                Browse certificates issued
               </p>
             </div>
           </div>
