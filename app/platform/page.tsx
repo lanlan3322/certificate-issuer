@@ -1,12 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, Building2, FileCheck2, KeyRound, ShieldCheck, Sparkles } from "lucide-react";
-
-const metrics = [
-  { label: "Active issuers", value: "24", tone: "bg-slate-900 text-white" },
-  { label: "Verified credentials", value: "18.4k", tone: "bg-cyan-100 text-cyan-800" },
-  { label: "DID documents", value: "31", tone: "bg-emerald-100 text-emerald-800" },
-  { label: "Revocations", value: "142", tone: "bg-amber-100 text-amber-800" },
-];
+import { getPlatformStats } from "@/lib/platform";
 
 const issuerQueue = [
   { name: "IMDA Academy", status: "Active", org: "Government", lead: "Alicia" },
@@ -23,7 +17,34 @@ const didStages = [
 
 const authProviders = ["Microsoft Entra ID", "Google Workspace", "GitHub", "Custom SSO"];
 
-export default function PlatformPage() {
+export default async function PlatformPage() {
+  const stats = await getPlatformStats();
+
+  const metrics = [
+    {
+      label: "Active Issuers",
+      value: String(stats.activeIssuers),
+      tone: "bg-slate-900 text-white",
+    },
+    {
+      label: "Verified Credentials",
+      value: stats.totalCredentials >= 1000
+        ? `${(stats.totalCredentials / 1000).toFixed(1)}k`
+        : String(stats.totalCredentials),
+      tone: "bg-cyan-100 text-cyan-800",
+    },
+    {
+      label: "DID Documents",
+      value: String(stats.totalOrganizations),
+      tone: "bg-emerald-100 text-emerald-800",
+    },
+    {
+      label: "Users on Platform",
+      value: String(stats.totalUsers),
+      tone: "bg-amber-100 text-amber-800",
+    },
+  ];
+
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
