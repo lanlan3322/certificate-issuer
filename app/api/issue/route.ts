@@ -56,6 +56,7 @@ export async function POST(request: Request) {
       type?: "did" | "ethereum";
       templateId?: string;
       persist?: boolean;
+      certificateFormat?: "standard" | "opencerts";
     };
 
     if (!body.data || typeof body.data !== "object") {
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           signed: false,
-          credential: buildVCPayload(data),
+          credential: buildVCPayload(data, body.certificateFormat),
           error:
             "DID signing is not configured in the server environment. Set DID_KEY_ID, DID_CONTROLLER, DID_PUBLIC_KEY_MULTIBASE, and DID_PRIVATE_KEY_MULTIBASE.",
         },
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await signDocumentWithDID(buildVCPayload(data));
+    const result = await signDocumentWithDID(buildVCPayload(data, body.certificateFormat));
     if (!result.signed) {
       return NextResponse.json(
         { signed: false, credential: result.credential, error: result.error ?? "Signing failed." },

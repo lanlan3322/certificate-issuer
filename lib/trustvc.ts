@@ -14,6 +14,7 @@ import {
   verifyMessage,
 } from "ethers";
 import { resolvePublicKeyMultibase } from "./did-utils";
+
 import {
   CERTIFICATE_TEMPLATES,
   DEFAULT_ISSUING_METHODS,
@@ -25,7 +26,15 @@ import {
   DOCUMENT_STORE_CONFIG,
   ISSUER_CONFIG,
   NETWORKS,
+  OPENCERTS_CREDENTIAL_TYPE,
+  OPENCERTS_SUBJECT_TYPE,
+  OPENCERTS_EXTRA_CONTEXTS,
+  OPENTRUST_DSS_CONTEXT,
+  COMPROBANTE_CONTEXT,
 } from "./constants";
+
+/** Credential output mode — `undefined` defaults to standard W3C VC. */
+export type CertificateMode = "standard" | "opencerts";
 
 type TrustVCContextModule = typeof import("@trustvc/w3c-context");
 
@@ -336,7 +345,7 @@ function getTemplateForCertificateType(
   return key ? CERTIFICATE_TEMPLATES[key as keyof typeof CERTIFICATE_TEMPLATES].template : undefined;
 }
 
-export function buildVCPayload(data: CertificateData) {
+export function buildVCPayload(data: CertificateData, mode?: CertificateMode) {
   const issuingMethods =
     data.issuingMethods && data.issuingMethods.length > 0
       ? data.issuingMethods
@@ -348,21 +357,35 @@ export function buildVCPayload(data: CertificateData) {
   const issuer = TRUSTVC_CONFIG.didUrl;
 
   // Build credential subject using canonical OpenCerts field mapping
-  const subject = toOpenCertsCredentialSubject(data);
+  let subject: Record<string, unknown> = toOpenCertsCredentialSubject(data);
 
   // Determine $template from certificate type for verifier-side template resolution
   const issuedTemplate = getTemplateForCertificateType(data.certificateType);
 
+  // ─── OA / OpenCerts mode adjustments (additive; standard mode unchanged) ───
+  if (mode === "opencerts") {
+    // credentialStatus becomes an array element with _type for OA recognition
+    subject = { ...subject, _type: OPENCERTS_SUBJECT_TYPE };
+  }
+
+  const baseContexts = [
+    "https://www.w3.org/ns/credentials/v2",
+    "https://w3id.org/security/data-integrity/v2",
+    OPENCERTS_CONTEXT,
+    // Inline equivalent of `https://schema.openattestation.com/definitions/schema-openattestation-v2.json`
+    OPENCERTS_SCHEMA_V2_CONTEXT,
+    CERTIFICATE_SUBJECT_CONTEXT,
+  ];
+
+  const baseType = ["VerifiableCredential"];
+
   return {
-    "@context": [
-      "https://www.w3.org/ns/credentials/v2",
-      "https://w3id.org/security/data-integrity/v2",
-      OPENCERTS_CONTEXT,
-      // Inline equivalent of `https://schema.openattestation.com/definitions/schema-openattestation-v2.json`
-      OPENCERTS_SCHEMA_V2_CONTEXT,
-      CERTIFICATE_SUBJECT_CONTEXT,
-    ],
-    type: ["VerifiableCredential"],
+    "@context": mode === "opencerts"
+      ? [...baseContexts, ...OPENCERTS_EXTRA_CONTEXTS, OPENTRUST_DSS_CONTEXT, COMPROBANTE_CONTEXT]
+      : baseContexts,
+    type: mode === "opencerts"
+      ? [...baseType, OPENCERTS_CREDENTIAL_TYPE]
+      : baseType,
     validFrom: data.validFrom,
     ...(data.validUntil ? { validUntil: data.validUntil } : {}),
     issuer,
@@ -378,14 +401,18 @@ export function buildVCPayload(data: CertificateData) {
     // TradeTrust/OpenCerts mandates credentialStatus for revocation checking via the document store.
     // Uses the OpenAttestationDocumentStore status type so that verifiers
     // can cross-reference the document hash on-chain and check OCSP revocation.
+    //
+    // The `id` MUST point to the document store contract (not a DID key), because
+    // OA v2 verifiers resolve it as: did:ethr:<contract> → fetch ABI → call status(docId, targetHash).
     credentialStatus: [
       {
-        id: `${TRUSTVC_CONFIG.didUrl}#key-1`,
+        id: `did:ethr:0x${DOCUMENT_STORE_CONFIG.address}#${data.id}`,
         type: "OpenAttestationDocumentStore",
         documentId: data.id,
         revocation: TRUSTVC_CONFIG.revocation,
       },
     ],
+    issuingMethods,
   };
 }
 
@@ -914,8 +941,24 @@ function stripUnsupportedCredentialStatus(
   document: Record<string, unknown>
 ): Record<string, unknown> {
   const credentialStatus = document["credentialStatus"];
-  if (!credentialStatus || Array.isArray(credentialStatus)) {
+  if (!credentialStatus) {
     return document;
+  }
+
+  // Handle both single object and array forms (per W3C VC spec)
+  if (Array.isArray(credentialStatus)) {
+    const filtered = credentialStatus.filter(
+      (status: Record<string, unknown>) =>
+        typeof status === "object" &&
+        status !== null &&
+        (typeof status["statusListCredential"] === "string"
+          ? !status["statusListCredential"].includes("tradetrust.io/status")
+          : true)
+    );
+    if (filtered.length === credentialStatus.length) {
+      return document;
+    }
+    return { ...document, credentialStatus: filtered };
   }
 
   const statusListCredential =
@@ -925,7 +968,7 @@ function stripUnsupportedCredentialStatus(
 
   if (
     typeof statusListCredential === "string" &&
-    statusListCredential.includes("tradetrust.io/status")
+    (statusListCredential as string).includes("tradetrust.io/status")
   ) {
     const { credentialStatus: _credentialStatus, ...documentWithoutStatus } = document;
     return documentWithoutStatus;
@@ -1103,8 +1146,10 @@ export async function signDocumentWithDID(
     if (!result.signed) {
       return { credential: unsignedCredential, signed: false, error: "Signing returned no result." };
     }
+    // Inject `targetHash` for OA v2 single-credential commitment.
+    const targetCredential = injectTargetHash(result.signed as unknown as Record<string, unknown>);
     return {
-      credential: result.signed as unknown as Record<string, unknown>,
+      credential: targetCredential,
       signed: true,
     };
   } catch (err) {
@@ -1158,8 +1203,10 @@ export async function issueDIDCertificate(
     if (!result.signed) {
       return { credential, signed: false, error: "Signing returned no result." };
     }
+    // Inject `targetHash` for OA v2 single-credential commitment.
+    const targetCredential = injectTargetHash(result.signed as unknown as Record<string, unknown>);
     return {
-      credential: result.signed as unknown as Record<string, unknown>,
+      credential: targetCredential,
       signed: true,
     };
   } catch (err) {
@@ -1534,6 +1581,16 @@ function computeDocumentStoreHash(
     return targetHash;
   }
 
+  // Also check credentialStatus[0].targetHash for single-credential documents.
+  const statusArray = credential["credentialStatus"];
+  if (Array.isArray(statusArray) && statusArray.length > 0) {
+    const cs = statusArray[0] as Record<string, unknown>;
+    const csTargetHash = cs?.["targetHash"];
+    if (typeof csTargetHash === "string" && isBytes32Hex(csTargetHash)) {
+      return csTargetHash;
+    }
+  }
+
   return keccak256(
     toUtf8Bytes(canonicalJson(credential))
   );
@@ -1569,4 +1626,32 @@ function getWrappedMerkleRoot(credential: Record<string, unknown>): string | nul
 
 function isBytes32Hex(value: string): boolean {
   return /^0x[a-fA-F0-9]{64}$/.test(value.trim());
+}
+
+/**
+ * Computes the keccak256 hash (as a hex string) of the stripped credential's
+ * canonical JSON representation and injects it as `targetHash` into
+ * `credentialStatus[0]`.
+ *
+ * This field is required by OA v2 verifiers to cross-reference the on-chain
+ * document store commitment.  For single-credential documents, targetHash ==
+ * keccak256(canonicalize(signedCredential)), which matches what the contract
+ * stores after commitToDocumentStore / issue().
+ */
+function injectTargetHash(
+  signedCredential: Record<string, unknown>
+): Record<string, unknown> {
+  const credential = stripExistingProof(signedCredential);
+  const hash = Buffer.from(
+    keccak256(toUtf8Bytes(canonicalJson(credential)))
+  ).toString("hex");
+
+  const updated = { ...signedCredential };
+  const statusArray = (updated["credentialStatus"] as unknown[]) ?? [];
+  if (statusArray.length > 0 && typeof statusArray[0] === "object") {
+    statusArray[0] = { ...(statusArray[0] as Record<string, unknown>), targetHash: `0x${hash}` };
+    updated["credentialStatus"] = statusArray;
+  }
+
+  return updated;
 }

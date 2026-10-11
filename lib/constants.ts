@@ -321,3 +321,102 @@ export const DEPLOYMENT_STEPS = [
     link: "#",
   },
 ];
+
+// ─── OpenCerts / TradeTrust credential type constants ──────────────────────
+// These are consumed by buildVCPayload when `mode === "opencerts"`.
+
+/** W3C + OA credential type tag required for TradeTrust/OpenCerts verifiers. */
+export const OPENCERTS_CREDENTIAL_TYPE = "OpenAttestationDocument2018";
+
+/** _type marker for the credentialSubject in OA mode. */
+export const OPENCERTS_SUBJECT_TYPE = "OpenAttestationCredentialSubject";
+
+/** @deprecated — unused; kept for reference only. */
+export const OPENCERTS_PROOF_TYPE = "OpenAttestationAssertion2018";
+
+/** @deprecated — unused; kept for reference only. */
+export const OPENATTACKATION_SIGNATURE_TYPE = "OPENATTACKATION_JSON_LD_PROOF";
+
+/** @deprecated — unused; kept for reference only. */
+export const OPENCERTS_SIGNATURE_FORMAT = "OpenAttestationSignedDocument";
+
+/** Inline JSON-LD context definitions for OpenCerts / TradeTrust mode credentials.
+
+  These replace previously-fetched external URLs that are no longer accessible
+  (opencredentials.github.io archive shutdown, opentrust.org / comprobante DNS gone).
+
+  Each element can be a URL string (for remote dereferencing) or a plain object
+  whose properties are merged into the active @context during JSON-LD processing.
+*/
+export const OPENCERTS_EXTRA_CONTEXTS = [
+  {
+    "@context": {
+      "OpenCertsCertificate": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/OpenCertsCertificate",
+      "name": "https://schema.org/name",
+      "description": "https://schema.org/description",
+      "issuedOn": "https://schema.org/dateIssued",
+      "admissionDate": {
+        "@id": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/admissionDate",
+        "@type": "http://www.w3.org/2001/XMLSchema#dateTime",
+      },
+      "graduationDate": {
+        "@id": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/graduationDate",
+        "@type": "http://www.w3.org/2001/XMLSchema#dateTime",
+      },
+      "recipient": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/recipient",
+      "nric": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/nric",
+      "course": "https://schema.org/courseName",
+      "transcript": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/transcript",
+      "grade": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/grade",
+      "courseCredit": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/courseCredit",
+      "courseCode": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/courseCode",
+      "examinationDate": {
+        "@id": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/examinationDate",
+        "@type": "http://www.w3.org/2001/XMLSchema#dateTime",
+      },
+      "semester": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/semester",
+      "additionalData": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/additionalData",
+      "merit": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/merit",
+      "studentId": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/studentId",
+      "transcriptId": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/transcriptId",
+      "certSignatories": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/certSignatories",
+      "signature": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/signature",
+      "position": "https://schema.org/jobTitle",
+      "organisation": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/organisation",
+    },
+  } as const,
+] as const;
+
+/** Inline context for OpenTrust DSS format 1.0 — replaces the now-inaccessible
+ * https://opentrust.org/schema/dss/format/1.0/context.jsonld URL.
+ */
+export const OPENTRUST_DSS_CONTEXT = {
+  "@context": {
+    "dss": "https://opentrust.org/schema/dss/",
+    "format": "https://opentrust.org/schema/dss/format/",
+  },
+} as const;
+
+/** Inline context for Comprobante 1.0 — replaces the now-inaccessible
+ * https://ts.openattestation.com/comprobante/1.0/context.json URL.
+ */
+export const COMPROBANTE_CONTEXT = {
+  "@context": {
+    "comprobante": "https://openpack.verifier.services/schema/1.0/",
+    "issuerLegalName": "https://openpack.verifier.services/schema/1.0#legalName",
+    "issueInstant": {
+      "@id": "https://openpack.verifier.services/schema/1.0#instantOfIssue",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime",
+    },
+  },
+} as const;
+
+/** Token registry ID for the deployed OpenCerts deployment (empty = not yet configured). */
+export const TOKEN_REGISTRY_ID = process.env.TOKEN_REGISTRY_ID ?? "";
+
+/** Issuer name / metadata block used in `openCertsCertificateMetadata` when present. */
+export const OPENCERTS_ISSUER_METADATA = {
+  name: ISSUER_CONFIG.name,
+  url: ISSUER_CONFIG.url,
+  socket: process.env.NEXT_PUBLIC_DID_URL ?? "did:web:verifiable.sg",
+} as const;
