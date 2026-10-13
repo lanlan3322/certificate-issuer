@@ -78,6 +78,7 @@ interface IssueFormState {
   hasValidity: boolean;
   validFrom: string;
   validUntil: string | null;
+  certificateFormat: "standard" | "opencerts";
 }
 
 function getTodayDateInputValue(): string {
@@ -144,6 +145,7 @@ export default function HomePage() {
       hasValidity: true,
       validFrom,
       validUntil: getNextYearSameDateInputValue(validFrom),
+      certificateFormat: "standard",
     };
   });
   const [issuedCert, setIssuedCert] = useState<CertificateData | null>(null);

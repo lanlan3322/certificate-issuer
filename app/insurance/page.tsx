@@ -81,6 +81,7 @@ interface IssueFormState {
   hasValidity: boolean;
   validFrom: string;
   validUntil: string | null;
+  certificateFormat: "v1" | "w3c";
 }
 
 function getTodayDateInputValue(): string {
@@ -147,6 +148,7 @@ export default function InsurancePage() {
       hasValidity: true,
       validFrom,
       validUntil: getNextYearSameDateInputValue(validFrom),
+      certificateFormat: "v1",
     };
   });
   const [issuedCert, setIssuedCert] = useState<CertificateData | null>(null);
@@ -307,6 +309,8 @@ export default function InsurancePage() {
         issuingMethods,
       };
 
+      const payload = buildVCPayload(certData, formData.certificateFormat);
+
       if (issuingMethods.includes("did")) {
         // Signing and persistence both happen server-side; there is no browser
         // fallback because the signing key is never sent to the client.
@@ -318,6 +322,7 @@ export default function InsurancePage() {
           body: JSON.stringify({
             data: certData,
             type: "did",
+            certificateFormat: formData.certificateFormat,
           }),
         });
 
@@ -338,13 +343,13 @@ export default function InsurancePage() {
         }
 
         const didResult: DIDIssuanceResult = {
-          credential: (resultPayload.credential ?? buildVCPayload(certData)) as Record<string, unknown>,
+          credential: (resultPayload.credential ?? payload) as Record<string, unknown>,
           signed: Boolean(resultPayload.signed),
         };
 
         const didSigner = await getSigner();
         const walletSignedDID = await signCredentialWithEthereum(
-          didResult.credential ?? (buildVCPayload(certData) as Record<string, unknown>),
+          didResult.credential ?? payload as Record<string, unknown>,
           didSigner
         );
 
@@ -362,7 +367,7 @@ export default function InsurancePage() {
             await switchToSepolia();
           }
           const signer = await getSigner();
-          const unsignedCredential = buildVCPayload(certData) as Record<string, unknown>;
+          const unsignedCredential = buildVCPayload(certData, formData.certificateFormat) as Record<string, unknown>;
           const walletSigned = await signCredentialWithEthereum(unsignedCredential, signer);
           const result = await issueCertificateToEthereum(
             walletSigned.credential,
@@ -765,6 +770,76 @@ export default function InsurancePage() {
                     selectedMethods={issuingMethods}
                     onToggle={handleToggleIssuingMethod}
                   />
+
+                  {/* Certificate Format Selector */}
+                  <div className="space-y-2">
+                    <label className="label text-sm md:text-base">Certificate Format</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, certificateFormat: "v1" }))
+                        }
+                        className={`rounded-lg border-2 p-4 text-left transition-colors ${
+                          formData.certificateFormat === "v1"
+                            ? "border-primary bg-primary/5"
+                            : "border-gray-200 hover:border-gray-300 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div
+                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                              formData.certificateFormat === "v1"
+                                ? "border-primary"
+                                : "border-gray-300"
+                            }`}
+                          >
+                            {formData.certificateFormat === "v1" && (
+                              <div className="w-2 h-2 rounded-full bg-primary" />
+                            )}
+                          </div>
+                          <span className="text-sm font-semibold text-gray-900">
+                            v1
+                          </span>
+                        </div>
+                        <p className="mt-1.5 text-xs text-gray-600">
+                          OpenCerts template format with embedded renderer
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, certificateFormat: "w3c" }))
+                        }
+                        className={`rounded-lg border-2 p-4 text-left transition-colors ${
+                          formData.certificateFormat === "w3c"
+                            ? "border-primary bg-primary/5"
+                            : "border-gray-200 hover:border-gray-300 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div
+                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                              formData.certificateFormat === "w3c"
+                                ? "border-primary"
+                                : "border-gray-300"
+                            }`}
+                          >
+                            {formData.certificateFormat === "w3c" && (
+                              <div className="w-2 h-2 rounded-full bg-primary" />
+                            )}
+                          </div>
+                          <span className="text-sm font-semibold text-gray-900">
+                            W3C
+                          </span>
+                        </div>
+                        <p className="mt-1.5 text-xs text-gray-600">
+                          Standard W3C Verifiable Credential format
+                        </p>
+                      </button>
+                    </div>
+                  </div>
 
                   {issuingMethods.includes("did") && (
                     <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">

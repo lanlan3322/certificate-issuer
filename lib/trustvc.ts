@@ -34,9 +34,21 @@ import {
 } from "./constants";
 
 /** Credential output mode — `undefined` defaults to standard W3C VC. */
-export type CertificateMode = "standard" | "opencerts";
+export type CertificateMode = "standard" | "opencerts" | "v1" | "w3c";
 
 type TrustVCContextModule = typeof import("@trustvc/w3c-context");
+
+// Normalise any accepted format string into the internal CredentialMode used by buildVCPayload.
+const MODE_ALIASES: Readonly<Record<string, CertificateMode>> = Object.freeze({
+  standard: "standard",
+  opencerts: "opencerts",
+  v1: "standard",
+  w3c: "opencerts",
+});
+
+function resolveCertificateMode(raw?: string): CertificateMode {
+  return raw && raw in MODE_ALIASES ? MODE_ALIASES[raw] : "standard";
+}
 
 // Runtime type for @trustvc/trustvc verifyDocument output (fragments).
 // The package's .d.ts files are empty, so we define our own based on actual runtime usage.
@@ -294,6 +306,7 @@ export interface CertificateData {
   validFrom: string;
   validUntil?: string;
   issuingMethods?: IssuingMethod[];
+  certificateFormat?: CertificateMode;
 }
 
 // Generate a UUID for certificate
@@ -345,7 +358,8 @@ function getTemplateForCertificateType(
   return key ? CERTIFICATE_TEMPLATES[key as keyof typeof CERTIFICATE_TEMPLATES].template : undefined;
 }
 
-export function buildVCPayload(data: CertificateData, mode?: CertificateMode) {
+export function buildVCPayload(data: CertificateData, mode?: string) {
+  const resolved = resolveCertificateMode(mode);
   const issuingMethods =
     data.issuingMethods && data.issuingMethods.length > 0
       ? data.issuingMethods
@@ -363,7 +377,7 @@ export function buildVCPayload(data: CertificateData, mode?: CertificateMode) {
   const issuedTemplate = getTemplateForCertificateType(data.certificateType);
 
   // ─── OA / OpenCerts mode adjustments (additive; standard mode unchanged) ───
-  if (mode === "opencerts") {
+  if (resolved === "opencerts") {
     // credentialStatus becomes an array element with _type for OA recognition
     subject = { ...subject, _type: OPENCERTS_SUBJECT_TYPE };
   }
@@ -380,10 +394,10 @@ export function buildVCPayload(data: CertificateData, mode?: CertificateMode) {
   const baseType = ["VerifiableCredential"];
 
   return {
-    "@context": mode === "opencerts"
+    "@context": resolved === "opencerts"
       ? [...baseContexts, ...OPENCERTS_EXTRA_CONTEXTS, OPENTRUST_DSS_CONTEXT, COMPROBANTE_CONTEXT]
       : baseContexts,
-    type: mode === "opencerts"
+    type: resolved === "opencerts"
       ? [...baseType, OPENCERTS_CREDENTIAL_TYPE]
       : baseType,
     validFrom: data.validFrom,

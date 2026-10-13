@@ -3,12 +3,36 @@ import { authorize, errorResponse } from "../../../lib/apiAuth";
 import { buildVCPayload, getDIDKeyPairFromEnv, signDocumentWithDID } from "../../../lib/trustvc";
 import { AuditService } from "../../../services/AuditService";
 import { CredentialService, DuplicateCredentialError } from "../../../services/CredentialService";
+import { registerHash, isRegistered } from "../../../lib/document-store";
 import type { CertificateData } from "../../../lib/trustvc";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_FIELD = 512;
+
+/**
+ * Extracts the OpenCerts targetHash (bytes32) from a signed VC.
+ * The `injectTargetHash` utility writes it to `credentialStatus[0].targetHash`.
+ */
+function extractTargetHash(credential: Record<string, unknown>): string | null {
+  const status = credential["credentialStatus"];
+  if (!status) return null;
+  // Array form (W3C VC spec): [{ ..., targetHash: "0x..." }]
+  if (Array.isArray(status)) {
+    const first = status[0];
+    if (first && typeof first === "object") {
+      const h = (first as Record<string, unknown>)["targetHash"];
+      if (typeof h === "string" && /^0x[0-9a-f]{64}$/i.test(h)) return h;
+    }
+  } else if (typeof status === "object") {
+    // Object form (legacy / some verifiers)
+    const hash = (status as Record<string, unknown>)["targetHash"];
+    if (typeof hash === "string" && /^0x[0-9a-f]{64}$/i.test(hash)) return hash;
+  }
+  return null;
+}
+
 
 function validate(data: Record<string, unknown>): { ok: true; value: CertificateData } | { ok: false; error: string } {
   const str = (key: string) => (typeof data[key] === "string" ? (data[key] as string).trim() : "");
@@ -56,7 +80,7 @@ export async function POST(request: Request) {
       type?: "did" | "ethereum";
       templateId?: string;
       persist?: boolean;
-      certificateFormat?: "standard" | "opencerts";
+      certificateFormat?: "standard" | "opencerts" | "v1" | "w3c";
     };
 
     if (!body.data || typeof body.data !== "object") {
@@ -123,6 +147,21 @@ export async function POST(request: Request) {
           return NextResponse.json({ signed: false, error: storeError.message }, { status: 409 });
         }
         throw storeError;
+      }
+    }
+
+    // ─── On-chain document-store registration (non-blocking) ──────────────
+    if (isRegistered()) {
+      const targetHash = extractTargetHash(result.credential);
+      if (targetHash) {
+        registerHash(targetHash, {
+          credentialId: data.id,
+          externalId: data.id,
+          recipientEmail: data.recipientEmail,
+          issuerId: user.issuerId,
+        }).catch((err) => {
+          console.error("[issue/registration] background registration failed:", err);
+        });
       }
     }
 

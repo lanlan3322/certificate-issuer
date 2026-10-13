@@ -183,6 +183,7 @@ export default function BatchIssuePanel({
     const today = getTodayDateInputValue();
     return getNextYearSameDateInputValue(today);
   });
+  const [certificateFormat, setCertificateFormat] = useState<"v1" | "w3c">("v1");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validRows = rows.filter((r) => r.errors.length === 0);
@@ -295,16 +296,17 @@ export default function BatchIssuePanel({
           validFrom: validFromIso ?? now,
           validUntil: validUntilIso,
           issuingMethods,
+          certificateFormat,
         };
 
-        let payload = buildVCPayload(certData);
+        let payload = buildVCPayload(certData, certificateFormat);
         let txHash: string | undefined;
 
         if (issuingMethods.includes("did")) {
           const response = await fetch("/api/issue", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ data: certData, type: "did" }),
+            body: JSON.stringify({ data: certData, type: "did", certificateFormat }),
           });
           const result = (await response.json().catch(() => ({}))) as {
             signed?: boolean;
@@ -395,6 +397,68 @@ export default function BatchIssuePanel({
         onToggle={onToggleIssuingMethod}
         helperText="These methods apply to every certificate issued from this batch."
       />
+
+      {/* Certificate Format Selector */}
+      <div className="space-y-2">
+        <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">Certificate Format</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setCertificateFormat("v1")}
+            className={`rounded-lg border-2 p-4 text-left transition-colors ${
+              certificateFormat === "v1"
+                ? "border-primary bg-primary/5"
+                : "border-gray-200 hover:border-gray-300 bg-white"
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <div
+                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                  certificateFormat === "v1"
+                    ? "border-primary"
+                    : "border-gray-300"
+                }`}
+              >
+                {certificateFormat === "v1" && (
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                )}
+              </div>
+              <span className="text-sm font-semibold text-gray-900">v1</span>
+            </div>
+            <p className="mt-1.5 text-xs text-gray-600">
+              OpenCerts template format with embedded renderer
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCertificateFormat("w3c")}
+            className={`rounded-lg border-2 p-4 text-left transition-colors ${
+              certificateFormat === "w3c"
+                ? "border-primary bg-primary/5"
+                : "border-gray-200 hover:border-gray-300 bg-white"
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <div
+                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                  certificateFormat === "w3c"
+                    ? "border-primary"
+                    : "border-gray-300"
+                }`}
+              >
+                {certificateFormat === "w3c" && (
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                )}
+              </div>
+              <span className="text-sm font-semibold text-gray-900">W3C</span>
+            </div>
+            <p className="mt-1.5 text-xs text-gray-600">
+              Standard W3C Verifiable Credential format
+            </p>
+          </button>
+        </div>
+      </div>
 
       <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-3 sm:p-4">
         <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">

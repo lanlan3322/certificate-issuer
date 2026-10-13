@@ -1,0 +1,150 @@
+{
+  "phase": 5,
+  "title": "OpenCerts TradeTrust/OpenAttestation Compatibility Analysis",
+  "sections": [
+    {
+      "section": "1. Credential Format Compliance",
+      "items": [
+        {
+          "standard": "W3C VC Data Integrity 2.0",
+          "requirement": "Credential must include @context, type, validFrom, issuer, credentialSubject, credentialStatus",
+          "compliance": "COMPLIANT",
+          "details": "buildVCPayload includes all required fields. @context starts with W3C v2 and data-integrity v2 base URLs.",
+          "file_reference": "lib/trustvc.ts:371-389"
+        },
+        {
+          "standard": "OpenCerts / OpenAttestation v2",
+          "requirement": "When mode=opencerts, add OpenCerts-specific contexts and types to @context array",
+          "compliance": "COMPLIANT",
+          "details": "In opencerts mode (line 383-388), baseContexts is extended with OPENCERTS_CONTEXT, OPENCERTS_SCHEMA_V2_CONTEXT, OPENCERTS_EXTRA_CONTEXTS, and OPENTRUST_DSS_CONTEXT. type becomes [VerifiableCredential, OpenCertsCredential].",
+          "file_reference": "lib/trustvc.ts:366-388"
+        },
+        {
+          "standard": "OpenCerts Subject Mapping",
+          "requirement": "credentialSubject fields must follow canonical OpenCerts mapping",
+          "compliance": "COMPLIANT",
+          "details": "toOpenCertsCredentialSubject maps recipientName->name, recipientEmail->email, certificateId->certificateId via OPEN_CERTS_SUBJECT_FIELD_MAP constants.",
+          "file_reference": "lib/constants.ts:217-224"
+        },
+        {
+          "standard": "_type field",
+          "requirement": "credentialSubject._type must be present for OA recognition in OpenCerts mode",
+          "compliance": "COMPLIANT",
+          "details": "Line 368 sets _type to 'OpenCertsIssuer' (OPENCERTS_SUBJECT_TYPE constant). This signals the credential type to OA verifiers.",
+          "file_reference": "lib/trustvc.ts:368"
+        }
+      ]
+    },
+    {
+      "section": "2. Document Store / On-Chain Registry Compliance",
+      "items": [
+        {
+          "standard": "OpenAttestationDocumentStore credentialStatus",
+          "requirement": "credentialStatus must be an array with OpenAttestationDocumentStore type pointing to on-chain contract",
+          "compliance": "COMPLIANT",
+          "details": "Lines 407-414 build credentialStatus as array element. id uses did:ethr:<contract>#<documentId> format required by OA v2 verifiers.",
+          "file_reference": "lib/trustvc.ts:407-414"
+        },
+        {
+          "standard": "Document Store Contract Address",
+          "requirement": "Contract must be deployed on supported Ethereum network with DocumentStoreRegistry ABI",
+          "compliance": "NEEDS_ATTENTION",
+          "details": "Currently uses demo contract 0x92600b6B5fE4D15D87d7d264C6cAdCcaf9D74594 on Sepolia (testnet). For production, deploy own document store per TradeTrust deployment guide.",
+          "file_reference": "lib/constants.ts:49-63"
+        },
+        {
+          "standard": "DNS-TXT Identity Proof",
+          "requirement": "Must publish TXT record at _document-store.<domain> matching contract address and network",
+          "compliance": "NEEDS_ATTENTION",
+          "details": "Current config uses 'verifiable.sg' as identity proof location. Must add TXT record: Name=_document-store.verifiable.sg, Value='openatts net=ethereum netId=11155111 addr=<contract>'.",
+          "file_reference": "lib/constants.ts:59-62"
+        }
+      ]
+    },
+    {
+      "section": "3. Revocation Compliance",
+      "items": [
+        {
+          "standard": "OCSP Revocation",
+          "requirement": "credentialStatus.revocation must specify OCSP_RESPONDER with valid OCSP endpoint",
+          "compliance": "COMPLIANT (sandbox)",
+          "details": "Uses sandbox OCSP URL from env var. For production, provision real OpenAttestation OCSP responder or TradeTrust's production OCSP endpoint.",
+          "file_reference": "lib/constants.ts:243-249"
+        }
+      ]
+    },
+    {
+      "section": "4. JSON-LD Context Handling",
+      "items": [
+        {
+          "standard": "Inline Context Loading",
+          "requirement": "Remote OA contexts must be loadable during signing",
+          "compliance": "COMPLIANT",
+          "details": "Codebase embedded all required OpenCerts/OA JSON-LD contexts inline (OPENCERTS_CONTEXT, OPENCERTS_SCHEMA_V2_CONTEXT) to eliminate network dependency.",
+          "file_reference": "lib/constants.ts:112-190"
+        },
+        {
+          "standard": "Context Ordering",
+          "requirement": "OpenCerts types must appear before standard W3C contexts in some verifiers' resolution order",
+          "compliance": "COMPLIANT",
+          "details": "baseContexts array puts OpenCerts contexts at positions 2-5 after base URLs, ensuring availability during type resolution.",
+          "file_reference": "lib/trustvc.ts:371-378"
+        }
+      ]
+    },
+    {
+      "section": "5. Template Resolution",
+      "items": [
+        {
+          "standard": "$template metadata",
+          "requirement": "credentialSubject must include $template for OA renderer lookup",
+          "compliance": "COMPLIANT",
+          "details": "getTemplateForCertificateType matches certificateType against CERTIFICATE_TEMPLATES. Result added as $template.name and $template.version. All three types use EMBEDDED_RENDERER on certificates.openattestation.com.",
+          "file_reference": "lib/trustvc.ts:362-399, lib/constants.ts:74-109"
+        }
+      ]
+    },
+    {
+      "section": "6. Issuer DID Resolution",
+      "items": [
+        {
+          "standard": "did:web Method",
+          "requirement": "Issuer DID must resolve to a valid DID document at the specified domain",
+          "compliance": "NEEDS_ATTENTION",
+          "details": "Uses did:web:verifiable.sg. Must ensure https://verifiable.sg/.well-known/did.json exists with correct public key/verificationMethod.",
+          "file_reference": "lib/constants.ts:241-242"
+        }
+      ]
+    },
+    {
+      "section": "7. Known Gaps & Recommendations",
+      "items": [
+        {
+          "priority": "HIGH",
+          "gap": "Production document store contract not deployed",
+          "recommendation": "Deploy DocumentStoreRegistry smart contract on target network per TradeTrust deployment guide."
+        },
+        {
+          "priority": "HIGH",
+          "gap": "DNS-TXT identity proof record not yet published",
+          "recommendation": "Add TXT DNS record at _document-store.<your-domain> matching deployed contract address and network ID."
+        },
+        {
+          "priority": "MEDIUM",
+          "gap": "did:web DID document for verifiable.sg not created",
+          "recommendation": "Create .well-known/did.json at verifiable.sg domain containing issuer's public key used for signing."
+        },
+        {
+          "priority": "MEDIUM",
+          "gap": "Production OCSP responder endpoint",
+          "recommendation": "Replace sandbox OCSP URL with production endpoint after document store is deployed."
+        },
+        {
+          "priority": "LOW",
+          "gap": "credentialSubject missing OpenCerts-specific fields (issuingAuthority, certifyingBody)",
+          "recommendation": "Extend OPEN_CERTS_SUBJECT_FIELD_MAP to include additional OpenCerts template fields if needed."
+        }
+      ]
+    }
+  ]
+}
