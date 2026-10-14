@@ -7,7 +7,7 @@ hosted OpenCerts execution not performed**
 ## Embedded renderer opt-in — 2026-10-14
 
 New DID issuances may opt in to a signed W3C `renderMethod`
-(`EMBEDDED_RENDERER`, `id` `https://verifiable.sg/renderer/`, `templateName` from
+(`EMBEDDED_RENDERER`, `id` `https://www.verifiable.sg/renderer/`, `templateName` from
 the local template registry). The static renderer page implements the
 embedded-renderer frame protocol and passed a local penpal host smoke test.
 `/renderMethod` is mandatory in the selective-disclosure proof; tampering fails.

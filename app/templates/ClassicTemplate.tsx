@@ -13,7 +13,9 @@ export default function ClassicTemplate({ certificate }: TemplateProps) {
       <h3 className="mt-3 text-2xl font-bold text-amber-900">{certificate.certificateType}</h3>
       <p className="mt-4 text-sm text-amber-900">Presented to</p>
       <p className="mt-2 text-3xl font-semibold text-amber-800">{certificate.recipientName}</p>
-      <p className="mt-4 text-sm italic text-amber-900">&quot;{certificate.description}&quot;</p>
+      {certificate.description && (
+        <p className="mt-4 text-sm italic text-amber-900">&quot;{certificate.description}&quot;</p>
+      )}
       <p className="mt-6 text-xs text-amber-700">Issued by {certificate.issuerName}</p>
     </div>
   );

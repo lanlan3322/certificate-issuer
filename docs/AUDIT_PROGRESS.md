@@ -2,6 +2,18 @@
 
 Last Updated: 2026-10-14
 
+## Step 21: renderer origin fix after deployment
+
+- Production test (synthetic VC only, local penpal host, same `connectToChild`
+  call shape as TradeTrust `useFrame`, no `childOrigin`): `https://verifiable.sg/renderer/`
+  308-redirects to `www`, so penpal rejects the handshake (`ConnectionTimeout`);
+  `https://www.verifiable.sg/renderer/` CONNECTED, sent UPDATE_TEMPLATES and
+  UPDATE_HEIGHT and rendered.
+- Signed `renderMethod[0].id` changed to `https://www.verifiable.sg/renderer/`.
+  Any certificate already issued with the apex renderer URL cannot be changed
+  (signed field) and should be reissued with the renderer option.
+- Classic template no longer renders empty quotes when description is empty.
+
 ## Step 20: opt-in embedded renderer and signed renderMethod
 
 - Added static public `/renderer/` page implementing the TradeTrust/OpenAttestation
@@ -12,7 +24,7 @@ Last Updated: 2026-10-14
   points, 10 dynamic route handlers plus proxy).
 - `/api/issue` accepts `renderMethod: "none" | "embedded"` (default none;
   invalid values or non-DID issuance return 400). Embedded adds the bundled
-  render-method context v2 and `renderMethod[0] = {id: https://verifiable.sg/renderer/,
+  render-method context v2 and `renderMethod[0] = {id: https://www.verifiable.sg/renderer/,
   type: EMBEDDED_RENDERER, templateName}` before signing; `/renderMethod` is a
   mandatory ecdsa-sd pointer so `[]`-pointer derivations still disclose and
   protect it. Issue form exposes an opt-in checkbox for DID issuance.

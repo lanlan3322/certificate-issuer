@@ -443,7 +443,9 @@ export function buildVCPayload(data: CertificateData, mode?: string) {
 }
 
 export const RENDER_METHOD_CONTEXT_V2_URL = "https://trustvc.io/context/render-method-context-v2.json";
-export const EMBEDDED_RENDERER_URL = `${ISSUER_CONFIG.url}/renderer/`;
+// Must be the final served origin: hosts derive the penpal child origin from this URL,
+// and the apex domain redirects to www, which would time out the handshake.
+export const EMBEDDED_RENDERER_URL = "https://www.verifiable.sg/renderer/";
 
 /**
  * Adds a TradeTrust/OpenCerts embedded-renderer `renderMethod` to an unsigned
