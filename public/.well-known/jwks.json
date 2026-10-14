@@ -11,6 +11,14 @@
       "use": "sig",
       "x": "BA_kfttf2yH27Q4gI7zl7jJfoVqBKb2wdoXCb5cip3w",
       "y": "goHOSYzG4sTeulIthj2wWh8ngxtvawPxlQVEFyg1eIc"
+    },
+    {
+      "kty": "EC",
+      "crv": "P-256",
+      "kid": "ecdsa-2026-01",
+      "use": "sig",
+      "x": "XtC84IICGmb_rWAtEFG7yC3SLr9QnIxt3Bn4iFb8f0Y",
+      "y": "rnMusOQIV37Fvctu8VHIgN6QyClzQdjw3iRIK5o4HFs"
     }
   ]
 }

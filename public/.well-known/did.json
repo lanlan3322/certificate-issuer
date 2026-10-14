@@ -1,7 +1,8 @@
 {
   "@context": [
     "https://www.w3.org/ns/did/v1",
-    "https://w3id.org/security/suites/jws-2020/v1"
+    "https://w3id.org/security/suites/jws-2020/v1",
+    "https://w3id.org/security/multikey/v1"
   ],
   "id": "did:web:verifiable.sg",
   "verificationMethod": [
@@ -16,13 +17,21 @@
         "x": "BA_kfttf2yH27Q4gI7zl7jJfoVqBKb2wdoXCb5cip3w",
         "y": "goHOSYzG4sTeulIthj2wWh8ngxtvawPxlQVEFyg1eIc"
       }
+    },
+    {
+      "@context": "https://w3id.org/security/multikey/v1",
+      "id": "did:web:verifiable.sg#ecdsa-2026-01",
+      "type": "Multikey",
+      "controller": "did:web:verifiable.sg",
+      "publicKeyMultibase": "zDnaep3QMCrSnAjtZmzZYbHGZyMttTq6FfjYXsC7fpE3EEzwo"
     }
   ],
   "authentication": [
     "did:web:verifiable.sg#key-1"
   ],
   "assertionMethod": [
-    "did:web:verifiable.sg#key-1"
+    "did:web:verifiable.sg#key-1",
+    "did:web:verifiable.sg#ecdsa-2026-01"
   ],
   "service": [
     {
