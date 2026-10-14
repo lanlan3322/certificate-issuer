@@ -1,5 +1,31 @@
 # MIGRATION PLAN - TradeTrust / OpenCerts Compatibility Layer
 
+## Production runtime gate: native CommonJS/ESM interoperability
+
+Production issuance reported `ERR_REQUIRE_ESM` in
+`@trustvc/w3c-issuer/dist/did-web/keyPair/bbs2023.js` while loading the ESM-only
+Digital Bazaar Multikey package. The context package eagerly loads issuer key
+helpers even for ECDSA issuance; the VC SDK also has native ESM dependencies.
+Changing only the unused BBS key helper would not address the entire load path.
+
+With explicit approval, `package.json` pins `engines.node` to `24.x`, a
+[supported Vercel runtime](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions).
+Vercel documents that this setting overrides the project dashboard version.
+The exact failure reproduces locally with native `require(ESM)` disabled;
+normal Node 24 imports, synthetic signing/verification and build pass.
+The failing deployment's actual Node version/flags have not been inspected.
+
+Deploy this runtime pin before retrying issuance. Confirm the new deployment uses
+Node 24.x. If `NODE_OPTIONS` is configured in Vercel, check for
+`--no-experimental-require-module`; do not carry that flag into this deployment.
+Preserve other existing options. No dependency upgrade, certificate-field change,
+signing-key change or extra serverless function is introduced.
+
+Node 24.9.0 validation: **39 tests PASS**, production build/TypeScript PASS.
+`scripts/runtime-interop.test.js` guards the runtime/lockfile metadata, native ESM
+interop availability and actual TrustVC CommonJS entry-point imports.
+Production issuance remains unverified until the new deployment is tested.
+
 ## Step 12: approved opt-in Bitstring Status List rollout — local only
 
 User approved a new optional profile, not a rewrite of existing credentials.

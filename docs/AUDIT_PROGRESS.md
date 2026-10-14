@@ -2,6 +2,32 @@
 
 Last Updated: 2026-10-14
 
+## Step 15: reported production ERR_REQUIRE_ESM — runtime fix validated locally
+
+- User reported issuance failure requiring Digital Bazaar BLS Multikey from
+  TrustVC's CommonJS BBS helper. Reproduced that exact package/error locally
+  with `node --no-experimental-require-module`.
+- User approved pinning/testing Vercel-supported Node 24 instead of maintaining
+  multiple upstream interop patches. Added `engines.node: "24.x"` and matching
+  lockfile metadata. No credential fields, application handlers or keys changed.
+- Official Node 24.9.0 macOS binary downloaded outside the repository and checked
+  against its published SHA-256. Actual context/VC SDK imports, synthetic
+  signing/status verification, legacy/UI/router/database tests and production
+  build pass under that runtime: **39 tests PASS**, TypeScript/build PASS.
+- Added runtime interop regression tests. Vercel runtime-pin semantics and
+  NODE_OPTIONS checks documented in the migration plan. Production runtime/flags
+  remain uninspected; a deployment using the pin is needed before claiming a fix
+  in production. No commit/push/configuration change performed in this step.
+- Earlier user confirmed migration table plus three RPCs exist, and reported
+  redeployment after signing/status configuration. Public DID key authorization
+  passed; status endpoints returned 404 before first allocation. This does not
+  prove that signing succeeded. Real-data issuance remains blocked separately
+  pending replacement of the key exposed in editor context.
+
+Next: deploy the runtime pin, confirm Node 24 with require(ESM) enabled, then
+retry authorized synthetic DID-only opt-in issuance and verify/view. Retain
+separate key-rotation and external-acceptance gates.
+
 ## Step 14: Hobby API function-budget audit — 2026-10-14
 
 - Audited all 22 API route entry points and both external auth callback routes.
