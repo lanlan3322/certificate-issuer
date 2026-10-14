@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const path = require("path");
+const { readdirSync } = require("fs");
 
 const deployTarget = process.env.DEPLOY_TARGET || "vercel";
 const isGitHubPages = deployTarget === "github-pages";
@@ -18,7 +19,10 @@ const stubbedModules = [
   "rdf-canonize-native",
 ];
 
-const trustvcRuntimeTraceIncludes = ["./node_modules/**/*"];
+// Keep the embedded PostgreSQL test engine out of serverless function bundles.
+const trustvcRuntimeTraceIncludes = readdirSync(path.join(__dirname, "node_modules"))
+  .filter((name) => name !== "@electric-sql")
+  .map((name) => `./node_modules/${name}/**/*`);
 
 const nextConfig = {
   basePath,
@@ -44,6 +48,7 @@ const nextConfig = {
     "/api/issue": trustvcRuntimeTraceIncludes,
     "/api/verify": trustvcRuntimeTraceIncludes,
     "/api/debug-trustvc": trustvcRuntimeTraceIncludes,
+    "/api/status-list/*/*": trustvcRuntimeTraceIncludes,
   },
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,

@@ -1,7 +1,245 @@
 # TradeTrust compatibility report
 
 Updated: 2026-10-14  
-Overall: **PARTIAL — not externally certified**
+Overall: **FAIL for the supplied artifacts against tested reference requirements;
+hosted portal execution not performed**
+
+## Step 12 local opt-in status profile — 2026-10-14
+
+Approved opt-in DID-only profile now issues two BitstringStatusListEntry values
+with durable indices and publishes signed VC v2 revocation/suspension lists.
+Actual application cryptographic verification and signed status lifecycle PASS
+locally; **31 tests PASS**, production build/TypeScript PASS. PostgreSQL migration
+functions executed in a disposable embedded engine; production migration,
+feature/signing activation and live issue/verify/view have not been performed.
+
+Exact W3C wire requirements checked: 131072 bits, leftmost-bit index zero,
+gzip, Multibase base64url `u`, 60-second expiry/TTL. Decoding is bounded.
+The installed status SDK emits bare base64url; the wrapper supplies the required
+prefix. External verifier consumption of the resulting lists is still untested.
+
+**TradeTrust overall remains PARTIAL/unverified for the new profile; supplied
+historical artifacts remain FAIL.** External renderer selection and exact
+upstream/hosted acceptance remain blockers. The unchanged default
+OpenAttestationDocumentStore status still returns unsupported, not PASS.
+This W3C profile has no OA Merkle proof/document-store linkage requirement and
+does not establish compatibility with OA v2/v3-only verification.
+
+## Step 11 local ECDSA application verification — 2026-10-14
+
+Actual application entry point now verifies base/derived ecdsa-sd-2023 proofs
+using the installed W3C SDK and resolved issuer assertion authorization, avoiding
+the empty aggregate exports and hardcoded signing loader for this suite.
+Tampering/unauthorized methods/invalid validity fail; wallet behavior preserved.
+Nonempty status is explicitly unsupported and returns invalid, not a fabricated
+full verification PASS. Current builder status still blocks end-to-end acceptance.
+**24 tests PASS**, build/TypeScript **PASS**; no deployment or signing activation.
+
+## Step 10 application verification gate — 2026-10-14
+
+UI deployment success confirmed for `26b61bf2`. Actual local application DID
+verification still depends on unavailable aggregate exports and a loader that
+hardcodes the historical method. Direct SDK verification tests do not cover that
+branch. No corresponding live failure claimed; production exports remain
+uninspected. Signing activation blocked until actual application-entry-point
+tests establish distinct-method verification and explicit status outcomes.
+
+## Step 9 UI fix pushed — 2026-10-14
+
+UI proof-preservation fix/test approved and pushed in `26b61bf2`; Vercel deployment
+pending. Eighteen targeted tests and local build/TypeScript PASS. Signing key is
+not activated; authenticated production issuance/verification remain unrun.
+Remaining API/tooling fixes are not in this commit. Public authorization PASS
+does not resolve distinct-method local-loader, status or renderer acceptance.
+
+## Step 8 live authorization — 2026-10-14 12:06 +08:00
+
+Vercel deployment success independently confirmed. Live DID/JWKS return 200 and
+match retained candidates byte for byte. The new method is publicly assertion-
+authorized; live P-256 JWK and Multikey correspondence PASS. No private key access
+or signing activation. Runtime proof-preservation fixes remain undeployed;
+fresh production and external verification remain unrun. Historical artifact
+FAIL and status/rendering blockers are unchanged.
+
+## Step 7 public-only deployment pending — 2026-10-14
+
+Approved static DID/JWKS commit `7963ae63` pushed to main. Vercel deployment
+status is pending; initial live URLs still lack the new key. Signing activation
+is blocked until public authorization is confirmed. Local runtime fixes were
+not committed/pushed and must not be described as deployed. External acceptance
+and supplied artifact FAIL results remain unchanged.
+
+## Step 6 local public integration — 2026-10-14
+
+Repository static DID/JWKS now exactly match reviewed retained public candidates,
+preserving historical methods and adding the distinct P-256 assertion method.
+Candidate byte/hash checks, public DID/JWK key correspondence and no-duplicate
+API handling pass. **24 tests PASS**, production build/TypeScript **PASS**.
+
+No deployment or signing configuration activation occurred. Live authorization
+must be confirmed after approved deployment; existing artifact FAIL and external
+status/rendering blockers are unchanged.
+
+## Step 5 retained key review — 2026-10-14
+
+With explicit approval, generated/retained the actual distinct P-256 key and
+public candidates outside git. Live baseline equality, historical preservation,
+owner-only permissions, private/public correspondence and in-memory SDK synthetic
+sign/derive/verify passed. Candidate hashes and rollout gates are recorded in the
+migration plan. No private material displayed or uploaded.
+
+No public files, production signing configuration or routing changed. The new
+method is not yet publicly authorized; production/public verification and hosted
+acceptance remain unrun. Existing supplied artifact FAIL is unchanged.
+
+## Step 4 static preparation — 2026-10-14
+
+User selected the static well-known publication path. The existing preparation
+tool now emits matched public DID and JWKS candidates, preserving historical
+entries and rejecting key-ID collisions. Tests assert both public candidates
+exactly match API output for the same key, and verify DID/JWK key correspondence.
+**24 tests PASS**, production build/TypeScript **PASS**.
+
+Only temporary synthetic keys were generated. No real deployment candidate,
+public file, routing or production signing configuration changed. A coordinated
+public-first static rollout is documented in the migration plan; activation
+requires approval. Existing artifact FAIL and status/rendering blockers remain.
+
+## Step 3 API readiness — 2026-10-14
+
+DID and JWKS APIs now derive matching public material using a shared validated
+parser, preserve historical methods, reject conflicts/invalid configuration with
+logged 503 responses, and use response-body ETags. P-256/P-384 Multikey publication
+and legacy secp256k1 hex coordinate parsing are tested. Combined regressions:
+**24 PASS**, build/TypeScript **PASS**.
+
+No static DID/JWKS or production configuration changed. The actual did:web URL
+still resolves the static document; routing/publication and distinct-key activation
+need explicit rollout approval. The observed malformed local key ID is rejected,
+not silently corrected. Existing artifact FAIL and status/rendering blockers remain.
+
+## Step 2 preparation — 2026-10-14
+
+With preparation-only approval, corrected the existing key generator to produce
+P-256 Multikey material plus a candidate DID adding a distinct assertion method
+while retaining historical entries. The old generator incorrectly sliced the
+uncompressed secp256k1 point and emitted secrets without a Multikey codec.
+Generated dotenv IDs are quoted to preserve `#fragment`.
+
+Real application signing and SDK derivation/verification against the candidate
+DID pass; combined regressions: **23 PASS**, build/TypeScript **PASS**. No production
+key generated/persisted, public DID changed or environment updated. Static versus
+API publication inconsistencies still require separate review/rollout approval.
+The supplied artifacts remain FAIL and hosted acceptance remains unrun.
+
+## Step 1 remediation — 2026-10-14
+
+The single-issuance page no longer replaces the API's issuer DID proof with
+`EthereumPersonalSignature2024`. It preserves the server credential for
+download/preview and permits DID-only issuance without a wallet. Incomplete or
+unsigned API responses are rejected explicitly. Separate Ethereum issuance and
+legacy wallet verification remain unchanged.
+
+Targeted page-handler and cryptographic/rendering regression tests: **17 PASS**;
+production build including TypeScript: **PASS**. No new fields, public key/DID
+changes or production issuance performed. These local tests do not establish
+public DID authorization or external acceptance. The supplied historical files
+remain FAIL; validate a freshly issued artifact after the independent DID key
+and status-profile blockers are addressed.
+
+## Actual-artifact results: 2026-10-14 11:22 +08:00
+
+This result supersedes the earlier missing-input/PARTIAL checkpoint below.
+Tested the unmodified Downloads files locally, not the historical sample:
+
+| Artifact | Original file SHA-256 | Format |
+|---|---|---|
+| `certificate-test6.json` | `9174eb41c3fe88003a6dbd511508225930375dac907921f1b0c2b48e8a0c4d2f` | OpenCerts markers present |
+| `certificate-tester7.json` | `933ff8e0138e2aca7610be3ff43e03cd4c25a67317445d356ab58beed49c30f9` | Standard, not OpenCerts-mode markers |
+
+**TradeTrust requirements: FAIL, both files. OpenAttestation v2/v3 schema
+requirements: FAIL, both files.** These are actual local/reference-code results,
+not claimed responses from the hosted TradeTrust portal. No recipient data
+uploaded, no runtime changes or new fields, and no source credential modified.
+
+### Exact failures and evidence
+
+| JSON path | Value / condition | Executed evidence |
+|---|---|---|
+| `/proof/type` | `EthereumPersonalSignature2024` | Installed `@trustvc/w3c-vc@2.4.2` `isSignedDocument = false`; `verifyCredential` returns `verified: false`, error `"proof" type is not of BbsBlsSignature2020.` |
+| `/proof/verificationMethod` versus `/issuer` | Wallet address versus `did:web:verifiable.sg` | Pinned upstream `w3cIssuerIdentity.verify` returns `ISSUER_IDENTITY`, `INVALID`, `Issuer and verification method do not match.` on both unchanged files |
+| `/credentialStatus/0/type` | `OpenAttestationDocumentStore` | Executed pinned `w3cCredentialStatus.test` returns false; skip fragment: `DOCUMENT_STATUS`, `SKIPPED`, `Document does not have a valid credentialStatus or type.` |
+| `/issuers` | Absent | Upstream OA v2 schema validation: `should have required property 'issuers'` |
+| `/issuanceDate`, `/openAttestationMetadata` | Absent | Upstream OA v3 schema validation reports both as required |
+| `/credentialStatus` under OA v3 | Array, not object | Upstream OA v3 schema: `should be object` |
+
+The installed proof diagnostic is a version-specific structural check, **not**
+evidence that BBS is the only supported modern suite. The current reference
+modern signature verifiers require `DataIntegrityProof` and the appropriate
+cryptosuite; these wallet proofs do not select those branches.
+
+References: TrustVC revision
+[`25007968939db4c40231fcfea8b426e33892e6d9`](https://github.com/TrustVC/trustvc/commit/25007968939db4c40231fcfea8b426e33892e6d9),
+[issuer verifier](https://github.com/TrustVC/trustvc/blob/25007968939db4c40231fcfea8b426e33892e6d9/src/verify/fragments/issuer-identity/w3cIssuerIdentity.ts),
+[status verifier](https://github.com/TrustVC/trustvc/blob/25007968939db4c40231fcfea8b426e33892e6d9/src/verify/fragments/document-status/w3cCredentialStatus.ts).
+Issuer verifier code was fetched, transpiled in memory and executed with its real
+runtime dependencies. Signature/status predicate tests did not execute mocked
+verification functions or claim a full aggregate verifier run.
+OA [v2 schema](https://github.com/Open-Attestation/open-attestation/blob/f1339e9af90369ca621aaf1cc246bfcada7264ea/src/2.0/schema/schema.json)
+and [v3 schema](https://github.com/Open-Attestation/open-attestation/blob/f1339e9af90369ca621aaf1cc246bfcada7264ea/src/3.0/schema/schema.json)
+were fetched from upstream and validated locally using installed Ajv.
+OA profile failures must not be applied as mandatory W3C VC v2 rules.
+
+### Other requested checks
+
+- JSON-LD safe expansion: **PASS**, both files.
+- Wallet EIP-191 message integrity: **PASS**, both claimed signers recovered
+  from the original payloads. This does not establish DID issuer authorization.
+- `targetHash`: **PASS bytes32 and exact current application commitment**, both;
+  no OA Merkle proof or certificate-specific on-chain issuance proven.
+- Public DID: **HTTP 200**, issuer ID correct, redirect to `www`.
+  Wallet proof method is absent from public `verificationMethod` and
+  `assertionMethod`. Thus reachability PASS is not issuer-authorization PASS.
+- Published `/verificationMethod/0/publicKeyJwk` for `#key-1` declares secp256k1,
+  but its 65-byte uncompressed point fails two independent checks:
+  ethers `computeAddress`: `bad point: equation left != right`;
+  Node `ECDH.convertKey`: `Failed to convert Buffer to EC_POINT`.
+  Do not infer a matching wallet address from invalid coordinates.
+- Issuer metadata is a W3C DID string; no OA v2 issuer collection.
+- Subject template fields exist, but no W3C `renderMethod`; external rendering
+  was not run. Subject template metadata is not sufficient to prove rendering.
+- Both proofs have `signature`, not a supported Data Integrity `proofValue`.
+  Neither artifact is the issuer-DID DataIntegrityProof output exercised by
+  the earlier synthetic signing regression.
+
+### Blocker and recommended fix (not implemented)
+
+Primary reproduced blocker: unsupported wallet `proof.type` and issuer/method
+mismatch. Reissue through the existing issuer-DID signing path with a supported
+suite and a valid public verification key authorized for that issuer. Do not
+rename the wallet proof to `DataIntegrityProof` or change `verificationMethod`
+on an already signed file. Investigate the public JWK separately, retaining
+historical key identities and requiring approval before any DID changes.
+
+Status-profile and external-renderer work remain separately gated; do not add
+new fields, remove revocation checks or fabricate OA metadata merely to pass.
+Hosted acceptance remains unrun without disclosure consent.
+
+## External validation follow-up: 2026-10-14 11:13 +08:00
+
+User reports two JSON attachments in chat, but their contents and readable paths
+are not exposed to this session. Workspace/session JSON discovery revealed no
+fresh artifact beyond the already documented historical samples.
+
+- Fresh-credential TradeTrust test: **NOT RUN; overall PARTIAL**.
+- OpenAttestation verifier test on that artifact: **NOT RUN; PARTIAL**.
+- Exact failing field: **not established**. The source-based profile findings
+  below are not a captured verifier rejection of the inaccessible attachments.
+- Artifact-specific DID/proof/status/hash/OA/issuer/template checks: blocked.
+- No new fields, runtime changes, external uploads or production writes.
+- Recommended next action: obtain readable JSON/local paths, then capture the
+  exact verifier version, result fragments and JSON path without modifying the
+  credential. Recommend a field correction only after reproducing its failure.
 
 ## Scope and evidence boundary
 

@@ -1,7 +1,240 @@
 # OpenCerts compatibility report
 
 Updated: 2026-10-14  
-Overall: **PARTIAL — external verification and rendering not proven**
+Overall: **FAIL for the supplied artifacts against tested reference requirements;
+hosted portal execution not performed**
+
+## Step 12 local opt-in status profile — 2026-10-14
+
+User-approved new opt-in profile uses signed VC v2 Bitstring Status Lists rather
+than claiming the existing custom OCSP status is checked. New DID-only
+issue/verify/view fixtures pass, including suspend/reinstate/revoke and expired,
+tampered, unavailable or malformed status rejection. **31 tests PASS**,
+production build/TypeScript PASS; embedded PostgreSQL privileges and atomic
+transition tests pass. Existing defaults, wallet paths and historical signed
+artifacts are unchanged.
+
+Wire format matches checked W3C gzip/Multibase/bit-order requirements; bounded
+expansion protects the verifier. Installed status SDK encoding needs the wrapper's
+`u` prefix. No external consumer has yet been shown to accept that exact artifact.
+Migration is unapplied, feature/signing inactive, and no production or hosted
+OpenCerts acceptance test was performed.
+
+**OpenCerts result is PARTIAL/unverified for the new profile; supplied historical
+artifacts remain FAIL.** Missing external renderMethod, fresh production artifact
+and reference/hosted verifier acceptance remain blockers. This is not a conversion
+to an OA wrapped OpenCerts document, and the unchanged default OA-style status
+continues to fail closed as unsupported in the new ECDSA path.
+
+## Step 11 local ECDSA application verification — 2026-10-14
+
+Implemented/tested actual application base/derived ecdsa-sd-2023 verification and
+resolved issuer assertion authorization without relying on missing aggregate SDK
+exports. Tampered/unauthorized/invalid-date inputs fail; legacy wallets retained.
+Nonempty credentialStatus remains explicitly unsupported with invalid overall
+result. Current issuance status is therefore still an activation blocker.
+**24 tests PASS**, production build/TypeScript **PASS**; no deployment, activation
+or external acceptance claim.
+
+## Step 10 application verification gate — 2026-10-14
+
+Vercel confirms UI deployment success. Local application DID verification requires
+aggregate functions absent from the installed package and uses a historical-only
+loader. Earlier direct SDK tests are not proof of this application branch.
+Production runtime exports are unconfirmed; no live verification failure invented.
+Signing remains inactive pending an application-entry-point fix/test, with
+status/rendering and external acceptance still unresolved.
+
+## Step 9 UI fix pushed — 2026-10-14
+
+Approved UI proof-preservation change/test pushed as `26b61bf2`; Vercel pending.
+Eighteen targeted tests and local build/TypeScript PASS. No signing activation or
+production issue/verify/view run; remaining API/tooling changes are local.
+The deployment must complete before treating downloads as proof-preserving.
+Status/rendering, distinct-method application verification and external acceptance
+remain pending checks.
+
+## Step 8 live authorization — 2026-10-14 12:06 +08:00
+
+Public-only Vercel deployment is successful. Live DID/JWKS exactly match reviewed
+candidate bytes; assertion authorization and live JWK/Multikey correspondence
+PASS. Signing configuration remains unchanged and runtime proof-preservation
+fixes remain local. This is public-key publication success, not fresh production
+issuance or OpenCerts acceptance. Status/rendering remain unresolved.
+
+## Step 7 public-only deployment pending — 2026-10-14
+
+Approved public-document-only commit `7963ae63` is pushed to main. Vercel confirms
+a pending deployment, but initial live DID/JWKS checks still lack the new key.
+No signing activation or external acceptance performed. Pending runtime fixes
+remain local and were not included in the push.
+
+## Step 6 local public integration — 2026-10-14
+
+Integrated reviewed public DID/JWKS candidates locally, retaining historical
+entries and adding the distinct P-256 assertion method/public JWK. Exact candidate
+bytes/hashes and matching public key correspondence verified; **24 tests PASS**,
+production build/TypeScript **PASS**.
+
+No commit/deployment/signing activation. Live DID authorization, fresh production
+issuance and external verifier acceptance remain unverified. No status/rendering
+compatibility claim or new credential fields.
+
+## Step 5 retained key review — 2026-10-14
+
+Actual distinct P-256 deployment material was generated and retained with
+creation/review-only approval. Historical live baseline equality and candidate
+preservation checks pass. Independent JWK challenge verification and SDK
+in-memory synthetic signing/derivation/verification against the retained candidate
+pass. No private material displayed, uploaded or placed in git.
+
+The public static DID/JWKS and signing environment remain unchanged; new public
+authorization is pending. This local candidate validation is not hosted OpenCerts
+acceptance and does not resolve status/rendering requirements.
+
+## Step 4 static preparation — 2026-10-14
+
+Static DID/JWKS candidate preparation is selected. The generator emits matching
+public candidates from a single P-256 key while retaining historical methods and
+JWKS entries. Tests verify exact static/API equivalence and key correspondence;
+**24 tests PASS**, production build/TypeScript **PASS**.
+
+No actual deployment key/candidate persisted, public static files changed or
+signing configuration activated. Public-first rollout and preservation gates are
+documented in the migration plan. External verification/rendering remain unrun;
+no OpenCerts compatibility PASS is claimed.
+
+## Step 3 API readiness — 2026-10-14
+
+Shared DID/JWKS API publication now handles validated P-256/P-384 public Multikeys,
+emits corresponding JWK curves/coordinates, preserves historical methods and
+rejects key-ID conflicts explicitly. Tests exercise actual handlers, conditional
+requests, key correspondence and failure logging. **24 tests PASS** and
+**build/TypeScript PASS**.
+
+Static well-known documents and production environment remain unchanged. These
+API changes are not yet active at the did:web URL; reviewed publication/routing
+and matching distinct-key activation remain gated. No external acceptance claim,
+new credential fields or changes to working auth/issuance services.
+
+## Step 2 preparation — 2026-10-14
+
+Prepared and tested a supported P-256 Multikey generation/candidate-publication
+workflow, preserving existing public methods and adding a distinct assertion
+method. No production key, existing environment or public DID was changed.
+The old generator's point slicing, untyped secret encoding and unquoted dotenv
+method ID issues are addressed in the preparation tool only.
+
+Actual application signing plus SDK derivation/verification against a candidate
+DID pass. Combined regressions: **23 PASS**, build/TypeScript **PASS**.
+Public static/API DID publication consistency still needs review before rollout.
+No new credential fields, external upload or OpenCerts acceptance claim.
+
+## Step 1 remediation — 2026-10-14
+
+Fixed the single-issuance UI overwriting the server-issued DID proof with a wallet
+proof. The API credential now remains unchanged in preview/download. DID-only
+issuance does not request MetaMask; unsigned/incomplete API responses cannot
+fall back to wallet signing. Existing separate Ethereum behavior remains.
+
+Validation: **17 targeted page-handler/cryptographic/rendering tests PASS** and
+**production build/TypeScript PASS**. No new credential fields or public DID
+changes. No hosted verification or live authenticated issuance performed.
+Existing supplied certificates remain FAIL and are not edited by this fix.
+Public-key authorization, status support and external rendering remain blockers;
+this is not an OpenCerts compatibility PASS.
+
+## Actual-artifact results: 2026-10-14 11:22 +08:00
+
+Supersedes the missing-attachment/PARTIAL checkpoint below. Both actual Downloads
+files are now readable and were tested unchanged, with no recipient data uploaded.
+
+| Artifact | SHA-256 | Mode |
+|---|---|---|
+| `certificate-test6.json` | `9174eb41c3fe88003a6dbd511508225930375dac907921f1b0c2b48e8a0c4d2f` | OpenCerts marker/type present |
+| `certificate-tester7.json` | `933ff8e0138e2aca7610be3ff43e03cd4c25a67317445d356ab58beed49c30f9` | Standard mode, not OpenCerts markers |
+
+**OpenCerts reference requirements: FAIL, both files. OpenAttestation v2/v3
+schema requirements: FAIL, both files.** A hosted OpenCerts upload was not run;
+these are local SDK/reference-code/schema outcomes, not a portal transcript.
+
+### Exact failing fields
+
+1. `/proof/type = EthereumPersonalSignature2024`. Installed TrustVC W3C
+   validator returns `isSignedDocument = false` and
+   `{"verified":false,"error":"\"proof\" type is not of BbsBlsSignature2020."}`.
+   Current upstream W3C signature verifiers likewise do not select this wallet
+   proof. The old installed diagnostic does not prescribe BBS as a fix.
+2. `/proof/verificationMethod` is a wallet address, while `/issuer` is
+   `did:web:verifiable.sg`. Running upstream `w3cIssuerIdentity.verify` at
+   revision `25007968939db4c40231fcfea8b426e33892e6d9` on both actual artifacts
+   returns **INVALID**, `Issuer and verification method do not match.`
+3. `/credentialStatus/0/type = OpenAttestationDocumentStore`. Executed upstream
+   W3C status selector returns false and its skip fragment says
+   `Document does not have a valid credentialStatus or type.` This custom status
+   is not an accepted status-list entry.
+4. For an **OA profile only**, locally executing the upstream OA schemas reports:
+   v2 missing `/issuers`; v3 missing `/issuanceDate` and
+   `/openAttestationMetadata`, with `/credentialStatus` expected as object.
+   The added OA type marker in test6 does not satisfy these schema constraints.
+
+Issuer verification used the real upstream function and dependencies. Other
+fragment tests exercised selection/skip only, not a mocked aggregate verifier.
+The OpenCerts reference dispatcher/validity sources are linked below. OA schema
+revision is `f1339e9af90369ca621aaf1cc246bfcada7264ea`:
+[v2](https://github.com/Open-Attestation/open-attestation/blob/f1339e9af90369ca621aaf1cc246bfcada7264ea/src/2.0/schema/schema.json),
+[v3](https://github.com/Open-Attestation/open-attestation/blob/f1339e9af90369ca621aaf1cc246bfcada7264ea/src/3.0/schema/schema.json).
+Schema validation used local installed Ajv; no certificate was sent to a web
+schema validator. These OA constraints are not universal W3C VC v2 requirements.
+
+### Passing and separately blocked checks
+
+- Both files safely expand as JSON-LD. No protected-term redefinition reproduced.
+- Both EIP-191 signatures recover the claimed wallet over the unchanged
+  application-canonical payload. Native wallet verification success therefore
+  does not imply OpenCerts issuer identity or supported proof success.
+- Both hashes are bytes32 and match recomputation of the existing application
+  commitment. No OA Merkle proof or confirmed certificate-specific store
+  issuance was established.
+- Public DID returns HTTP 200 and the correct issuer ID after redirect to `www`,
+  but neither wallet method is published or authorized in `assertionMethod`.
+- The published `#key-1` JWK declares secp256k1; its uncompressed point fails
+  ethers (`bad point: equation left != right`) and Node ECDH
+  (`Failed to convert Buffer to EC_POINT`). No public key replacement performed.
+- Issuer is a DID string, not OA `/issuers` metadata; OA metadata is absent.
+- Subject `$template` and `$templateVersion` exist, but top-level `/renderMethod`
+  is absent. OpenCerts W3C renderer selection reads `renderMethod[0].id`;
+  external renderer success is not proven by these local subject fields.
+
+### Blocker and recommended fix (not implemented)
+
+Reissue via the existing **issuer-DID signing path**, using a supported
+cryptographic suite and a valid, publicly authorized verification key. The
+provided files are wallet-proof outputs despite `issuingMethods: ["did"]`.
+Do not simply relabel `/proof/type` or replace its verification method.
+Separately investigate the invalid public JWK and the supported revocation
+profile under explicit approval. Preserve working wallet verification and
+existing signed artifacts.
+
+No new credential fields, code, production configuration or DID changes in this
+validation. Hosted verifier uploads and external rendering remain unperformed.
+
+## External validation follow-up: 2026-10-14 11:13 +08:00
+
+User reports two JSON attachments in chat. Neither content nor a readable
+attachment path is available to this session; workspace/session discovery found
+only existing historical samples and project JSON.
+
+- OpenCerts fresh-artifact test: **NOT RUN; overall PARTIAL**.
+- OpenAttestation fresh-artifact test: **NOT RUN; PARTIAL**.
+- Exact failing field: **not established for those attachments**.
+- Artifact-specific DID resolution, verificationMethod, proof, credentialStatus,
+  targetHash, OpenAttestation metadata, issuer metadata and template metadata:
+  blocked until the JSON is readable.
+- No runtime/credential-field changes or external uploads performed.
+- Recommended fix at this stage is input access, not credential mutation:
+  provide readable local paths or pasted JSON; then capture actual verifier
+  diagnostics and their exact JSON paths before proposing field corrections.
 
 ## Authoritative correction to earlier findings
 

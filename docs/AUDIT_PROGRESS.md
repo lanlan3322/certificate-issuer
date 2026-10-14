@@ -2,6 +2,521 @@
 
 Last Updated: 2026-10-14
 
+## Step 13: production-verification commit approved — 2026-10-14
+
+- User approved committing all pending changes for production verification,
+  including the earlier DID publication/key-generation fixes, application ECDSA
+  verification and opt-in status profile, tests, migration and reports.
+- Pre-commit validation repeated: **31 tests PASS**, production build/TypeScript
+  **PASS**, whitespace check clean. Checked all 27 pending files for secret paths
+  and obvious embedded credentials; none detected. Retained private signing
+  material remains outside the repository and is not included.
+- Commit approval does not establish production verification. No push,
+  production migration, signing/feature activation or authenticated production
+  issue/verify/view performed in this step.
+
+Next: push the approved commit for Vercel deployment when authorized, confirm
+deployment, and execute the staged migration/configuration and production
+verification gates in `docs/MIGRATION_PLAN.md`. External acceptance remains
+unverified; original supplied-artifact failures remain unchanged.
+
+## Step 12: opt-in signed status lists implemented and tested locally — 2026-10-14
+
+- User explicitly approved an **opt-in signed Bitstring Status List profile**,
+  permitting new status fields for newly opted-in credentials only. Existing
+  documents, default issuance, wallet signing and legacy status remain unchanged.
+- Single-issuance UI/API accepts `statusProfile: "bitstring"` only for persisted
+  DID-only issuance. Default/omitted profile is legacy; bulk is unchanged.
+  Feature requires `ENABLE_BITSTRING_STATUS_LIST=true` and an HTTPS
+  `STATUS_LIST_BASE_URL` origin matching the issuer did:web domain.
+- Added unapplied migration `database/migrations/006_bitstring_status.sql`:
+  durable unique never-reused indices, 131072-bit pages, service-role-only
+  allocation/snapshot/atomic revocation functions. Missing/unpersisted/deleted
+  credentials fail closed. Revoked credentials cannot be reinstated; suspension
+  can be reinstated. Failed logging rolls back the whole transition.
+- Public `/api/status-list/{page}/{revocation|suspension}` publishes signed
+  VC v2 lists without recipient/tenant identifiers, with 60-second validity and
+  `Cache-Control: no-store`. Failure returns 503, not an unsigned or empty list.
+  Status bits are derived from persisted credential state on each publication.
+- Application verifies both signed lists, exact issuer authorization, origin,
+  allocation, purpose, subject, TTL and dates. Decoding is bounded to 16 KiB.
+  Suspended/revoked/unavailable/tampered lists fail; mixed Ethereum profiles
+  cannot bypass on-chain checks. Base-proof verification now discloses all
+  submitted top-level properties rather than silently omitting them.
+- Installed status package 2.5.0 has a broken native ESM entry and returns bare
+  base64url. Use its CommonJS implementation and add the required `u` Multibase
+  prefix. Independently checked gzip bytes/bit order against W3C requirements:
+  https://www.w3.org/TR/vc-bitstring-status-list/#bitstringstatuslistcredential.
+  This is wire-format evidence, **not external TradeTrust/OpenCerts acceptance**.
+- Added direct existing status dependency and PGlite dev-only migration testing;
+  exclude the test engine from API production traces. No SDK upgrade.
+- **31 tests PASS**: real cryptographic issue/verify/view and legacy fixtures,
+  revoke/suspend/reinstate, freshness/tampering/encoding/size/profile rejection,
+  isolated API/service/UI boundaries, embedded PostgreSQL allocation/rollover,
+  privileges and atomic rollback. Production build/TypeScript **PASS**.
+  DB tests use a disposable in-memory PostgreSQL engine and schema fixture,
+  not live Supabase. No authenticated production/auth/email smoke test claimed.
+- No migration applied, signing/feature activated, private deployment key read,
+  commit/push or deployment performed. All step 11–12 runtime changes stay local.
+
+Next: review/approve the runtime deployment and additive migration separately;
+configure the retained signer and status origin only with explicit approval.
+Then run authorized synthetic production issue/verify/view, revocation lifecycle
+and legacy/auth smoke checks. External rendering and hosted/reference-verifier
+acceptance remain blocked/pending; original supplied-artifact FAIL is unchanged.
+Do not re-scan earlier completed analysis or edit historical signed artifacts.
+
+## Step 11: application ECDSA verification implemented locally — 2026-10-14
+
+- Added a dedicated `DataIntegrityProof` / `ecdsa-sd-2023` path to the actual
+  `lib/trustvc.ts::verifyCredential` entry point using installed `@trustvc/w3c-vc`.
+  No dependency installation/upgrade or credential-field changes.
+- Default verification loader resolves public issuer documents, not the signing
+  environment's hardcoded historical key. Requires exact issuer/method DID match,
+  assertion proof purpose, matching resolved DID ID and an explicitly authorized
+  method controlled by the issuer. Pins the method from that resolved document.
+- Verifies derived proofs directly; derives base proofs in memory before SDK
+  verification. Does not mutate the submitted credential or remove signed status.
+- Enforces validFrom/validUntil for this new path. Existing Ethereum registration
+  requirement remains; wallet and other legacy branches remain unchanged.
+- **Intentional safety gate:** any nonempty credentialStatus currently returns
+  `valid: false`, `signatureVerification: verified`,
+  `issuerAuthorization: verified`, `credentialStatus: unsupported` after successful
+  crypto/authorization. No status type is falsely described as checked.
+  Current builder emits OpenAttestationDocumentStore, so current new DID issuance
+  still cannot satisfy full application verification. Do not remove the field
+  or activate signing under an assumption this step solves revocation.
+- Tests exercise the actual application function with a synthetic distinct
+  method and isolated public-document loader: valid base/derived credentials
+  without status pass; intact status gives explicit unsupported result; tampered
+  subject/status, wrong issuer, unpublished/unauthorized method, resolution failure,
+  expired and future-valid documents fail. Input remains unchanged.
+- **24 tests PASS**, including earlier UI, SDK, static/API, generator, rendering
+  and wallet regressions; production build/TypeScript **PASS**. These tests do not
+  claim live production resolution or hosted acceptance.
+- No private deployment key accessed, production configuration changed, commit,
+  push or deployment performed. Changes remain local.
+
+Next: inspect and select a supported revocation/status solution with preservation
+gates, before signing activation. Deploy verification changes only under explicit
+approval and with the fail-closed status behavior understood. Historical non-ECDSA
+aggregate verification remains unchanged and still has the previously recorded
+local empty-export limitation. External renderer and verifier acceptance remain.
+
+## Step 10: UI deployment confirmed; verification activation gate blocked
+
+2026-10-14 12:13 +08:00: independently confirmed Vercel success for UI commit
+`26b61bf280525215b9a6dc2e4d8dcfa0421978dc`. This confirms deployment status,
+not an authenticated issuance/download smoke test.
+
+Followed the actual application verification path before activating signing:
+
+- `app/api/verify/route.ts` delegates cryptographic checks to
+  `lib/trustvc.ts::verifyCredential`.
+- Its DID proof branch calls aggregate `verifyDocument`/`isValid` from
+  `@trustvc/trustvc`. The installed package exports an empty object; both
+  functions are absent. Earlier SDK tests exercised `@trustvc/w3c-vc` directly,
+  not this aggregate application branch. Production package exports have not
+  been inspected, so this is a confirmed local blocker, not an invented live error.
+- The shared local loader hardcodes `#key-1` and captures its key at module load.
+  It does not publish the new `#ecdsa-2026-01` method. Simply activating the new
+  environment key cannot establish verification through this loader.
+- Existing wallet verification takes a separate earlier branch and is not
+  evidence that DID/DataIntegrityProof application verification passes.
+
+No signing activation or runtime change in this checkpoint. Next fix must test
+the actual application `verifyCredential` entry point with the new distinct
+method and tampered/unauthorized proofs, preserve wallet/legacy behavior and
+report unsupported status explicitly. Do not remove credentialStatus or accept
+SKIPPED fragments to manufacture success. Scope approval is needed if choosing
+a dependency upgrade versus using the existing supported cryptographic library.
+
+## Step 9: UI proof-preservation fix pushed — 2026-10-14
+
+- User explicitly approved committing/pushing the issuance page and its regression
+  test only. Commit `26b61bf280525215b9a6dc2e4d8dcfa0421978dc` pushed to main:
+  `app/insurance/page.tsx` and `app/insurance/page.test.js`.
+- DID-only issuance preserves the API credential instead of overwriting its
+  proof with MetaMask; requires a signed credential/proof and surfaces failures.
+  Ethereum-only and mixed issuance retain separate wallet/anchoring behavior.
+- Pre-push validation: **18 targeted tests PASS** (actual handler with isolated
+  boundaries plus cryptographic/legacy/rendering regressions); production build/
+  TypeScript **PASS** on the local worktree. API/tooling changes remain local;
+  that full build is not proof of the exact remote deployment result.
+- Vercel commit status **pending**, `Vercel is deploying your app`:
+  `https://vercel.com/lanlan3322s-projects/verifiable/4wTnpdfK3Lh6nFUNWw1ouDYw53fo`.
+  Do not describe the UI change as live until deployment is confirmed.
+- Public-only authorization was already confirmed live in step 8. No signing
+  variables/private key files changed and no authenticated production issuance run.
+- DID/JWKS API fixes, generator/tooling, expanded SDK tests and reports remain
+  uncommitted locally and are not included in this push.
+
+Next: confirm this Vercel deployment succeeds. Then separately approve activation
+of matching server DID configuration, without exposing secrets, and perform an
+authorized synthetic issue/verify/view test plus legacy checks. Local verification
+loader still has hardcoded historical method assumptions; inspect that path before
+claiming verification of the new distinct production method. Status/rendering and
+external acceptance remain unresolved.
+
+## Step 8: live public authorization confirmed — 2026-10-14 12:06 +08:00
+
+- User reported completed Vercel deployment. Independently confirmed commit
+  `7963ae63bd72e668a06cfd266f9c7a1b6275394c` Vercel status **success**,
+  `Deployment has completed`.
+- Live DID and JWKS both return HTTP 200 after redirect to `www` and match the
+  retained reviewed candidates **byte for byte**:
+  DID SHA-256 `9d5fde43b9d483517e40c68e5993ac5c63b41a95c176b726c7d300bb9e3de070`;
+  JWKS SHA-256 `42ac0154fbc4d62a73eb8a8b02f96c46b9437fb4cbcfbdb6be7f4bf06e11af76`.
+- `did:web:verifiable.sg#ecdsa-2026-01` is now publicly assertion-authorized.
+  Independently imported the live P-256 JWK and confirmed its exported Multikey
+  matches the live DID method. No private material accessed in this check.
+- Public publication gate **PASS**. Signing configuration is still unchanged;
+  pending UI/API runtime fixes remain local, not deployed by the public-only commit.
+- This does not establish fresh production issuance or external acceptance.
+  Next: review/deploy the pending runtime proof-preservation changes, coordinate
+  separately approved server signing activation, then run authorized synthetic
+  production issue/verify/view checks. Do not expose signing.env or activate
+  before accounting for the old production UI's wallet-proof overwrite.
+
+## Step 7: public-only commit pushed; deployment pending — 2026-10-14
+
+- User explicitly approved committing/pushing only the two public documents.
+  Commit `7963ae63bd72e668a06cfd266f9c7a1b6275394c` is pushed to `origin/main`.
+  It contains only `public/.well-known/did.json` and `jwks.json`.
+- All pending runtime/tests/tooling/report changes remain uncommitted locally.
+  Do not claim they are deployed with the public-key commit.
+- Confirmed Vercel Git integration via commit status: pending,
+  `Vercel is deploying your app`, deployment
+  `https://vercel.com/lanlan3322s-projects/verifiable/2UUkt2TWmzHBA1CGXyGWuWrbtCzG`.
+  No local Vercel CLI/project linkage was present.
+- GitHub Pages workflow also triggered:
+  `https://github.com/lanlan3322/certificate-issuer/actions/runs/38508761722`.
+  Pages is not evidence of Vercel production success.
+- Initial post-push live DID/JWKS checks returned HTTP 200 but neither contained
+  the new method yet. Publication is **pending**, not confirmed.
+- No signing variables, private key files or production services modified.
+  Existing 24-test/build local validation remains applicable; no code changed
+  during this public-only push.
+
+Next: check Vercel commit/deployment status and both live public documents against
+retained candidate hashes/keys. If deployment fails, collect exact build evidence
+before changing anything. Never activate signing while public authorization is
+pending. Pending UI proof-preservation fix must also be deployed before claiming
+new production downloads retain issuer DID proofs.
+
+## Step 6: reviewed static public files integrated locally — 2026-10-14
+
+Following the user's instruction to proceed, updated only the repository public
+DID/JWKS from the retained reviewed candidates; no commit, deployment or signing
+activation performed.
+
+- Immediately before integration, live DID/JWKS returned 200 and still matched
+  the previous historical baseline. Both retained candidate hashes matched the
+  step 5 review.
+- `public/.well-known/did.json` now adds
+  `did:web:verifiable.sg#ecdsa-2026-01` as a P-256 Multikey assertion method.
+  Historical `#key-1`, assertion/authentication entries and services are unchanged.
+- `public/.well-known/jwks.json` adds the corresponding P-256 public JWK.
+  Both files match the reviewed candidate bytes and SHA-256 hashes exactly:
+  DID `9d5fde43b9d483517e40c68e5993ac5c63b41a95c176b726c7d300bb9e3de070`;
+  JWKS `42ac0154fbc4d62a73eb8a8b02f96c46b9437fb4cbcfbdb6be7f4bf06e11af76`.
+- Added regression assertions for the actual retained public method: static
+  DID/JWKS represent the same key; API configuration selecting this already
+  present method neither duplicates it nor changes the static baseline.
+- **24 tests PASS**, production build including TypeScript **PASS**, exact
+  candidate byte comparison and historical-entry preservation **PASS**.
+- Secret directory and signing environment were not edited or exposed.
+  Production URL still requires deployment; no live acceptance claim.
+
+Next: obtain deployment approval and inspect the existing deployment mechanism
+before committing/pushing/deploying. Confirm the live public DID/JWKS resolve
+these exact public keys after deployment/cache propagation. Only then separately
+activate the matching server signing configuration. New credential issuance,
+status/rendering compatibility and external acceptance remain outstanding.
+
+## Step 5: actual deployment key generated and reviewed — 2026-10-14
+
+User explicitly approved generating/retaining the actual key and reviewing its
+public candidates, but not publication, deployment or signing activation.
+
+- Created `/Users/mmtelc/verifiable-did-2026-01` once, outside the repository.
+  Retain it; **do not regenerate** for this method ID.
+- Method: `did:web:verifiable.sg#ecdsa-2026-01`, P-256 Multikey.
+- Directory mode 0700; `signing.env`, `did.candidate.json` and
+  `jwks.candidate.json` each mode 0600. Private material was not printed,
+  copied into reports, committed or sent externally.
+- Before generation, live DID/JWKS both returned HTTP 200 after redirect to
+  `www`; parsed contents exactly matched repository preservation baselines.
+- Reviewed retained candidates: historical DID methods/assertions/authentication/
+  services and JWKS entries unchanged; one distinct new assertion method and
+  corresponding P-256 JWK added; no secret appears in public candidates.
+- Actual retained private/public key correspondence PASS by random challenge
+  signing and independent JWK verification. SDK synthetic VC signing, derivation
+  and verification against the retained candidate DID PASS. Credential/test
+  signature remained in memory; no test certificate persisted or registered.
+- Public candidate file SHA-256:
+  - DID: `9d5fde43b9d483517e40c68e5993ac5c63b41a95c176b726c7d300bb9e3de070`
+  - JWKS: `42ac0154fbc4d62a73eb8a8b02f96c46b9437fb4cbcfbdb6be7f4bf06e11af76`
+- No runtime changes this step. Previous 24 regression tests/build remain the
+  latest code validation; actual candidate checks above ran separately.
+- Static public documents, production/local environment and routing unchanged.
+  No deployment or authenticated production acceptance performed.
+
+Next approval gate: copy **only the two reviewed public candidates** into static
+well-known files, validate and review the diff. Publication/deployment requires
+separate approval; activate server signing only after live public resolution
+matches these retained candidates. Never copy/publish `signing.env`.
+The new method is not publicly authorized yet. External status/rendering blockers
+and hosted acceptance remain unresolved.
+
+## Step 4: matched static publication preparation — 2026-10-14
+
+User selected **prepare static DID/JWKS candidate publication**, not API routing
+or production activation.
+
+- Extended the existing key-preparation tool to emit `jwks.candidate.json` beside
+  `did.candidate.json` and secret `signing.env`. Uses the installed Digital Bazaar
+  public-key exporter rather than duplicating coordinate conversion.
+- Both public candidates use the same generated P-256 key and distinct ID;
+  all existing DID methods/relationships/services and JWKS entries are retained.
+  Rejects collisions with either a fragment or full key ID in existing JWKS.
+- Custom baseline CLI input requires both `--did-document` and `--jwks-document`;
+  rejects malformed JWKS before generating/writing material.
+- All three output files remain exclusive, owner-only writes in a new external
+  directory. Repeated invocation cannot overwrite any candidate or secret.
+- Tests assert static/API output equality, DID/JWK keypair correspondence,
+  history preservation, quoted environment IDs, public/private separation,
+  permissions and unchanged files after overwrite rejection.
+- **24 tests PASS**; production build/TypeScript **PASS**; editor diagnostics none.
+  Tests generated only temporary synthetic keys and cleaned up their output.
+- No real deployment key/candidates were persisted; no public static files,
+  production environment, routing, credentials or authentication changed.
+
+Next: explicit approval to create the actual deployment key in a private
+external directory, review both public candidates, then separately publish
+public material before activating the matching private signing configuration.
+Use the static rollout sequence in the migration plan. Never publish signing.env.
+External acceptance and status/rendering remain unresolved.
+
+## Step 3: API publication consistency — 2026-10-14
+
+- Added server-only `lib/did-publication.ts`, shared by the existing DID/JWKS
+  API routes. Both now extend the checked-in historical public documents with
+  the configured public assertion method rather than independently inventing
+  coordinates, curves or key IDs.
+- Supports validated P-256/P-384 compressed public Multikeys and complete legacy
+  secp256k1 hex points (with or without `04`). Publishes Multikey in DID and
+  corresponding correctly labeled JWK in JWKS. Only public configuration is read.
+- Preserves historical verification methods, assertion entries, authentication
+  and services. Historical IDs cannot be repointed to different material.
+  Existing matching methods are not duplicated.
+- Removed the unused coordinate fallback parser from `did-utils.ts`; existing
+  signing resolution remains unchanged. No new signing keys or credential fields.
+- Removed stale process-level API caches. ETags are quoted SHA-256 hashes of the
+  actual response body; conditional requests work on the first request as well
+  as after key/config changes. Existing five-minute HTTP caching remains.
+- Invalid configured keys/controllers/IDs yield a logged HTTP 503 with no-store,
+  not a successful response with unrelated default coordinates.
+  With no public key configured the API serves the unchanged historical public
+  documents; this preserves history and does not claim the old key is valid.
+- **Deployment gate:** the previously observed local ID without a fragment is
+  intentionally rejected by these APIs. Reused `#key-1` with different material
+  is also rejected. Do not deploy these handlers assuming old invalid
+  configuration is corrected automatically.
+- Tests: **24 PASS**, including actual route GET handlers (200/304/503),
+  full-body ETag changes, P-256/P-384 conversion, hex point parsing, JWK/signing
+  key correspondence, history preservation, invalid-key error logging and all
+  earlier app issuance/legacy/rendering regressions. Build/TypeScript **PASS**.
+  The editor runner still did not discover Node tests; explicit Node runner used.
+- Static public DID/JWKS files, route rewrites, production env, auth and services
+  remain untouched. No hosted acceptance or authenticated production smoke tests.
+
+**Next:** review the candidate DID and coordinated rollout. The live did:web URL
+still resolves the static file, not these APIs. Explicitly approve either
+publishing the reviewed static candidate (retaining history) or routing the
+well-known URL to the corrected API, then configure the matching distinct key
+after public authorization is available. Do not activate either path implicitly.
+External status/rendering compatibility remains unresolved.
+
+## Step 2: prepare a preservation-safe DID key workflow — 2026-10-14
+
+User approved **preparing and testing only**, not production key/config changes.
+
+Findings from the existing publication/signing path:
+
+- `/.well-known/did.json` is a static public file; the separate API DID/JWKS routes
+  are not wired to replace it. Their helpers ignore multibase public keys and
+  default to fixed coordinates, then declare every JWK as secp256k1.
+- The old JS/TS generators used an uncompressed secp256k1 point but sliced x/y
+  starting before its `04` point marker. They also base58-encoded raw secret
+  bytes without the Multikey codec and reused `#key-1`.
+- Local public material validates as secp256k1, not P-256. The local secret
+  encoding is not a supported P-256/P-384 private Multikey header. No private
+  bytes were displayed or copied into reports. Local configuration is not proof
+  of the independently managed production environment.
+- Parsed local `DID_KEY_ID` has no fragment. Regression testing also reproduced
+  dotenv stripping unquoted `#fragment`; generated environment values are now
+  quoted so method IDs round-trip exactly.
+
+Prepared changes:
+
+- Replaced existing `scripts/generate-did-keys.js` with a P-256 Multikey generator
+  using the already installed Digital Bazaar library. The existing TS entry
+  delegates to it rather than duplicating crypto logic.
+- Requires a distinct full method ID; rejects collisions in historical DID
+  verification relationships. Candidate preserves existing methods,
+  authentication, services and assertion entries; adds only the new public
+  Multikey method/context and assertion authorization.
+- Writes `signing.env` and `did.candidate.json` only to an explicitly selected
+  new directory outside the repository (0700 directory, 0600 files, exclusive
+  writes). Does not print secrets or update existing configuration/public files.
+- Only temporary synthetic keys were generated during tests and removed
+  afterwards. No production replacement key was generated or persisted.
+
+Validation: **23 tests PASS** across generator, page-handler and cryptographic
+regressions. Includes actual application `signDocumentWithDID` with the prepared
+distinct method, independent candidate-DID loader, SDK derivation/verification,
+legacy wallet verification, rendering, permissions and overwrite rejection.
+`npm run build`: **PASS** including TypeScript; changed generator files have no
+editor diagnostics.
+
+Next: review and approve public DID/API publication consistency and key
+configuration rollout before creating a real replacement key. Preserve `#key-1`;
+do not copy a test key or publish the secret environment file. Status/external
+renderer blockers remain. Production issue/verify/view and hosted acceptance
+have not been run.
+
+## Step 1 fix: preserve the issuer DID proof — 2026-10-14
+
+- User approved proceeding step by step. Fixed the single-issuance page's
+  post-API wallet signing, which stripped and replaced the server DID proof.
+  The page now retains the returned credential unchanged for preview/download.
+- DID-only issuance no longer requires a connected wallet. Ethereum-only and
+  combined issuance retain the existing separate wallet/anchoring flow.
+- Unsigned, missing-credential, missing-proof, unauthorized and failed API
+  responses surface an error; no wallet-signing fallback or unsigned draft
+  is presented as a successfully issued DID certificate.
+- Updated the page's misleading browser-side DID fallback notice. No credential
+  fields, issuer key configuration, public DID, contract or auth flow changed.
+- Added `app/insurance/page.test.js`, which transpiles and executes the actual
+  page event handler and credential-selection expression with isolated HTTP,
+  UI state and wallet boundaries. This is not a live authenticated browser test.
+- Validation: `node --test app/insurance/page.test.js lib/trustvc.test.js`:
+  **17 tests PASS**. Includes proof preservation, DID-only without wallet,
+  mixed/Ethereum-only flows, failure responses, real SDK signing/derivation/
+  verification, four template renderers and legacy wallet tamper detection.
+  `npm run build`: **PASS**, including TypeScript. Editor diagnostics: none
+  for the changed page/test. The editor test runner did not discover these
+  Node tests; the explicit Node runner executed them successfully.
+- Production issue/verify/view and external hosted acceptance were not run.
+  Earlier supplied signed artifacts remain unchanged and retain their FAIL
+  results. This fix affects newly issued credentials after deployment only.
+- **Next step:** inspect how the existing server signing public key is published
+  and compare public material with the actual DID document. Do not reveal private
+  key material, repoint `#key-1`, rotate keys, or change production configuration
+  without a separately reviewed preservation-safe plan. Status and external
+  renderer compatibility remain later steps.
+
+## Actual-artifact validation: 2026-10-14 11:22 +08:00
+
+This section supersedes the attachment-access blocker and provisional PARTIAL
+results below. No credential fields, runtime code, public DID, services or
+production configuration changed. Original files remain unmodified in Downloads;
+recipient details are not copied into reports or sent to external verifiers.
+
+### Artifact identity
+
+| File | SHA-256 of original file bytes | Observed format |
+|---|---|---|
+| `certificate-test6.json` | `9174eb41c3fe88003a6dbd511508225930375dac907921f1b0c2b48e8a0c4d2f` | OpenCerts-mode markers present |
+| `certificate-tester7.json` | `933ff8e0138e2aca7610be3ff43e03cd4c25a67317445d356ab58beed49c30f9` | Standard-mode output; no OA type/subject marker |
+
+### Compatibility result
+
+- **TradeTrust requirements: FAIL** for both supplied artifacts.
+- **OpenCerts requirements: FAIL** for both supplied artifacts.
+- **OpenAttestation v2/v3 schema requirements: FAIL** for both supplied artifacts.
+- Scope: local execution of installed W3C verifier, pinned reference verifier
+  issuer check/selection predicates, upstream OA schemas and public DID checks.
+  Hosted verifier uploads were **not run**. These are not invented hosted
+  portal response messages.
+
+### Reproduced evidence
+
+1. `@trustvc/w3c-vc@2.4.2`: `isSignedDocument` returns `false` on both files;
+   `verifyCredential` returns
+   `{"verified":false,"error":"\"proof\" type is not of BbsBlsSignature2020."}`.
+   Exact field: `/proof/type = EthereumPersonalSignature2024`. This is the
+   installed validator's diagnostic, not a recommendation to switch to BBS.
+2. Executed upstream TrustVC `w3cIssuerIdentity.verify` from revision
+   `25007968939db4c40231fcfea8b426e33892e6d9` on both actual files:
+   `ISSUER_IDENTITY / INVALID / "Issuer and verification method do not match."`
+   `/proof/verificationMethod` is a wallet address; `/issuer` is
+   `did:web:verifiable.sg`. No mocked issuer verification was used.
+3. Executed the same revision's W3C signature/status selection predicates:
+   both return false and their skip fragments return `SKIPPED`.
+   The legacy signature predicate accepts BBS proofs; modern ECDSA/BBS predicates
+   require `DataIntegrityProof`, not this wallet proof. Status entry type is
+   `OpenAttestationDocumentStore`, not a supported W3C status-list entry.
+   Only predicates were run for these fragments; no stubbed cryptographic
+   verification was counted as evidence.
+4. Upstream OA schemas at revision
+   `f1339e9af90369ca621aaf1cc246bfcada7264ea`, validated locally with installed Ajv:
+   OA v2 requires `/issuers`; OA v3 requires `/issuanceDate` and
+   `/openAttestationMetadata`, and expects `/credentialStatus` to be an object.
+   Both actual files fail these checks. These schema failures apply to OA
+   profiles, not universal W3C VC v2 rules.
+5. JSON-LD safe expansion **PASS** for both. EIP-191 `verifyMessage` recovers the
+   claimed `signedBy` wallet for both. This proves wallet-message integrity,
+   not supported W3C proof semantics or issuer authorization.
+6. `/credentialStatus/0/targetHash`: bytes32 **PASS** and exact current application
+   keccak commitment recomputation **PASS** for both. No certificate-specific
+   on-chain issuance or OA Merkle proof was established.
+7. Public DID HTTP **200**, redirect to `www`; issuer ID matches. Neither wallet
+   proof method appears in published `verificationMethod` or `assertionMethod`.
+   Independent validation of published `#key-1` secp256k1 JWK also fails:
+   ethers: `bad point: equation left != right`;
+   Node `ECDH.convertKey(..., "secp256k1")`:
+   `Failed to convert Buffer to EC_POINT`. This does not change the already
+   reproduced issuer-mismatch failure, which occurs before DID resolution.
+8. Issuer is a DID string, not OA v2 `/issuers` metadata; neither file has
+   `/openAttestationMetadata`, OA v2 wrapping envelope or W3C `/renderMethod`.
+   Subject `$template` is a string, while the OpenCerts W3C renderer selector
+   reads top-level `renderMethod[0].id`. No external renderer was exercised.
+
+### Next unfinished action
+
+The input-access blocker is resolved. The exact primary blockers are unsupported
+wallet proof and mismatched issuer verification method, with independent status,
+OA schema and public-key problems documented in both compatibility reports.
+Do not relabel the proof or rewrite these files. First obtain a genuinely
+issuer-DID-signed output from the existing DID issuance path using a supported
+suite and an actually authorized, valid public key. Separately approve any
+status/profile/DID configuration change; none is implemented here. Run hosted
+verifier acceptance only with explicit consent to disclose recipient data.
+
+## External validation checkpoint: 2026-10-14 11:13 +08:00
+
+- Scope: external validation only; no new credential fields or runtime changes.
+- User reports two JSON files attached to the chat, but neither attachment's
+  content nor a readable attachment path is exposed in this session. A JSON
+  listing of the workspace and session artifact folder exposed only existing
+  project configuration, DID documents and historical audit samples.
+- Do not substitute those historical samples or newly generated test credentials
+  for the requested freshly issued production artifact.
+- TradeTrust: **PARTIAL / fresh-artifact test NOT RUN**.
+- OpenCerts: **PARTIAL / fresh-artifact test NOT RUN**.
+- OpenAttestation: **PARTIAL / fresh-artifact test NOT RUN**.
+- Exact failing field: **not established for the reported attachments**. Earlier
+  source-based status-profile findings remain separate from an observed verifier
+  failure on these files.
+- DID resolution, verificationMethod, proof, credentialStatus, targetHash, OA
+  metadata, issuer metadata and template metadata cannot be validated against
+  an unreadable artifact. No external verifier execution/upload occurred.
+- Next step: make the attachments readable to this session (local absolute paths
+  or pasted JSON). Then record artifact identity, verifier/version, raw diagnostic
+  and exact JSON path before recommending any runtime correction.
+
 ## Continuation checkpoint: 2026-10-14
 
 This checkpoint supersedes the historical findings below and the August gap

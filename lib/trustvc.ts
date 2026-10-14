@@ -37,6 +37,20 @@ import {
 export type CertificateMode = "standard" | "opencerts" | "v1" | "w3c";
 
 type TrustVCContextModule = typeof import("@trustvc/w3c-context");
+type DocumentLoader = import("@trustvc/w3c-context").DocumentLoader;
+
+type W3CVerificationModule = {
+  isDerived(document: Record<string, unknown>): Promise<boolean>;
+  deriveCredential(
+    document: Record<string, unknown>,
+    pointers: string[],
+    options: { documentLoader: DocumentLoader }
+  ): Promise<{ derived?: Record<string, unknown>; error?: string }>;
+  verifyCredential(
+    document: Record<string, unknown>,
+    options: { documentLoader: DocumentLoader }
+  ): Promise<{ verified: boolean; error?: string }>;
+};
 
 // Normalise any accepted format string into the internal CredentialMode used by buildVCPayload.
 const MODE_ALIASES: Readonly<Record<string, CertificateMode>> = Object.freeze({
@@ -444,17 +458,15 @@ export interface VerificationResult {
 }
 
 /**
- * Verifies a W3C Verifiable Credential cryptographically using the TrustVC
- * verification API (ecdsa-sd-2023 / Data Integrity Proof).
+ * Verifies supported credentials without rewriting their signed contents.
  *
- * Returns `{ valid: true }` only when the proof is a valid cryptographic
- * signature over the credential AND the document hash is registered on the
- * Ethereum Document Store. Structural errors, missing proof fields, and
- * invalid signatures all produce `{ valid: false, message, details }` with
- * meaningful failure descriptions.
+ * ECDSA selective-disclosure proofs resolve public issuer authorization and fail
+ * explicitly when status cannot be checked. Wallet and legacy proof handling
+ * retain their existing behavior. Ethereum issuance also requires registration.
  */
 export async function verifyCredential(
-  document: Record<string, unknown>
+  document: Record<string, unknown>,
+  options: { documentLoader?: DocumentLoader } = {}
 ): Promise<VerificationResult> {
   try {
     // Fast structural pre-checks so we can return friendly messages before
@@ -565,6 +577,12 @@ export async function verifyCredential(
         valid: false,
         message: "Credential is not signed — missing proofValue in proof block.",
       };
+    }
+
+    if (proof["type"] === "DataIntegrityProof" && proof["cryptosuite"] === "ecdsa-sd-2023") {
+      const documentLoader = options.documentLoader ??
+        await (await loadTrustVCContext()).getDocumentLoader();
+      return await verifyEcdsaCredential(document, proof, documentLoader);
     }
 
     // Remove credentialStatus that points to unverifiable tradetrust.io status
@@ -855,6 +873,9 @@ function getVerificationFragmentMessage(fragment: unknown): string | undefined {
 }
 
 function getMandatoryCredentialPointers(document: Record<string, unknown>): string[] {
+  if (Array.isArray(document.type) && document.type.includes("BitstringStatusListCredential")) {
+    return ["/id", "/type", "/credentialSubject"];
+  }
   const pointers = new Set<string>(["/credentialSubject/certificateId", "/credentialSubject/name"]);
   const credentialSubject = document.credentialSubject;
 
@@ -947,6 +968,213 @@ function resolveProvider(
   }
 
   return null;
+}
+
+async function verifyEcdsaCredential(
+  document: Record<string, unknown>,
+  proof: Record<string, unknown>,
+  documentLoader: DocumentLoader
+): Promise<VerificationResult> {
+  const issuer = typeof document.issuer === "string" ? document.issuer :
+    isRecord(document.issuer) ? document.issuer.id : undefined;
+  const methodId = proof.verificationMethod;
+  if (typeof issuer !== "string" || typeof methodId !== "string" ||
+      methodId.split("#")[0] !== issuer || proof.proofPurpose !== "assertionMethod") {
+    return { valid: false, message: "Credential issuer does not match an assertion proof verification method." };
+  }
+  const resolved = (await documentLoader(issuer)).document;
+  if (!isRecord(resolved) || resolved.id !== issuer) {
+    return { valid: false, message: "Resolved DID document does not match the credential issuer." };
+  }
+  const assertions = Array.isArray(resolved.assertionMethod) ? resolved.assertionMethod : [];
+  const authorized = assertions.some((entry: unknown) =>
+    entry === methodId || (isRecord(entry) && entry.id === methodId));
+  const methods = [
+    ...(Array.isArray(resolved.verificationMethod) ? resolved.verificationMethod : []),
+    ...assertions.filter(isRecord),
+  ];
+  const method = methods.find((entry: unknown) => isRecord(entry) && entry.id === methodId);
+  if (!authorized || !isRecord(method) || method.controller !== issuer) {
+    return { valid: false, message: "Proof verification method is not authorized by the issuer DID assertionMethod." };
+  }
+  // Pin the method to the issuer document just resolved, not a separate key URL.
+  const pinnedLoader: DocumentLoader = async (url) => {
+    if (url === issuer) return { document: resolved, contextUrl: null, documentUrl: issuer };
+    if (url === methodId) {
+      return {
+        document: {
+          ...method,
+          id: methodId,
+          "@context": [
+            "https://www.w3.org/ns/did/v1",
+            "https://w3id.org/security/multikey/v1",
+            "https://w3id.org/security/suites/jws-2020/v1",
+          ],
+        },
+        contextUrl: null,
+        documentUrl: methodId,
+      };
+    }
+    return documentLoader(url);
+  };
+  const sdk = await loadCommonJSModule<W3CVerificationModule>("@trustvc/w3c-vc");
+  const input = structuredClone(document);
+  let verificationInput = input;
+  if (!await sdk.isDerived(input)) {
+    const pointers = Object.keys(input)
+      .filter((key) => key !== "@context" && key !== "proof")
+      .map((key) => `/${key.replace(/~/g, "~0").replace(/\//g, "~1")}`);
+    const disclosure = await sdk.deriveCredential(input, pointers, { documentLoader: pinnedLoader });
+    if (!disclosure.derived) {
+      return { valid: false, message: disclosure.error ?? "Unable to derive credential for verification." };
+    }
+    verificationInput = disclosure.derived;
+  }
+  const verification = await sdk.verifyCredential(verificationInput, { documentLoader: pinnedLoader });
+  if (!verification.verified) {
+    return { valid: false, message: verification.error ?? "Credential signature verification failed." };
+  }
+  const now = Date.now();
+  for (const [field, future] of [["validFrom", true], ["validUntil", false]] as const) {
+    const value = document[field];
+    if (value !== undefined) {
+      const time = typeof value === "string" ? Date.parse(value) : NaN;
+      if (!Number.isFinite(time) || (future ? time > now : time <= now)) {
+        return { valid: false, message: `Credential ${field} is invalid or outside its validity period.` };
+      }
+    }
+  }
+  const details = {
+    issuer,
+    verificationMethod: methodId,
+    cryptosuite: "ecdsa-sd-2023",
+    signatureVerification: "verified",
+    issuerAuthorization: "verified",
+  };
+  const status = document.credentialStatus;
+  if (status !== undefined && (!Array.isArray(status) || status.length > 0)) {
+    const statuses = Array.isArray(status) ? status : [status];
+    if (statuses.every((entry) => isRecord(entry) && entry.type === "BitstringStatusListEntry")) {
+      if (getIssuingMethods(document).includes("ethereum")) {
+        return { valid: false, message: "Bitstring status profile supports DID-only issuance." };
+      }
+      const checked = await verifyBitstringStatuses(statuses, issuer, documentLoader);
+      if (!checked.valid) return { ...checked, details: { ...details, ...checked.details } };
+      return {
+        valid: true,
+        message: "Credential verified successfully (signature, issuer and signed status lists).",
+        details: { ...details, credentialStatus: "verified", blockchainVerification: "not required" },
+      };
+    }
+    return {
+      valid: false,
+      message: "Credential signature and issuer are verified, but credentialStatus verification is unsupported.",
+      details: { ...details, credentialStatus: "unsupported" },
+    };
+  }
+  if (getIssuingMethods(document).includes("ethereum")) {
+    const onChain = await verifyDocumentOnChain(
+      document, ISSUER_CONFIG.documentStore, new JsonRpcProvider(NETWORKS.sepolia.rpcUrl)
+    );
+    return {
+      valid: onChain.verified && !onChain.revoked,
+      message: onChain.revoked ? "Credential has been revoked on blockchain." :
+        onChain.verified ? "Credential verified successfully (on-chain and cryptographic)." :
+          "Credential signature is valid but document not found on blockchain.",
+      details: { ...details, blockchainVerification: onChain.verified ? "passed" : "failed",
+        revoked: onChain.revoked },
+    };
+  }
+  return {
+    valid: true,
+    message: "Credential verified successfully (cryptographic signature and issuer authorization).",
+    details: { ...details, credentialStatus: "not present", blockchainVerification: "not required" },
+  };
+}
+
+async function verifyBitstringStatuses(
+  entries: unknown[], issuer: string, loader: DocumentLoader
+): Promise<VerificationResult> {
+  if (entries.length !== 2 || !issuer.startsWith("did:web:") ||
+      issuer.slice("did:web:".length).includes(":")) {
+    return { valid: false, message: "Unsupported Bitstring Status List profile." };
+  }
+  const purposes = new Set<string>();
+  const indices = new Set<string>();
+  const pages = new Set<string>();
+  for (const entry of entries) {
+    if (!isRecord(entry) || typeof entry.statusListCredential !== "string" ||
+        typeof entry.statusListIndex !== "string" || !/^(0|[1-9][0-9]*)$/.test(entry.statusListIndex) ||
+        (entry.statusSize !== undefined && entry.statusSize !== 1) ||
+        (entry.statusPurpose !== "revocation" && entry.statusPurpose !== "suspension") ||
+        purposes.has(entry.statusPurpose)) {
+      return { valid: false, message: "Invalid Bitstring Status List entry." };
+    }
+    purposes.add(entry.statusPurpose);
+    indices.add(entry.statusListIndex);
+    const url = new URL(entry.statusListCredential);
+    const domain = issuer.slice("did:web:".length);
+    const path = /^\/api\/status-list\/(0|[1-9][0-9]{0,9})\/(revocation|suspension)$/.exec(url.pathname);
+    if (url.origin !== `https://${domain}` || url.search || url.hash || url.username || url.password ||
+        !path || Number(path[1]) > 2147483647 || path[2] !== entry.statusPurpose ||
+        entry.id !== `${url.href}#${entry.statusListIndex}` ||
+        Number(entry.statusListIndex) >= 131072) {
+      return { valid: false, message: "Status list URL or index does not match the issuer profile." };
+    }
+    pages.add(path[1]);
+    const response = await loader(url.href);
+    const listDocument: unknown = response.document;
+    if (!isRecord(listDocument) || listDocument.id !== url.href || listDocument.issuer !== issuer ||
+        listDocument.credentialStatus !== undefined ||
+        !Array.isArray(listDocument.type) || !listDocument.type.includes("VerifiableCredential") ||
+        !listDocument.type.includes("BitstringStatusListCredential") ||
+        !isRecord(listDocument.proof) || listDocument.proof.cryptosuite !== "ecdsa-sd-2023" ||
+        listDocument.proof.type !== "DataIntegrityProof") {
+      return { valid: false, message: "Invalid signed status list credential." };
+    }
+    const start = Date.parse(String(listDocument.validFrom));
+    const end = Date.parse(String(listDocument.validUntil));
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= Date.now() ||
+        start > Date.now() || end - start > 60000 || end <= start) {
+      return { valid: false, message: "Status list is expired, future-dated or exceeds the freshness limit." };
+    }
+    const verification = await verifyEcdsaCredential(listDocument, listDocument.proof, loader);
+    if (!verification.valid) return { valid: false, message: `Status list proof failed: ${verification.message}` };
+    const subject = listDocument.credentialSubject;
+    if (!isRecord(subject) || subject.type !== "BitstringStatusList" ||
+        subject.id !== `${url.href}#list` || subject.ttl !== 60000 ||
+        subject.statusPurpose !== entry.statusPurpose || typeof subject.encodedList !== "string" ||
+        subject.encodedList.length > 24000 || !/^u[A-Za-z0-9_-]+$/.test(subject.encodedList)) {
+      return { valid: false, message: "Invalid encoded status list subject." };
+    }
+    const { StatusList } = await loadCommonJSModule<typeof import("@trustvc/w3c-credential-status")>(
+      "@trustvc/w3c-credential-status"
+    );
+    const { gunzipSync } = await loadCommonJSModule<typeof import("node:zlib")>("node:zlib");
+    const uncompressed = gunzipSync(Buffer.from(subject.encodedList.slice(1), "base64url"), {
+      maxOutputLength: 16384,
+    });
+    // The SDK ignores Buffer.byteOffset, so provide an unpooled, exact-length buffer.
+    const buffer = Buffer.alloc(uncompressed.length);
+    uncompressed.copy(buffer);
+    const list = new StatusList({ buffer });
+    if (list.length !== 131072) return { valid: false, message: "Invalid status list length." };
+    if (list.getStatus(Number(entry.statusListIndex))) {
+      return {
+        valid: false,
+        message: entry.statusPurpose === "revocation" ? "Credential has been revoked." : "Credential is suspended.",
+        details: { credentialStatus: entry.statusPurpose === "revocation" ? "revoked" : "suspended" },
+      };
+    }
+  }
+  if (indices.size !== 1 || pages.size !== 1) {
+    return { valid: false, message: "Status list purposes must share a single allocation." };
+  }
+  return { valid: true, message: "Signed status lists verified." };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function stripUnsupportedCredentialStatus(

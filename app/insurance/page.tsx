@@ -82,6 +82,7 @@ interface IssueFormState {
   validFrom: string;
   validUntil: string | null;
   certificateFormat: "v1" | "w3c";
+  statusProfile?: "legacy" | "bitstring";
 }
 
 function getTodayDateInputValue(): string {
@@ -321,6 +322,7 @@ export default function InsurancePage() {
             data: certData,
             type: "did",
             certificateFormat: formData.certificateFormat,
+            statusProfile: issuingMethods.length === 1 ? formData.statusProfile ?? "legacy" : "legacy",
           }),
         });
 
@@ -829,6 +831,19 @@ export default function InsurancePage() {
                     </div>
                   </div>
 
+                  {issuingMethods.length === 1 && issuingMethods.includes("did") && (
+                    <label className="flex items-start gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={formData.statusProfile === "bitstring"}
+                        onChange={(event) => setFormData((previous) => ({
+                          ...previous, statusProfile: event.target.checked ? "bitstring" : "legacy",
+                        }))}
+                      />
+                      <span>Use the opt-in signed Bitstring Status List profile.
+                        Requires server enablement and the status-list database migration.</span>
+                    </label>
+                  )}
                   {issuingMethods.includes("did") && (
                     <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
                       <p className="font-semibold">Revocation prerequisites</p>
@@ -836,7 +851,11 @@ export default function InsurancePage() {
                         These need to be in place before a credential can be revoked later:
                       </p>
                       <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-blue-800">
-                        {DID_REVOCATION_PREREQUISITES.map((item) => (
+                        {(formData.statusProfile === "bitstring" && issuingMethods.length === 1 ? [
+                          "Enable signed status lists on the server and apply the status-list migration before issuing.",
+                          "Keep the published DID assertion key and signing service available.",
+                          "Use the revocation controls to revoke, suspend or reinstate; verifiers fetch updated signed lists.",
+                        ] : DID_REVOCATION_PREREQUISITES).map((item) => (
                           <li key={item}>{item}</li>
                         ))}
                       </ul>

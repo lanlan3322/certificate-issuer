@@ -1,48 +1,9 @@
 /**
  * DID Utilities – shared key parsing for API routes and trustvc.
  *
- * All code that needs to resolve a public key from the `DID_PUBLIC_KEY_MULTIBASE`
- * env var should go through these helpers instead of duplicating hex → JWK conversion.
+ * Signing key configuration shared by trustvc and server publication helpers.
+ * Server-only JWK parsing and curve validation live in did-publication.ts.
  */
-
-// Default static fallback coordinates (from the original did.json / jwks.json)
-const DEFAULT_X = "BA_kfttf2yH27Q4gI7zl7jJfoVqBKb2wdoXCb5cip3w";
-const DEFAULT_Y = "goHOSYzG4sTeulIthj2wWh8ngxtvawPxlQVEFyg1eIc";
-
-/**
- * Convert a hex-encoded uncompressed secp256k1 public key (0x || x32 || y32)
- * to JWK-style base64url x/y coordinates.
- */
-export function hexToBase64url(x: string, y: string): { x: string; y: string } {
-  return {
-    x: Buffer.from(x, "hex").toString("base64url"),
-    y: Buffer.from(y, "hex").toString("base64url"),
-  };
-}
-
-/**
- * Resolve public key JWK coordinates from the DID_PUBLIC_KEY_MULTIBASE env var.
- *
- * Supports both formats:
- *   • Hex-encoded (0x || x32 || y32) – e.g. `0x<64 hex chars for x><64 hex chars for y>`
- *   • Base58 multibase (z-prefixed) – ignored (x/y already embedded in it)
- *
- * Falls back to static defaults when the env var is missing or unrecognised.
- */
-export function resolvePublicKeyJWK(): { x: string; y: string } {
-  const raw =
-    process.env.DID_PUBLIC_KEY_MULTIBASE || process.env.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE;
-
-  if (raw && raw.startsWith("0x") && raw.length >= 130) {
-    try {
-      return hexToBase64url(raw.slice(2, 66), raw.slice(66, 130));
-    } catch {
-      // Silently fall through to defaults on parse failure
-    }
-  }
-
-  return { x: DEFAULT_X, y: DEFAULT_Y };
-}
 
 /**
  * Convert hex-encoded public key (0x || x32 || y32) to Base58 multibase.

@@ -5,6 +5,7 @@ import { AuditService } from "../../../services/AuditService";
 import { CredentialService, DuplicateCredentialError } from "../../../services/CredentialService";
 import { registerHash, isRegistered } from "../../../lib/document-store";
 import type { CertificateData } from "../../../lib/trustvc";
+import { StatusListService, requireStatusListConfiguration } from "../../../services/StatusListService";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
       templateId?: string;
       persist?: boolean;
       certificateFormat?: "standard" | "opencerts" | "v1" | "w3c";
+      statusProfile?: "legacy" | "bitstring";
     };
 
     if (!body.data || typeof body.data !== "object") {
@@ -90,6 +92,17 @@ export async function POST(request: Request) {
     const validated = validate(body.data);
     if (!validated.ok) return NextResponse.json({ error: validated.error }, { status: 400 });
     const data = validated.value;
+    if (body.statusProfile !== undefined && body.statusProfile !== "legacy" && body.statusProfile !== "bitstring") {
+      return NextResponse.json({ error: "Unsupported status profile." }, { status: 400 });
+    }
+    if (body.statusProfile === "bitstring") {
+      if (body.persist === false || data.issuingMethods?.length !== 1 || data.issuingMethods[0] !== "did") {
+        return NextResponse.json(
+          { error: "Bitstring status requires persisted DID-only issuance." }, { status: 400 }
+        );
+      }
+      requireStatusListConfiguration();
+    }
 
     if ((body.type ?? "did") !== "did") {
       return NextResponse.json(
@@ -110,7 +123,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await signDocumentWithDID(buildVCPayload(data, body.certificateFormat));
+    const payload = buildVCPayload(data, body.certificateFormat);
+    const credential: Record<string, unknown> = body.statusProfile === "bitstring"
+      ? { ...payload, credentialStatus: await StatusListService.reserve(user.issuerId, data.id) }
+      : payload;
+    const result = await signDocumentWithDID(credential);
     if (!result.signed) {
       return NextResponse.json(
         { signed: false, credential: result.credential, error: result.error ?? "Signing failed." },
@@ -167,6 +184,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ signed: true, credential: result.credential, stored });
   } catch (error) {
+    if (error instanceof DuplicateCredentialError) {
+      return NextResponse.json({ signed: false, error: error.message }, { status: 409 });
+    }
     return errorResponse(error, "Unable to issue credential.", 500);
   }
 }

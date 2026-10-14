@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "../lib/supabase/server";
+import { getSupabaseAdmin, getSupabaseServerClient } from "../lib/supabase/server";
 
 export type RevocationAction = "revoke" | "suspend" | "reinstate";
 
@@ -63,10 +63,10 @@ export const RevocationService = {
 
     let lookup: { data: any; error: Error | null };
     if (isUuid) {
-      lookup = await supabase.from("credentials").select("id, status, external_id")
+      lookup = await supabase.from("credentials").select("id, status, external_id, credential")
         .eq("issuer_id", input.issuerId).eq("id", input.credentialRef).maybeSingle();
     } else {
-      lookup = await supabase.from("credentials").select("id, status, external_id")
+      lookup = await supabase.from("credentials").select("id, status, external_id, credential")
         .eq("issuer_id", input.issuerId).eq("external_id", input.credentialRef).maybeSingle();
     }
 
@@ -83,6 +83,30 @@ export const RevocationService = {
     }
     if (credential.status === nextStatus) {
       throw new RevocationStateError(`Credential is already ${nextStatus}.`);
+    }
+
+    const document = typeof credential.credential === "string"
+      ? JSON.parse(credential.credential) : credential.credential;
+    const statuses = document?.credentialStatus;
+    if (Array.isArray(statuses) && statuses.some((entry: { type?: string }) =>
+      entry?.type === "BitstringStatusListEntry")) {
+      const { data, error } = await getSupabaseAdmin().rpc("apply_bitstring_revocation", {
+        p_credential: credential.id,
+        p_issuer: input.issuerId,
+        p_action: input.action,
+        p_reason: input.reason,
+        p_transaction: input.transactionHash ?? null,
+      });
+      if (error?.message === "Invalid credential status transition") {
+        throw new RevocationStateError(error.message);
+      }
+      if (error) throw error;
+      if (!data || typeof data !== "object") throw new Error("Atomic status update returned no record.");
+      return {
+        ...mapRow(data),
+        externalId: String(data.external_id),
+        credentialStatus: String(data.credential_status),
+      };
     }
 
     const insertResult = await supabase.from("revocations").insert({

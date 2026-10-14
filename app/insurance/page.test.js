@@ -49,6 +49,7 @@ const credential = {
 function setup({
   methods = ["did"],
   connected = false,
+  statusProfile,
   status = 200,
   body = { signed: true, credential },
 } = {}) {
@@ -69,6 +70,7 @@ function setup({
       description: "Proof preservation regression",
       hasValidity: false,
       certificateFormat: "w3c",
+      statusProfile,
     },
     issuingMethods: methods,
     connected,
@@ -116,6 +118,7 @@ test("DID-only issuance preserves server proof without connecting or invoking a 
   assert.equal(calls.walletSignatures, 0);
   assert.equal(calls.requests[0].url, "/api/issue");
   assert.equal(calls.requests[0].body.certificateFormat, "w3c");
+  assert.equal(calls.requests[0].body.statusProfile, "legacy");
 
   const current = compile(expression("currentCredential"), {
     useMemo: (callback) => callback(),
@@ -124,7 +127,17 @@ test("DID-only issuance preserves server proof without connecting or invoking a 
     issuedCert: state.IssuedCert,
     buildVCPayload: () => { throw new Error("Must not rebuild a signed credential"); },
   });
+
   assert.deepEqual(JSON.parse(JSON.stringify(current)).proof, original.proof);
+});
+
+test("signed status lists are explicitly opt-in and limited to DID-only UI requests", async () => {
+  const optedIn = setup({ statusProfile: "bitstring" });
+  await optedIn.run();
+  assert.equal(optedIn.calls.requests[0].body.statusProfile, "bitstring");
+  const combined = setup({ methods: ["did", "ethereum"], connected: true, statusProfile: "bitstring" });
+  await combined.run();
+  assert.equal(combined.calls.requests[0].body.statusProfile, "legacy");
 });
 
 test("combined issuance preserves DID download while retaining separate Ethereum signing and anchoring", async () => {
