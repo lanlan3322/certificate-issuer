@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, FileCheck, Eye, X, Download, Loader2 } from "lucide-react";
 import CertificateTemplateRenderer from "../templates/CertificateTemplateRenderer";
 import { CertificateTemplateData } from "../templates/types";
 import { useWalletConnection } from "../../hooks/useWalletConnection";
 import { DOCUMENT_STORE_CONFIG, TRUSTVC_CONFIG } from "../../lib/constants";
-import { withBasePath } from "../../lib/site";
+import { buildVerificationUrl, withBasePath } from "../../lib/site";
 import {
   VerificationResult,
   RevocationHashMode,
@@ -30,6 +30,46 @@ export default function VerifyPage() {
   const [revokeHashMode, setRevokeHashMode] = useState<RevocationHashMode>("auto");
   const [revokeMessage, setRevokeMessage] = useState<string | null>(null);
   const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [idLookup, setIdLookup] = useState<IdLookup | null>(null);
+
+  // QR codes on issued certificates link to /verify/?id=<certificate id>, so
+  // the issuer's stored copy is verified without the holder uploading the file.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("id")?.trim();
+    if (id) void handleVerifyById(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleVerifyById = async (id: string) => {
+    setLoading(true);
+    setVerifiedDocument(null);
+    setRevokeMessage(null);
+    setRevokeError(null);
+    setIdLookup({ id });
+    try {
+      const response = await fetch(withBasePath("/api/verify"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ externalId: id }),
+      });
+      const body = (await response.json()) as IdVerificationResponse;
+      if (!response.ok) {
+        throw new Error(body.message || body.error || "Unable to verify certificate.");
+      }
+      setIdLookup({ id, ...(body.credential ?? {}) });
+      setResult({
+        valid: Boolean(body.valid),
+        message: body.valid
+          ? "Certificate verified against the issuer's record."
+          : describeIdFailure(body.reason, body.message),
+        details: body.details,
+      });
+    } catch (e) {
+      setResult({ valid: false, message: `Verification failed: ${(e as Error).message}` });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleVerify = async () => {
     if (!credentialJson.trim()) {
@@ -53,6 +93,7 @@ export default function VerifyPage() {
     }
 
     try {
+      setIdLookup(null);
       setVerifiedDocument(doc);
       const response = await fetch(withBasePath("/api/verify"), {
         method: "POST",
@@ -224,10 +265,10 @@ export default function VerifyPage() {
     verifiedDocument?.["issuer"] && typeof verifiedDocument["issuer"] === "object"
       ? (verifiedDocument["issuer"] as Record<string, unknown>)
       : {};
-  const verificationUrl =
-    typeof window === "undefined"
-      ? withBasePath("/verify")
-      : `${window.location.origin}${withBasePath("/verify")}`;
+  const verificationUrl = buildVerificationUrl(
+    typeof window === "undefined" ? "" : window.location.origin,
+    String(certificateSubject.certificateId ?? verifiedDocument?.id ?? "")
+  );
 
   const certificateForView: CertificateTemplateData | null = verifiedDocument
     ? {
@@ -490,7 +531,32 @@ export default function VerifyPage() {
                   </div>
                 )}
 
-                {result.valid && (
+                {idLookup && (
+                  <dl className="mt-4 grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
+                    <dt className="font-medium text-gray-600">Certificate ID</dt>
+                    <dd className="break-all font-mono text-gray-800">{idLookup.id}</dd>
+                    {idLookup.status && (
+                      <>
+                        <dt className="font-medium text-gray-600">Status</dt>
+                        <dd className="capitalize text-gray-800">{idLookup.status}</dd>
+                      </>
+                    )}
+                    {idLookup.validFrom && (
+                      <>
+                        <dt className="font-medium text-gray-600">Valid from</dt>
+                        <dd className="text-gray-800">{new Date(idLookup.validFrom).toLocaleDateString()}</dd>
+                      </>
+                    )}
+                    {idLookup.validUntil && (
+                      <>
+                        <dt className="font-medium text-gray-600">Valid until</dt>
+                        <dd className="text-gray-800">{new Date(idLookup.validUntil).toLocaleDateString()}</dd>
+                      </>
+                    )}
+                  </dl>
+                )}
+
+                {result.valid && verifiedDocument && (
                   <div className="mt-4">
                     {revocationLabel && (
                       <div className="mb-3 inline-flex max-w-full items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700">
@@ -678,4 +744,36 @@ export default function VerifyPage() {
       )}
     </div>
   );
+}
+interface IdLookup {
+  id: string;
+  status?: string | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+}
+
+interface IdVerificationResponse {
+  valid?: boolean;
+  message?: string;
+  error?: string;
+  reason?: string | null;
+  details?: Record<string, unknown>;
+  credential?: Omit<IdLookup, "id"> | null;
+}
+
+function describeIdFailure(reason: string | null | undefined, message?: string): string {
+  switch (reason) {
+    case "not_found":
+      return "No certificate with this ID was issued by verifiable.sg.";
+    case "revoked":
+      return "This certificate has been revoked by the issuer.";
+    case "suspended":
+      return "This certificate is currently suspended by the issuer.";
+    case "expired":
+      return "This certificate has expired.";
+    case "cryptographic_verification_failed":
+      return message || "The certificate's signature or status check failed.";
+    default:
+      return message || "This certificate could not be verified.";
+  }
 }

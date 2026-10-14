@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "../lib/supabase/server";
+import { getSupabaseAdmin, getSupabaseServerClient } from "../lib/supabase/server";
 
 export interface CredentialInput {
   issuerId: string;
@@ -83,6 +83,21 @@ export const CredentialService = {
   async findByExternalId(externalId: string) {
     const supabase = await getSupabaseServerClient();
     const { data, error } = await supabase
+      .from("credentials")
+      .select("*")
+      .eq("external_id", externalId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapRow(data) : null;
+  },
+
+  /**
+   * Public QR/ID verification: anonymous visitors cannot read credentials
+   * through row level security, so this uses the service role. Callers must
+   * only return verification state, never the stored recipient details.
+   */
+  async findForPublicVerification(externalId: string) {
+    const { data, error } = await getSupabaseAdmin()
       .from("credentials")
       .select("*")
       .eq("external_id", externalId)

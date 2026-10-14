@@ -1,3 +1,4 @@
+import { buildVerificationUrl } from "../../lib/site";
 import { resolveTemplateId, TEMPLATE_OPTIONS } from "../templates/registry";
 import type { CertificateTemplateData, CertificateTemplateId } from "../templates/types";
 
@@ -28,15 +29,16 @@ export function getRendererTemplates(document: unknown) {
 }
 
 /** Maps a W3C credential to the props used by the in-app certificate views. */
-export function toCertificateTemplateData(document: unknown, verificationUrl: string): CertificateTemplateData {
+export function toCertificateTemplateData(document: unknown, origin: string): CertificateTemplateData {
   const doc = asObject(document);
   const subject = firstObject(doc.credentialSubject);
   const issuer = asObject(doc.issuer);
   const text = (value: unknown, fallback = "") =>
     typeof value === "string" || typeof value === "number" ? String(value) : fallback;
 
+  const id = text(subject.certificateId ?? doc.id);
   return {
-    id: text(subject.certificateId ?? doc.id),
+    id,
     recipientName: text(subject.name, "Certificate recipient"),
     recipientEmail: text(subject.email),
     certificateType: text(subject.certificateType ?? subject.type, "Certificate"),
@@ -46,6 +48,6 @@ export function toCertificateTemplateData(document: unknown, verificationUrl: st
     validFrom: text(doc.validFrom ?? doc.issuanceDate),
     validUntil: typeof doc.validUntil === "string" ? doc.validUntil : undefined,
     templateId: getRendererTemplateId(document),
-    verificationUrl,
+    verificationUrl: buildVerificationUrl(origin, id),
   };
 }

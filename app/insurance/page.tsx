@@ -18,6 +18,7 @@ import {
   Info,
   Layers,
 } from "lucide-react";
+import { buildVerificationUrl } from "../../lib/site";
 import DeploymentGuide from "../../components/DeploymentGuide";
 import BatchIssuePanel, {
   BatchIssuedCertificatesPanel,
@@ -1095,7 +1096,7 @@ export default function InsurancePage() {
                         </p>
                         <div className="mt-2 flex justify-center">
                           <QRCodeSVG
-                            value={JSON.stringify({ id: issuedCert.id })}
+                            value={buildVerificationUrl(window.location.origin, issuedCert.id)}
                             size={60}
                             bgColor="#ffffff"
                             fgColor="#1e3a5f"

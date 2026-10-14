@@ -319,6 +319,7 @@ export function mapVcToCertEntry(
     return {
       id: String(
         (s.certificate_id as string) ||
+        (s.certificateId as string) ||
         (vc.id as string) ||
         "",
       ),

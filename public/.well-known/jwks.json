@@ -15,14 +15,6 @@
     {
       "kty": "EC",
       "crv": "P-256",
-      "kid": "ecdsa-2026-01",
-      "use": "sig",
-      "x": "XtC84IICGmb_rWAtEFG7yC3SLr9QnIxt3Bn4iFb8f0Y",
-      "y": "rnMusOQIV37Fvctu8VHIgN6QyClzQdjw3iRIK5o4HFs"
-    },
-    {
-      "kty": "EC",
-      "crv": "P-256",
       "kid": "ecdsa-2026-02",
       "use": "sig",
       "x": "HjI4fzhud3OAIX5H3qtO75F_9FZKJAGXPp_LI2hphBE",

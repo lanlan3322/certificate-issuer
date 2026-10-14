@@ -3,6 +3,12 @@ import historicalDID from "../public/.well-known/did.json";
 import historicalJWKS from "../public/.well-known/jwks.json";
 import { resolveDIDController, resolveDidKeyId } from "./did-utils";
 
+// Compromised keys must never be re-published, even if stale environment values return.
+const RETIRED_DID_KEYS = [
+  { id: "did:web:verifiable.sg#ecdsa-2026-01",
+    publicKeyMultibase: "zDnaep3QMCrSnAjtZmzZYbHGZyMttTq6FfjYXsC7fpE3EEzwo" },
+];
+
 interface PublicJWK {
   kty: string;
   crv: string;
@@ -80,6 +86,9 @@ export function buildPublicDID() {
   }
   const controller = resolveDIDController();
   const id = resolveDidKeyId();
+  if (RETIRED_DID_KEYS.some((key) => key.id === id || key.publicKeyMultibase === raw)) {
+    throw new Error("DID key is retired and must not be published.");
+  }
   if (controller !== document.id || !id.startsWith(`${controller}#`) ||
       !/^[A-Za-z0-9._-]+$/.test(id.slice(controller.length + 1))) {
     throw new Error("DID publication requires the existing controller and a full fragment key ID.");

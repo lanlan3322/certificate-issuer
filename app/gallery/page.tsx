@@ -6,7 +6,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { DEMO_CERTIFICATES } from "../../lib/constants";
 import { mapVcsToCertEntries } from "../../lib/credential-mapper";
 import { formatDate } from "../../lib/certificate";
-import { withBasePath } from "../../lib/site";
+import { buildVerificationUrl, withBasePath } from "../../lib/site";
 import {
   CertificateTemplateRenderer,
   DEFAULT_TEMPLATE_ID,
@@ -85,9 +85,9 @@ export default function GalleryPage() {
   }, []);
 
   const certificates: CertEntry[] = isLoading ? [] : uploadedCerts ?? DEMO_CERTIFICATES;
-  const verificationUrl = typeof window === "undefined"
-    ? withBasePath("/verify")
-    : `${window.location.origin}${withBasePath("/verify")}`;
+  const verificationUrl = buildVerificationUrl(
+    typeof window === "undefined" ? "" : window.location.origin, selectedCert?.id
+  );
   const certTypeCount = useMemo(
     () => new Set(certificates.map((c) => c.certificateType)).size,
     [certificates]

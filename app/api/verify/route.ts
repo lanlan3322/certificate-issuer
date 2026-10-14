@@ -39,10 +39,10 @@ export async function POST(request: Request) {
 
     const externalId =
       requestedExternalId || (submittedCredential ? getCredentialIdentifier(submittedCredential) : "");
-    let record: Awaited<ReturnType<typeof CredentialService.findByExternalId>> = null;
+    let record: Awaited<ReturnType<typeof CredentialService.findForPublicVerification>> = null;
     if (externalId) {
       try {
-        record = await CredentialService.findByExternalId(externalId);
+        record = await CredentialService.findForPublicVerification(externalId);
       } catch (lookupError) {
         if (!submittedCredential) {
           throw lookupError;

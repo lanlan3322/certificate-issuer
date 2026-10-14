@@ -4,7 +4,7 @@ import { connectToParent } from "penpal";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import CertificateTemplateRenderer from "../templates/CertificateTemplateRenderer";
-import { withBasePath } from "../../lib/site";
+import { buildVerificationUrl, withBasePath } from "../../lib/site";
 import { getRendererTemplates, toCertificateTemplateData } from "./certificateView";
 
 type FrameAction = { type: string; payload?: unknown };
@@ -23,7 +23,7 @@ declare global {
  */
 export default function EmbeddedRendererPage() {
   const [document, setDocument] = useState<unknown>();
-  const [verificationUrl, setVerificationUrl] = useState(withBasePath("/verify/"));
+  const [origin, setOrigin] = useState("");
   const [embedded, setEmbedded] = useState(true);
   const host = useRef<HostConnection>({});
   const container = useRef<HTMLDivElement>(null);
@@ -54,7 +54,7 @@ export default function EmbeddedRendererPage() {
   }, [toHost]);
 
   useEffect(() => {
-    setVerificationUrl(`${window.location.origin}${withBasePath("/verify/")}`);
+    setOrigin(window.location.origin);
     window.openAttestation = dispatch;
     const inFrame = window.parent !== window;
     setEmbedded(inFrame);
@@ -80,7 +80,8 @@ export default function EmbeddedRendererPage() {
     return () => observer.disconnect();
   }, [toHost]);
 
-  const certificate = document ? toCertificateTemplateData(document, verificationUrl) : null;
+  const certificate = document ? toCertificateTemplateData(document, origin) : null;
+  const verificationUrl = certificate?.verificationUrl ?? buildVerificationUrl(origin);
 
   return (
     <div ref={container} className="bg-white text-gray-900" id="rendered-certificate">

@@ -2,6 +2,39 @@
 
 Last Updated: 2026-10-14
 
+## Step 26: certificate QR codes open the verifiable.sg verifier
+
+- QR codes previously encoded the bare `/verify` URL (or `{"id": ...}` JSON on
+  the issue preview), so scanning opened an empty verifier.
+- `lib/site.ts` `buildVerificationUrl` now produces
+  `https://<origin>/verify/?id=<certificate id>`; used by the verify View
+  modal, gallery, embedded renderer (`/renderer/`) and the issue preview.
+- `/verify/?id=` auto-verifies via `POST /api/verify { externalId }`: the
+  issuer's stored copy is checked cryptographically plus DB status and expiry,
+  and the page shows ID, status and validity dates only (no recipient data).
+- Public lookup now uses the service-role client
+  (`CredentialService.findForPublicVerification`) because RLS hid every
+  credential from anonymous visitors (production returned `not_found`). This
+  also makes pasted credentials honour DB revocation/suspension for anonymous
+  verifiers. The response still excludes recipient details.
+- Gallery maps camelCase `credentialSubject.certificateId` (the stored
+  `external_id`) as the entry ID.
+- Tests: `lib/site.test.js` added; 43/43 pass; `next build` passes. Not yet
+  deployed.
+
+## Step 25: retire exposed key `#ecdsa-2026-01`
+
+- User approved retirement (certificates signed before the 17:29 switch were
+  test-only or will be reissued).
+- Removed `#ecdsa-2026-01` from `public/.well-known/did.json` (verificationMethod
+  and assertionMethod) and `jwks.json`. `#key-1` and `#ecdsa-2026-02` remain.
+- `lib/did-publication.ts` now refuses (503) to publish the retired key ID or
+  public key, even if stale Vercel environment values return.
+- Tests updated: the retired key is absent and env values that point to it are
+  rejected. 42/42 PASS; build PASS. Production confirmation pending deployment.
+- Effect after deploy: credentials signed with `#ecdsa-2026-01` fail
+  verification everywhere.
+
 ## Step 24: signing key rotation to `#ecdsa-2026-02`
 
 - Reason: earlier signing key material for `#ecdsa-2026-01` was exposed.
@@ -18,6 +51,10 @@ Last Updated: 2026-10-14
   `#ecdsa-2026-02`; (2) set the Vercel `DID_KEY_ID`, `DID_PUBLIC_KEY_MULTIBASE` and
   `DID_PRIVATE_KEY_MULTIBASE` values from `signing.env` and redeploy; (3) issue
   and verify a test certificate signed by `#ecdsa-2026-02`.
+- 2026-10-14 17:31: production DID lists `#ecdsa-2026-02` (apex, www, API) with
+  the matching public key. Vercel env switched; a newly issued certificate
+  (proof created 09:29:29Z) is signed with `#ecdsa-2026-02` and the user
+  confirmed it verifies on hosted TradeTrust and TrustVC.
 - Open risk: while `#ecdsa-2026-01` stays in `assertionMethod`, whoever holds
   the exposed key can still sign credentials that verify. Removing it requires
   reissuing the certificates it signed.

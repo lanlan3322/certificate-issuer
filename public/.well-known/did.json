@@ -20,13 +20,6 @@
     },
     {
       "@context": "https://w3id.org/security/multikey/v1",
-      "id": "did:web:verifiable.sg#ecdsa-2026-01",
-      "type": "Multikey",
-      "controller": "did:web:verifiable.sg",
-      "publicKeyMultibase": "zDnaep3QMCrSnAjtZmzZYbHGZyMttTq6FfjYXsC7fpE3EEzwo"
-    },
-    {
-      "@context": "https://w3id.org/security/multikey/v1",
       "id": "did:web:verifiable.sg#ecdsa-2026-02",
       "type": "Multikey",
       "controller": "did:web:verifiable.sg",
@@ -38,7 +31,6 @@
   ],
   "assertionMethod": [
     "did:web:verifiable.sg#key-1",
-    "did:web:verifiable.sg#ecdsa-2026-01",
     "did:web:verifiable.sg#ecdsa-2026-02"
   ],
   "service": [
