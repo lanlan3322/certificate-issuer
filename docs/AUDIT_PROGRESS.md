@@ -2,6 +2,26 @@
 
 Last Updated: 2026-10-14
 
+## Step 24: signing key rotation to `#ecdsa-2026-02`
+
+- Reason: earlier signing key material for `#ecdsa-2026-01` was exposed.
+- Generated a new P-256 key with `scripts/generate-did-keys.js` into
+  `~/verifiable-did-2026-02/` (outside the repo, 0700/0600). The secret was never
+  printed or committed.
+- Published only public material: added `#ecdsa-2026-02` to
+  `public/.well-known/did.json` (verificationMethod + assertionMethod) and
+  `jwks.json`. `#key-1` and `#ecdsa-2026-01` are kept so existing certificates
+  still verify.
+- Local check: the new secret signs ecdsa-sd-2023 and verifies against the new
+  `did.json`. 42/42 tests PASS; build PASS.
+- Rollout order: (1) deploy the DID document and confirm production lists
+  `#ecdsa-2026-02`; (2) set the Vercel `DID_KEY_ID`, `DID_PUBLIC_KEY_MULTIBASE` and
+  `DID_PRIVATE_KEY_MULTIBASE` values from `signing.env` and redeploy; (3) issue
+  and verify a test certificate signed by `#ecdsa-2026-02`.
+- Open risk: while `#ecdsa-2026-01` stays in `assertionMethod`, whoever holds
+  the exposed key can still sign credentials that verify. Removing it requires
+  reissuing the certificates it signed.
+
 ## Step 23: TrustVC-compatible status list encoding
 
 - User report: TradeTrust and TrustVC show "document is invalid" for
@@ -16,8 +36,9 @@ Last Updated: 2026-10-14
   request, so existing Bitstring certificates are fixed with no reissue.
   Trade-off: strict W3C Multibase verifiers may reject the list encoding.
 - Tests: TrustVC `StatusList.decode` accepts published lists; prefixed lists
-  still verify in the app; 42/42 PASS; build PASS. Production confirmation
-  pending deployment.
+  still verify in the app; 42/42 PASS; build PASS.
+- 2026-10-14 17:16: deployed; user confirmed `certificate-New.json` verifies as
+  valid on the hosted TradeTrust and TrustVC verifiers.
 
 ## Step 22: CORS for browser verifiers
 
