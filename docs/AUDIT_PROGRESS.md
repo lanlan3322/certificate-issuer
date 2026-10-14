@@ -2,6 +2,32 @@
 
 Last Updated: 2026-10-14
 
+## Step 14: Hobby API function-budget audit — 2026-10-14
+
+- Audited all 22 API route entry points and both external auth callback routes.
+  Removed three unused SDK/database diagnostics; no test, compatibility or
+  migration-diagnostic API routes were present.
+- Consolidated 14 existing handlers into authentication, agent and business
+  routers. Original URLs, handlers, bodies, cookies, authorization, tenant
+  scoping and rate limits are preserved. All moved handler implementations are
+  byte-for-byte identical; issue/verify/view, static DID/JWKS and auth callbacks
+  remain unchanged.
+- Build now has **8 API routes and 10 dynamic App Router route handlers**,
+  conservatively 11 functions if proxy is counted separately: below 12.
+  This is verified from the actual Next production manifest, not a hosted
+  Vercel Build Output count. Vercel deployment remains pending.
+- **37 tests PASS**, production build/TypeScript PASS; local production HTTP
+  route/error/auth-gate/static-publication checks pass with synthetic Supabase
+  settings. Local dynamic DID publication/status configuration gates remain
+  explicit 503 responses, not claimed successes. No production auth/email/DB
+  operations, migration/config activation, commit, push or deployment performed.
+- Full before/after inventory, removed/consolidated files and validation limits:
+  [API_ROUTE_AUDIT.md](./API_ROUTE_AUDIT.md).
+
+Next: approve commit/push of the route consolidation, confirm hosted deployment
+and actual function inventory, then resume authorized production verification.
+The status migration and signing enablement remain separately gated.
+
 ## Step 13: production-verification commit approved — 2026-10-14
 
 - User approved committing all pending changes for production verification,

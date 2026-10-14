@@ -47,7 +47,6 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/api/issue": trustvcRuntimeTraceIncludes,
     "/api/verify": trustvcRuntimeTraceIncludes,
-    "/api/debug-trustvc": trustvcRuntimeTraceIncludes,
     "/api/status-list/*/*": trustvcRuntimeTraceIncludes,
   },
   env: {
