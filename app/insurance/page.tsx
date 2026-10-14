@@ -268,7 +268,7 @@ export default function InsurancePage() {
 
     setErrors([]);
 
-    if (issuingMethods.some((method) => method === "ethereum" || method === "did") && !connected) {
+    if (issuingMethods.includes("ethereum") && !connected) {
       setErrors(["Please connect MetaMask to sign the selected certificate."]);
       return;
     }
@@ -309,8 +309,6 @@ export default function InsurancePage() {
         issuingMethods,
       };
 
-      const payload = buildVCPayload(certData, formData.certificateFormat);
-
       if (issuingMethods.includes("did")) {
         // Signing and persistence both happen server-side; there is no browser
         // fallback because the signing key is never sent to the client.
@@ -326,38 +324,28 @@ export default function InsurancePage() {
           }),
         });
 
-        const resultPayload = (await response.json().catch(() => ({}))) as {
+        const resultPayload = (await response.json()) as {
           signed?: boolean;
           credential?: Record<string, unknown>;
           error?: string;
         };
 
-        if (!response.ok || resultPayload.error) {
+        if (!response.ok || resultPayload.error || !resultPayload.signed || !resultPayload.credential?.proof) {
           setErrors([
             response.status === 401
               ? "Log in as an issuer to issue certificates."
-              : resultPayload.error ?? `Issuance failed (HTTP ${response.status}).`,
+              : resultPayload.error ??
+                (response.ok
+                  ? "DID signing did not return a signed credential. No certificate was issued."
+                  : `Issuance failed (HTTP ${response.status}).`),
           ]);
           setIssuing(false);
           return;
         }
 
-        const didResult: DIDIssuanceResult = {
-          credential: (resultPayload.credential ?? payload) as Record<string, unknown>,
-          signed: Boolean(resultPayload.signed),
-        };
-
-        const didSigner = await getSigner();
-        const walletSignedDID = await signCredentialWithEthereum(
-          didResult.credential ?? payload as Record<string, unknown>,
-          didSigner
-        );
-
         setDIDResult({
-          ...didResult,
-          credential: walletSignedDID.credential,
-          walletAddress: walletSignedDID.walletAddress,
-          walletSignature: walletSignedDID.signature,
+          credential: resultPayload.credential,
+          signed: true,
         });
       }
 
@@ -870,7 +858,7 @@ export default function InsurancePage() {
                   )}
 
                   <div className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs text-cyan-800">
-                    Static deployments may fall back to the browser-side DID signing flow when the server API is unavailable.
+                    DID credentials are signed by the server. MetaMask is required only for Ethereum issuance; it does not replace the issuer DID proof.
                   </div>
 
                   <button
