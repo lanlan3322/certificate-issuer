@@ -2,6 +2,24 @@
 
 ## Production runtime gate: native CommonJS/ESM interoperability
 
+**Update: dynamic-import patches supersede reliance on native require(ESM).**
+The production error persisted after the runtime-pin step. Persisted patches for
+`@trustvc/w3c-issuer@2.3.0` and `@trustvc/w3c-vc@2.4.2` now replace synchronous
+Digital Bazaar imports in issuer key helpers, credential cryptography and the
+eagerly loaded presentation module. The credential suite mapping is populated
+when asynchronous cryptography initialization completes, before verification.
+The existing namespace patch is retained. No application API or credential
+format changes are required.
+
+The existing `postinstall: patch-package` applies these patches on installation.
+Do not disable install scripts in the Vercel build; confirm both patch success
+messages. SDK upgrades must revalidate/rebase the version-specific patches.
+Reversal and reapplication passed locally. **40 tests PASS and production
+build/TypeScript PASS under Node 24.9.0 with require(ESM) explicitly disabled.**
+This includes actual signed certificates and signed status-list verification,
+not just successful module imports. No production resolution claim until
+redeployment and synthetic issuance succeed. Keep Node 24.x pinned.
+
 Production issuance reported `ERR_REQUIRE_ESM` in
 `@trustvc/w3c-issuer/dist/did-web/keyPair/bbs2023.js` while loading the ESM-only
 Digital Bazaar Multikey package. The context package eagerly loads issuer key

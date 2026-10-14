@@ -1,0 +1,48 @@
+diff --git a/node_modules/@trustvc/w3c-issuer/dist/did-web/keyPair/bbs2023.js b/node_modules/@trustvc/w3c-issuer/dist/did-web/keyPair/bbs2023.js
+index a18b23d..bece3c1 100644
+--- a/node_modules/@trustvc/w3c-issuer/dist/did-web/keyPair/bbs2023.js
++++ b/node_modules/@trustvc/w3c-issuer/dist/did-web/keyPair/bbs2023.js
+@@ -1,6 +1,5 @@
+ 'use strict';
+ 
+-var Bls12381Multikey = require('@digitalbazaar/bls12-381-multikey');
+ var base58 = require('multiformats/bases/base58');
+ var types = require('../../lib/types');
+ 
+@@ -22,11 +21,11 @@ function _interopNamespace(e) {
+   return Object.freeze(n);
+ }
+ 
+-var Bls12381Multikey__namespace = /*#__PURE__*/_interopNamespace(Bls12381Multikey);
+ 
+ var __defProp = Object.defineProperty;
+ var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+ const generateBbs2023KeyPair = /* @__PURE__ */ __name(async ({ seed }) => {
++  const Bls12381Multikey__namespace = await import('@digitalbazaar/bls12-381-multikey');
+   if (!seed) {
+     throw new Error("Invalid seed");
+   }
+diff --git a/node_modules/@trustvc/w3c-issuer/dist/did-web/keyPair/ecdsaSd2023.js b/node_modules/@trustvc/w3c-issuer/dist/did-web/keyPair/ecdsaSd2023.js
+index 6f9ea0e..4a51adb 100644
+--- a/node_modules/@trustvc/w3c-issuer/dist/did-web/keyPair/ecdsaSd2023.js
++++ b/node_modules/@trustvc/w3c-issuer/dist/did-web/keyPair/ecdsaSd2023.js
+@@ -1,6 +1,5 @@
+ 'use strict';
+ 
+-var EcdsaMultikey = require('@digitalbazaar/ecdsa-multikey');
+ var types = require('../../lib/types');
+ 
+ function _interopNamespace(e) {
+@@ -21,11 +20,11 @@ function _interopNamespace(e) {
+   return Object.freeze(n);
+ }
+ 
+-var EcdsaMultikey__namespace = /*#__PURE__*/_interopNamespace(EcdsaMultikey);
+ 
+ var __defProp = Object.defineProperty;
+ var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+ const generateEcdsaSd2023KeyPair = /* @__PURE__ */ __name(async () => {
++  const EcdsaMultikey__namespace = await import('@digitalbazaar/ecdsa-multikey');
+   const ecdsaKeyPair = await EcdsaMultikey__namespace.generate({
+     curve: "P-256"
+   });

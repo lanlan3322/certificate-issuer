@@ -1,6 +1,106 @@
+diff --git a/node_modules/@trustvc/w3c-vc/dist/lib/presentation/index.js b/node_modules/@trustvc/w3c-vc/dist/lib/presentation/index.js
+index d95a47a..caacf12 100644
+--- a/node_modules/@trustvc/w3c-vc/dist/lib/presentation/index.js
++++ b/node_modules/@trustvc/w3c-vc/dist/lib/presentation/index.js
+@@ -1,8 +1,5 @@
+ 'use strict';
+ 
+-var EcdsaMultikey = require('@digitalbazaar/ecdsa-multikey');
+-var ecdsaRdfc2019Cryptosuite = require('@digitalbazaar/ecdsa-rdfc-2019-cryptosuite');
+-var dataIntegrity = require('@digitalbazaar/data-integrity');
+ var w3cContext = require('@trustvc/w3c-context');
+ var helper = require('../helper');
+ var jsonld = require('jsonld');
+@@ -30,8 +27,6 @@ function _interopNamespace(e) {
+   return Object.freeze(n);
+ }
+ 
+-var EcdsaMultikey__namespace = /*#__PURE__*/_interopNamespace(EcdsaMultikey);
+-var ecdsaRdfc2019Cryptosuite__namespace = /*#__PURE__*/_interopNamespace(ecdsaRdfc2019Cryptosuite);
+ var jsonld__namespace = /*#__PURE__*/_interopNamespace(jsonld);
+ var jsonldSignatures__default = /*#__PURE__*/_interopDefault(jsonldSignatures);
+ 
+@@ -365,6 +360,11 @@ const checkSignerHolderBinding = /* @__PURE__ */ __name((presentation, keyPair)
+   return void 0;
+ }, "checkSignerHolderBinding");
+ const signPresentation = /* @__PURE__ */ __name(async (presentation, keyPair, options) => {
++  const [EcdsaMultikey__namespace, ecdsaRdfc2019Cryptosuite__namespace, dataIntegrity] = await Promise.all([
++    import('@digitalbazaar/ecdsa-multikey'),
++    import('@digitalbazaar/ecdsa-rdfc-2019-cryptosuite'),
++    import('@digitalbazaar/data-integrity')
++  ]);
+   try {
+     const cryptoSuite = options?.cryptoSuite ?? PRESENTATION_PROOF_CRYPTOSUITE;
+     const suiteError = checkPresentationSuiteError(cryptoSuite);
+@@ -475,6 +475,10 @@ const verifyEmbeddedCredentials = /* @__PURE__ */ __name(async (credentials, vpN
+   return credentialResults;
+ }, "verifyEmbeddedCredentials");
+ const verifyHolderProof = /* @__PURE__ */ __name(async (presentation, options, documentLoader) => {
++  const [ecdsaRdfc2019Cryptosuite__namespace, dataIntegrity] = await Promise.all([
++    import('@digitalbazaar/ecdsa-rdfc-2019-cryptosuite'),
++    import('@digitalbazaar/data-integrity')
++  ]);
+   if (!presentation.proof) {
+     return void 0;
+   }
+diff --git a/node_modules/@trustvc/w3c-vc/dist/lib/types.js b/node_modules/@trustvc/w3c-vc/dist/lib/types.js
+index e1f8bf9..96a7546 100644
+--- a/node_modules/@trustvc/w3c-vc/dist/lib/types.js
++++ b/node_modules/@trustvc/w3c-vc/dist/lib/types.js
+@@ -1,12 +1,11 @@
+ 'use strict';
+ 
+ var jsonldSignaturesBbs = require('@mattrglobal/jsonld-signatures-bbs');
+-var dataIntegrity = require('@digitalbazaar/data-integrity');
+ 
+ const proofTypeMapping = {
+   BbsBlsSignature2020: jsonldSignaturesBbs.BbsBlsSignature2020,
+   BbsBlsSignatureProof2020: jsonldSignaturesBbs.BbsBlsSignatureProof2020,
+-  DataIntegrityProof: dataIntegrity.DataIntegrityProof
++  DataIntegrityProof: undefined
+ };
+ 
+ exports.proofTypeMapping = proofTypeMapping;
+diff --git a/node_modules/@trustvc/w3c-vc/dist/lib/w3c-vc.js b/node_modules/@trustvc/w3c-vc/dist/lib/w3c-vc.js
+index d59e366..bfb71ab 100644
 --- a/node_modules/@trustvc/w3c-vc/dist/lib/w3c-vc.js
 +++ b/node_modules/@trustvc/w3c-vc/dist/lib/w3c-vc.js
-@@ -15,7 +15,23 @@
+@@ -1,10 +1,29 @@
+ 'use strict';
+ 
+-var EcdsaMultikey = require('@digitalbazaar/ecdsa-multikey');
+-var ecdsaSd2023Cryptosuite = require('@digitalbazaar/ecdsa-sd-2023-cryptosuite');
+-var Bls12381Multikey = require('@digitalbazaar/bls12-381-multikey');
+-var bbs2023Cryptosuite = require('@digitalbazaar/bbs-2023-cryptosuite');
+-var dataIntegrity = require('@digitalbazaar/data-integrity');
++var EcdsaMultikey__namespace, Bls12381Multikey__namespace, dataIntegrity;
++var createEcdsaSd2023SignCryptosuite, createEcdsaSd2023DiscloseCryptosuite, createEcdsaSd2023VerifyCryptosuite;
++var createBbs2023SignCryptosuite, createBbs2023DiscloseCryptosuite, createBbs2023VerifyCryptosuite;
++var cryptographyPromise;
++function loadCryptography() {
++  return cryptographyPromise ??= Promise.all([
++    import('@digitalbazaar/ecdsa-multikey'),
++    import('@digitalbazaar/ecdsa-sd-2023-cryptosuite'),
++    import('@digitalbazaar/bls12-381-multikey'),
++    import('@digitalbazaar/bbs-2023-cryptosuite'),
++    import('@digitalbazaar/data-integrity')
++  ]).then(([ecdsa, ecdsaSuite, bls, bbsSuite, integrity]) => {
++    EcdsaMultikey__namespace = ecdsa;
++    Bls12381Multikey__namespace = bls;
++    dataIntegrity = integrity;
++    types.proofTypeMapping.DataIntegrityProof = integrity.DataIntegrityProof;
++    ({ createSignCryptosuite: createEcdsaSd2023SignCryptosuite,
++       createDiscloseCryptosuite: createEcdsaSd2023DiscloseCryptosuite,
++       createVerifyCryptosuite: createEcdsaSd2023VerifyCryptosuite } = ecdsaSuite);
++    ({ createSignCryptosuite: createBbs2023SignCryptosuite,
++       createDiscloseCryptosuite: createBbs2023DiscloseCryptosuite,
++       createVerifyCryptosuite: createBbs2023VerifyCryptosuite } = bbsSuite);
++  });
++}
+ var w3cContext = require('@trustvc/w3c-context');
+ var jsonldSignatures = require('jsonld-signatures');
+ var jsonldSignaturesV7 = require('jsonld-signatures-v7');
+@@ -15,7 +34,23 @@ var types = require('./types');
  function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
  
  function _interopNamespace(e) {
@@ -25,3 +125,46 @@
    var n = Object.create(null);
    if (e) {
      Object.keys(e).forEach(function (k) {
+@@ -32,18 +67,12 @@ function _interopNamespace(e) {
+   return Object.freeze(n);
+ }
+ 
+-var EcdsaMultikey__namespace = /*#__PURE__*/_interopNamespace(EcdsaMultikey);
+-var ecdsaSd2023Cryptosuite__namespace = /*#__PURE__*/_interopNamespace(ecdsaSd2023Cryptosuite);
+-var Bls12381Multikey__namespace = /*#__PURE__*/_interopNamespace(Bls12381Multikey);
+-var bbs2023Cryptosuite__namespace = /*#__PURE__*/_interopNamespace(bbs2023Cryptosuite);
+ var jsonldSignatures__default = /*#__PURE__*/_interopDefault(jsonldSignatures);
+ var jsonldSignaturesV7__default = /*#__PURE__*/_interopDefault(jsonldSignaturesV7);
+ var jsonld__namespace = /*#__PURE__*/_interopNamespace(jsonld);
+ 
+ var __defProp = Object.defineProperty;
+ var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+-const { createSignCryptosuite: createEcdsaSd2023SignCryptosuite, createDiscloseCryptosuite: createEcdsaSd2023DiscloseCryptosuite, createVerifyCryptosuite: createEcdsaSd2023VerifyCryptosuite } = ecdsaSd2023Cryptosuite__namespace;
+-const { createSignCryptosuite: createBbs2023SignCryptosuite, createDiscloseCryptosuite: createBbs2023DiscloseCryptosuite, createVerifyCryptosuite: createBbs2023VerifyCryptosuite } = bbs2023Cryptosuite__namespace;
+ const { purposes: { AssertionProofPurpose } } = jsonldSignatures__default.default;
+ const { purposes: { AssertionProofPurpose: AssertionProofPurposeV7 } } = jsonldSignaturesV7__default.default;
+ const isRawDocument = /* @__PURE__ */ __name((document) => {
+@@ -137,6 +166,7 @@ const extractMandatoryPointers = /* @__PURE__ */ __name(async (proofValue, crypt
+   }
+ }, "extractMandatoryPointers");
+ const signCredential = /* @__PURE__ */ __name(async (credential, keyPair, cryptoSuite = "ecdsa-sd-2023", options) => {
++  await loadCryptography();
+   try {
+     const documentLoader = options?.documentLoader ?? await w3cContext.getDocumentLoader();
+     if (cryptoSuite === "BbsBlsSignature2020") {
+@@ -219,6 +249,7 @@ const signCredential = /* @__PURE__ */ __name(async (credential, keyPair, crypto
+   }
+ }, "signCredential");
+ const verifyCredential = /* @__PURE__ */ __name(async (credential, options) => {
++  await loadCryptography();
+   try {
+     helper._checkCredential(credential);
+     const documentLoader = options?.documentLoader ?? await w3cContext.getDocumentLoader();
+@@ -306,6 +337,7 @@ const verifyCredential = /* @__PURE__ */ __name(async (credential, options) => {
+   }
+ }, "verifyCredential");
+ const deriveCredential = /* @__PURE__ */ __name(async (credential, revealedAttributes, options) => {
++  await loadCryptography();
+   try {
+     helper._checkCredential(credential);
+     const documentLoader = options?.documentLoader ?? await w3cContext.getDocumentLoader();

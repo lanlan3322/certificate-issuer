@@ -2,6 +2,26 @@
 
 Last Updated: 2026-10-14
 
+## Step 16: persistent dynamic-import fix for production ERR_REQUIRE_ESM
+
+- User reported the same issuance failure after the runtime pin. Implemented
+  persisted patch-package fixes instead of relying on native require(ESM).
+- Issuer BBS/ECDSA key helpers use dynamic imports. VC cryptography initializes
+  through shared asynchronous imports; presentation helpers no longer eagerly
+  require ESM; suite mapping is initialized before verification. Existing VC
+  namespace patch retained. No signing material accessed or fields changed.
+- Reverse/reapply of both version-specific patches PASS. Existing postinstall
+  applies them to fresh deployment dependencies. Package upgrades must rebase
+  these patches; do not disable Vercel installation scripts.
+- **40 tests PASS** under Node 24.9.0 with require(ESM) disabled, including real
+  synthetic sign/derive/verify/status lifecycle and wallet/rendering regressions.
+  Production build/TypeScript PASS under the same disabled-interoperability
+  condition. The build emits a Tailwind TS configuration warning but completes.
+- No commit, push, production configuration change or live issuance performed.
+  Next: deploy these patches, check postinstall success, retry synthetic issuance
+  and verify/view. Separate exposed-key rotation remains required before issuing
+  real credentials.
+
 ## Step 15: reported production ERR_REQUIRE_ESM — runtime fix validated locally
 
 - User reported issuance failure requiring Digital Bazaar BLS Multikey from
