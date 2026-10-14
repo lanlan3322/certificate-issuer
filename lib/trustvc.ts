@@ -241,7 +241,9 @@ async function signCredentialWithEcdsaSd2023(
         ? jsonldSignaturesModule.default
         : jsonldSignaturesModule;
     const documentLoader = await createTrustVCDocumentLoader();
-    const signingCredential = await prefillEcdsaSdCredentialId(credential);
+    const signingCredential = injectTargetHash(
+      await prefillEcdsaSdCredentialId(credential)
+    );
     const mandatoryPointers = getEcdsaSdMandatoryPointers(
       signingCredential,
       options?.mandatoryPointers ?? []
@@ -412,15 +414,11 @@ export function buildVCPayload(data: CertificateData, mode?: string) {
           }
         : {}),
     },
-    // TradeTrust/OpenCerts mandates credentialStatus for revocation checking via the document store.
-    // Uses the OpenAttestationDocumentStore status type so that verifiers
-    // can cross-reference the document hash on-chain and check OCSP revocation.
-    //
-    // The `id` MUST point to the document store contract (not a DID key), because
-    // OA v2 verifiers resolve it as: did:ethr:<contract> → fetch ABI → call status(docId, targetHash).
+    // Application-specific store reference, not a supported TrustVC W3C
+    // status-list entry or an OpenAttestation wrapper. See the compatibility reports.
     credentialStatus: [
       {
-        id: `did:ethr:0x${DOCUMENT_STORE_CONFIG.address}#${data.id}`,
+        id: `did:ethr:${DOCUMENT_STORE_CONFIG.address}#${data.id}`,
         type: "OpenAttestationDocumentStore",
         documentId: data.id,
         revocation: TRUSTVC_CONFIG.revocation,
@@ -1160,10 +1158,8 @@ export async function signDocumentWithDID(
     if (!result.signed) {
       return { credential: unsignedCredential, signed: false, error: "Signing returned no result." };
     }
-    // Inject `targetHash` for OA v2 single-credential commitment.
-    const targetCredential = injectTargetHash(result.signed as unknown as Record<string, unknown>);
     return {
-      credential: targetCredential,
+      credential: result.signed,
       signed: true,
     };
   } catch (err) {
@@ -1217,10 +1213,8 @@ export async function issueDIDCertificate(
     if (!result.signed) {
       return { credential, signed: false, error: "Signing returned no result." };
     }
-    // Inject `targetHash` for OA v2 single-credential commitment.
-    const targetCredential = injectTargetHash(result.signed as unknown as Record<string, unknown>);
     return {
-      credential: targetCredential,
+      credential: result.signed,
       signed: true,
     };
   } catch (err) {
@@ -1643,29 +1637,35 @@ function isBytes32Hex(value: string): boolean {
 }
 
 /**
- * Computes the keccak256 hash (as a hex string) of the stripped credential's
- * canonical JSON representation and injects it as `targetHash` into
- * `credentialStatus[0]`.
- *
- * This field is required by OA v2 verifiers to cross-reference the on-chain
- * document store commitment.  For single-credential documents, targetHash ==
- * keccak256(canonicalize(signedCredential)), which matches what the contract
- * stores after commitToDocumentStore / issue().
+ * Adds the application's document-store commitment before signing, so it is
+ * covered by the proof. This is not an OpenAttestation Merkle proof.
  */
 function injectTargetHash(
-  signedCredential: Record<string, unknown>
+  unsignedCredential: Record<string, unknown>
 ): Record<string, unknown> {
-  const credential = stripExistingProof(signedCredential);
-  const hash = Buffer.from(
-    keccak256(toUtf8Bytes(canonicalJson(credential)))
-  ).toString("hex");
-
-  const updated = { ...signedCredential };
-  const statusArray = (updated["credentialStatus"] as unknown[]) ?? [];
-  if (statusArray.length > 0 && typeof statusArray[0] === "object") {
-    statusArray[0] = { ...(statusArray[0] as Record<string, unknown>), targetHash: `0x${hash}` };
-    updated["credentialStatus"] = statusArray;
+  const statusArray = unsignedCredential.credentialStatus;
+  if (!Array.isArray(statusArray) || statusArray.length === 0) {
+    return unsignedCredential;
   }
 
-  return updated;
+  const firstStatus = statusArray[0];
+  if (
+    !firstStatus ||
+    typeof firstStatus !== "object" ||
+    firstStatus.type !== "OpenAttestationDocumentStore"
+  ) {
+    return unsignedCredential;
+  }
+
+  const { targetHash: _oldHash, ...statusWithoutHash } = firstStatus;
+  const credential = {
+    ...unsignedCredential,
+    credentialStatus: [statusWithoutHash, ...statusArray.slice(1)],
+  };
+  const targetHash = keccak256(toUtf8Bytes(canonicalJson(credential)));
+
+  return {
+    ...credential,
+    credentialStatus: [{ ...statusWithoutHash, targetHash }, ...statusArray.slice(1)],
+  };
 }

@@ -1,5 +1,13 @@
 # GAP ANALYSIS - TradeTrust / OpenCerts Compatibility
 
+> Superseded on 2026-10-14 by
+> [TRADETRUST_COMPATIBILITY_REPORT.md](./TRADETRUST_COMPATIBILITY_REPORT.md) and
+> [OPENCERTS_COMPATIBILITY_REPORT.md](./OPENCERTS_COMPATIBILITY_REPORT.md).
+> The historical analysis below conflates W3C and OpenAttestation formats and
+> contains unverified field names and requirements. Do not implement its proposed
+> wrapper/proof replacements, context list or Token Registry requirement.
+> Follow the authoritative continuation in [MIGRATION_PLAN.md](./MIGRATION_PLAN.md).
+
 Generated: 2026-08-10
 Status: Complete analysis
 
@@ -205,4 +213,3 @@ Document Store is used but no Token Registry reference exists in the credential.
 ## Cross-Reference: Existing Constants vs Required Values
 
 The file `lib/constants.ts` already defines `OPENCERTS_CONTEXTS` (lines 684–702) with the correct OpenCerts context URLs. This is a **configuration readiness** — no constants need to be added, only consumed during credential construction in OA mode.
-

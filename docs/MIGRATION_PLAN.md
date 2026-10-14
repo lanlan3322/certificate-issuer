@@ -1,5 +1,106 @@
 # MIGRATION PLAN - TradeTrust / OpenCerts Compatibility Layer
 
+## Authoritative continuation plan — 2026-10-14
+
+**This section supersedes the draft below. Do not implement its speculative
+wrapper names, proof removal, Token Registry requirement or unreachable-context
+fallback assumptions.** JSON-LD processors must resolve referenced contexts; they
+do not safely ignore unreachable URLs.
+
+Current verdict: TradeTrust **PARTIAL**, OpenCerts **PARTIAL**. See the
+[TradeTrust report](./TRADETRUST_COMPATIBILITY_REPORT.md) and
+[OpenCerts report](./OPENCERTS_COMPATIBILITY_REPORT.md) for source revisions,
+per-field checks, risks and live read-only infrastructure observations.
+
+### Preservation gates
+
+- No production auth, Supabase, Resend, DID document, DNS, contract, environment
+  or SDK upgrade in this continuation.
+- No edits to existing signed documents; no removing revocation/status checks
+  to manufacture a successful result.
+- Do not repoint or replace `#key-1`. If new cryptographic material is needed,
+  retain historical keys and add a distinct method ID after approval.
+- Defaults and existing aliases remain unchanged. Any new interoperable profile
+  must be separately opt-in and versioned; do not silently remap `w3c`/`v1`.
+- Do not deploy contracts or spend funds until the intended profile and existing
+  contract inventory prove a deployment necessary.
+
+### Phase A — exact evidence and local regression (completed)
+
+- [x] Resume audit reports and distinguish historical sample from real production JSON.
+- [x] Compare current W3C and OA profiles with upstream source.
+- [x] Reproduce cryptographic failure when signed content is altered after signing.
+- [x] Prepare existing application commitment before signing; produce actual
+      bytes32, avoid caller mutation and avoid adding it to unrelated status types.
+- [x] Remove duplicate `0x` from new status IDs.
+- [x] Local issuance/derived-proof verification/view/tamper/legacy-wallet tests:
+      7 passing tests; TypeScript PASS; production build PASS.
+- [x] Public DID, DNS TXT, Sepolia code and store ABI read probes.
+
+### Phase B — production fixtures and verifier baseline (next, blocked on input)
+
+- [ ] Receive fresh OpenCerts-mode certificate and known-good legacy certificate.
+      User offered to provide these; neither received yet. Keep them local and
+      out of git.
+- [ ] Verify each unmodified file on verifiable.sg with authorized access.
+      Capture format, fragment outcomes and verifier versions without recipient data.
+- [ ] Verify issuer/proof public key using the public DID, not the local
+      environment-derived loader override.
+- [ ] Obtain explicit approval before uploading certificate contents to external
+      TradeTrust/OpenCerts sites, or perform isolated local reference verification.
+- [ ] Inventory actual production SDK version and key format. Local
+      `@trustvc/trustvc@0.0.0` exports no aggregate verifier functions; do not
+      equate a local SDK build with the working production environment.
+
+### Phase C — opt-in W3C interoperability (requires design/rollout approval)
+
+1. Select a supported revocation profile. Ordinary non-transferable certificates
+   should evaluate Bitstring Status List; do not drop revocation silently.
+2. Define literal certificate-category mapping with legacy reader fallback.
+   Current human-readable strings in JSON-LD `type` can fail signing.
+3. Stage a pinned maintained TrustVC API adaptation, with issuer identity and
+   document-status fragment tests that fail closed for invalid/error results.
+4. If needed, add an appropriate public verification key under a new ID; retain
+   all old keys and continue verification of old documents.
+5. Add W3C `renderMethod` only once a protocol-compliant renderer is available,
+   without changing current local certificate templates.
+
+Gate every change on issuance, cryptographic verification, view, actual legacy
+verification, format JSON checks and `npm run build`. Do not enable the new
+profile by default until external verification passes for agreed versions.
+
+### Phase D — infrastructure reconciliation (no deployment approved)
+
+- Configured Sepolia address has bytecode, but tested `isIssued`/`isRevoked`
+  calls revert. DNS binds another address which currently returns no code on
+  Sepolia. Identify both contracts/network/ownership before making changes.
+- Correct registration config/default-address/signer-runner handling and add
+  receipt/outcome tracking only behind a tested opt-in operational flag.
+- If OA export is actually required, use maintained OA wrapping/hash/proof
+  tooling in a separate output profile; preserve existing W3C issuance.
+- A Document Store is relevant to OA DNS-TXT issuance, but must have matching
+  roles, network, wrapping/commitment, receipt, DNS binding and revocation tests.
+- A Token Registry is for transferable records, not a prerequisite for ordinary
+  OpenCerts/TradeTrust certificate verification. Do not deploy one for this task.
+
+### Phase E — controlled live acceptance
+
+- [ ] Production Issue Certificate succeeds with an authorized test issuer.
+- [ ] Production Verify Certificate succeeds and reports actual status/identity.
+- [ ] Production View Certificate succeeds.
+- [ ] Actual legacy certificate still verifies and renders unchanged.
+- [ ] OpenCerts-mode JSON matches the selected supported profile.
+- [ ] Agreed TradeTrust/OpenCerts reference versions verify and render the file.
+- [ ] Registration/login/reset/email/DID smoke tests pass without changing their configuration.
+- [ ] Final `npm run build` PASS, explicit rollback gate, then approved deployment.
+
+**Stop condition:** no compatibility PASS claim while fixtures, status semantics,
+public-key match, chain linkage or external verification are unresolved.
+
+---
+
+## Historical draft — superseded, retained for continuity
+
 Generated: 2026-08-10
 Status: Draft v1.0
 
@@ -268,5 +369,4 @@ Deploy to staging, issue test certificates, validate with:
 6. [ ] Revocation of OA certificates is reflected in verification result
 7. [ ] All existing tests pass
 8. [ ] New unit + integration tests added and passing
-
 

@@ -1,6 +1,96 @@
 # AUDIT_PROGRESS.md
 
-Last Updated: 2026-09-14
+Last Updated: 2026-10-14
+
+## Continuation checkpoint: 2026-10-14
+
+This checkpoint supersedes the historical findings below and the August gap
+analysis. Resume here; do not restart discovery. Reference source revisions and
+field-level evidence are in [TradeTrust](./TRADETRUST_COMPATIBILITY_REPORT.md) and
+[OpenCerts](./OPENCERTS_COMPATIBILITY_REPORT.md) compatibility reports.
+
+### Current result
+
+- **TradeTrust: PARTIAL.** Local W3C issuance, TrustVC derivation and signature
+  verification pass. Current status profile is unsupported by the reviewed
+  upstream W3C verifier. No fresh production certificate has been supplied or
+  submitted to the reference verifier.
+- **OpenCerts: PARTIAL.** Current OpenCerts supports a W3C verification path;
+  an OA wrapper is not universally required. Local cryptographic checks pass,
+  but status, public-key alignment and external rendering remain unresolved.
+- Production registration/login/password reset/Supabase/Resend are user-reported
+  working baselines, not newly exercised production tests. No changes to those
+  systems, public DID files, production settings or contracts.
+
+### Completed in this continuation
+
+1. Read existing reports and existing sample; determined the sample is historical,
+   not a freshly issued production artifact, and cannot prove compatibility.
+2. Compared current payload and signing/status paths against TradeTrust docs,
+   OpenCerts reference site and TrustVC reference verifier source.
+3. Added a regression that verifies a disclosure derived from the **returned**
+   signed certificate, rather than checking only that a proof exists.
+4. Fixed local store commitment preparation: calculate bytes32 `targetHash`
+   before signing, avoid ASCII-hex double encoding, do not mutate caller input,
+   and do not inject the custom commitment into unrelated status types.
+5. Removed duplicate `0x` from newly built status IDs.
+6. Tested all four format aliases, serialized viewer mapping, all four React
+   certificate templates, the legacy DID issuance entry point, legacy-style
+   wallet verification, and rejection of tampered hashes/recipients.
+7. Read-only public DID, DNS and Sepolia contract checks completed; no transaction
+   submitted. The configured contract does not answer the expected store ABI.
+
+### Verification evidence
+
+| Check | Result | Scope |
+|---|---|---|
+| `node --test lib/trustvc.test.js` | PASS, 7 tests | Synthetic, temporary P-256 keys; 6 subtests plus parent |
+| `tsc --noEmit --incremental false` | PASS | Full project |
+| `npm run build` | PASS before and after code fixes | Next.js production build, 24 static pages |
+| Issue / verify / view | PASS locally | Signing, disclosure verification and server rendering; not authenticated production API/database E2E |
+| Previously issued production certificate | BLOCKED | User offered to provide fresh and legacy files; neither received yet |
+| Public DID GET | PASS accessibility | Returns `did:web:verifiable.sg`, `#key-1`, secp256k1 JWK; redirects to `www` |
+| Live external TradeTrust / OpenCerts upload | NOT RUN | Await certificate fixtures and explicit consent to external submission |
+
+The new regression was also run against the original `HEAD` signing code in
+memory, normalizing only the unrelated status-ID typo to isolate proof handling:
+all four DID format cases and the legacy DID entry point failed with
+`Invalid signature`, while the wallet case passed. The fixed working tree passes
+the same tests. No baseline source file was overwritten.
+
+### Exact deployment observations
+
+- Sepolia RPC `eth_chainId`: `0xaa36a7` (11155111).
+- Configured address `0x92600b6B5fE4D15D87d7d264C6cAdCcaf9D74594`:
+  15,993 bytes of code; `name()` returns `Verifiable`; `isIssued(bytes32)` and
+  `isRevoked(bytes32)` revert for a zero-hash read probe. Neither selector was
+  found in the returned bytecode. This is not proof of the expected Document
+  Store interface, nor proof that any certificate was issued.
+- `_document-store.verifiable.sg` TXT:
+  `openatts net=ethereum netId=11155111 addr=0x4B30674f8F77C0b1Ab4C8A34b2a85C295A3aE2D4`.
+  This differs from configuration; `eth_getCode` for that address on Sepolia
+  returns `0x`. No `openatts` TXT was observed at `verifiable.sg` itself.
+- The server registration service's default address omits two hex characters,
+  and its signer lookup uses ethers-v5 `.signer` rather than ethers-v6 `.runner`.
+  This service was **not changed**; environment overrides and ownership must be
+  established before enabling transactions.
+
+### Next unfinished work
+
+1. Receive fresh OpenCerts-mode and known-good legacy certificate files. Keep
+   recipient data local; do not commit production certificates.
+2. Compare actual proof key to the publicly resolved DID key; local loader
+   overrides cannot establish external issuer identity.
+3. Approve a separate, opt-in supported revocation profile (e.g. Bitstring Status
+   List) and renderer integration. Do not silently remove status checks.
+4. Inventory the actual contracts/network/permissions and reconcile DNS only
+   after owner approval. **Do not deploy another contract or Token Registry.**
+5. Test against the exact external verifier versions with consent, then rerun
+   authenticated production lifecycle and legacy fixtures before rollout.
+
+---
+
+## Historical audit (retained for continuity; superseded above)
 
 ---
 
