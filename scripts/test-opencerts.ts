@@ -1,7 +1,7 @@
 // OpenCerts payload validation — programmatic check of buildVCPayload output
-import { buildVCPayload } from '../lib/trustvc.ts';
+import { buildVCPayload, type CertificateData } from '../lib/trustvc';
 
-const testData = {
+const testData: CertificateData = {
   id: 'test-opencerts-001',
   recipientName: 'Alice Tan',
   recipientEmail: 'alice@test.sg',
@@ -11,7 +11,7 @@ const testData = {
   issueDate: '2026-10-13',
   description: 'Test OpenCerts validation',
   validFrom: '2026-10-13',
-} as any;
+};
 
 // Build all four modes
 const standard = buildVCPayload(testData, 'standard');
@@ -88,4 +88,3 @@ if (failed > 0) {
 } else {
   console.log('✅ ALL TESTS PASSED — alias propagation working correctly');
 }
-
