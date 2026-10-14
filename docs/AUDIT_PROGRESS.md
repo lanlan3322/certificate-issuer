@@ -2,6 +2,28 @@
 
 Last Updated: 2026-10-14
 
+## Step 17: patch installation failure reproduced and repaired
+
+- Reported Vercel postinstall failure for the combined VC patch. Downloaded the
+  exact locked 2.4.2 registry tarball into isolated session storage and verified
+  its SHA-512 against the lockfile. Combined patch applies to pristine package.
+- Applying the earlier namespace-only patch first and then the combined patch
+  reproduces the reported failure. This establishes a cached old-patch failure
+  mode; the failed Vercel filesystem itself has not been inspected.
+- Replaced the combined VC patch with two ordered patch-package patches:
+  `+001+namespace-interop.patch` preserves the original fix;
+  `+002+dynamic-imports.patch` adds the ESM repairs independently.
+  The issuer patch and application behavior remain unchanged.
+- Actual patch-package application passes on clean registry extraction,
+  old-namespace-patched extraction and current fully patched installation.
+  Added an offline regression covering those three states and checking the
+  resulting SDK files match. **41 tests PASS** with require(ESM) disabled on
+  Node 24.9.0; production build/TypeScript PASS.
+- No workspace dependencies deleted, no secrets accessed, and no commit,
+  push or deployment performed. Next: deploy sequential patches; choose a
+  cache-free Vercel redeploy if other stale dependency state remains. Confirm
+  issuer patch plus both numbered VC patches succeed before synthetic issuance.
+
 ## Step 16: persistent dynamic-import fix for production ERR_REQUIRE_ESM
 
 - User reported the same issuance failure after the runtime pin. Implemented

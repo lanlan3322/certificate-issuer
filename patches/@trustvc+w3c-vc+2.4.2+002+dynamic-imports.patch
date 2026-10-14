@@ -100,31 +100,6 @@ index d59e366..bfb71ab 100644
  var w3cContext = require('@trustvc/w3c-context');
  var jsonldSignatures = require('jsonld-signatures');
  var jsonldSignaturesV7 = require('jsonld-signatures-v7');
-@@ -15,7 +34,23 @@ var types = require('./types');
- function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
- 
- function _interopNamespace(e) {
--  if (e && e.__esModule) return e;
-+  // Patched to handle native ESM modules that set __esModule
-+  if (e && e.__esModule) {
-+    var n = Object.create(null);
-+    if (e) {
-+      Object.keys(e).forEach(function (k) {
-+        if (k !== 'default') {
-+          var d = Object.getOwnPropertyDescriptor(e, k);
-+          Object.defineProperty(n, k, d.get ? d : {
-+            enumerable: true,
-+            get: function () { return e[k]; }
-+          });
-+        }
-+      });
-+    }
-+    n.default = e;
-+    return Object.freeze(n);
-+  }
-   var n = Object.create(null);
-   if (e) {
-     Object.keys(e).forEach(function (k) {
 @@ -32,18 +67,12 @@ function _interopNamespace(e) {
    return Object.freeze(n);
  }

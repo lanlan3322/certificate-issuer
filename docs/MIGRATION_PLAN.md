@@ -2,6 +2,17 @@
 
 ## Production runtime gate: native CommonJS/ESM interoperability
 
+**Installation update:** the VC fixes are now two sequential patch-package files:
+`@trustvc+w3c-vc+2.4.2+001+namespace-interop.patch` and
+`@trustvc+w3c-vc+2.4.2+002+dynamic-imports.patch`. The single combined patch was
+valid on clean dependencies but failed when the old namespace patch was already
+present, as reproduced with the exact checksum-verified registry package.
+Clean, old-patch-cached and fully patched states now pass the real installer.
+Regression suite: **41 tests PASS**, build/TypeScript PASS on Node 24.
+Deployment installation logs must show the issuer patch and both numbered VC
+patches succeeding. If deployment still retains inconsistent dependencies,
+redeploy without the existing build cache rather than deleting application data.
+
 **Update: dynamic-import patches supersede reliance on native require(ESM).**
 The production error persisted after the runtime-pin step. Persisted patches for
 `@trustvc/w3c-issuer@2.3.0` and `@trustvc/w3c-vc@2.4.2` now replace synchronous
