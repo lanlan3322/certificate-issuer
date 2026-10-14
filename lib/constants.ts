@@ -347,11 +347,12 @@ export const OPENCERTS_SIGNATURE_FORMAT = "OpenAttestationSignedDocument";
 
   Each element can be a URL string (for remote dereferencing) or a plain object
   whose properties are merged into the active @context during JSON-LD processing.
+  OpenCertsCertificate is already protected by OPENCERTS_CONTEXT and must not be
+  redefined with the archive's different IRI here.
 */
 export const OPENCERTS_EXTRA_CONTEXTS = [
   {
     "@context": {
-      "OpenCertsCertificate": "https://opencredentials.github.io/long-term-archive/contexts/opencerts/OpenCertsCertificate",
       "name": "https://schema.org/name",
       "description": "https://schema.org/description",
       "issuedOn": "https://schema.org/dateIssued",

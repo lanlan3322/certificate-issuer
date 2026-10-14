@@ -519,7 +519,7 @@ export default function InsurancePage() {
           </div>
         )}
 
-        <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 gap-6 md:gap-8">
           <div className="card">
             <div className="flex items-center space-x-3 mb-4 md:mb-6">
               <FileText className="w-5 h-5 md:w-6 md:h-6 text-primary" />

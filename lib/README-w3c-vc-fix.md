@@ -54,3 +54,20 @@ If `@trustvc/w3c-vc` updates its version, re-run:
 npx patch-package @trustvc/w3c-vc
 ```
 Or manually re-apply the `_interopNamespace` fix from this document.
+
+## Protected JSON-LD term conflict
+
+The `w3c` format alias uses the OpenCerts context extensions. The base
+`OPENCERTS_CONTEXT` protects `OpenCertsCertificate`, so the extensions must not
+redefine that term with the legacy archive's different IRI. Keep the protected
+base definition and omit the duplicate from `OPENCERTS_EXTRA_CONTEXTS`; do not
+disable JSON-LD protection or signing safe mode.
+
+Run the context and signing regression tests with Node.js 22.15+:
+
+```bash
+node --test lib/trustvc.test.js
+```
+
+These exercise all four format names with a template identifier and temporary
+P-256 keys, without requiring configured production signing keys.
