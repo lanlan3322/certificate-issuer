@@ -127,7 +127,10 @@ test("issuance route preserves default status and requires persisted DID-only op
       buildVCPayload: () => ({ credentialStatus: legacy }),
       getDIDKeyPairFromEnv: () => ({}),
       signDocumentWithDID: async (document) => ({ signed: true, credential: { ...document, proof: {} } }),
+      withEmbeddedRenderMethod: (document, templateName) => ({ ...document,
+        renderMethod: [{ type: "EMBEDDED_RENDERER", templateName }] }),
     },
+    "../../templates/registry": { resolveTemplateId: (id) => id ?? "classic" },
     "../../../services/AuditService": { AuditService: { record: async () => { calls.audit++; } } },
     "../../../services/CredentialService": {
       DuplicateCredentialError: class extends Error {},
@@ -162,6 +165,14 @@ test("issuance route preserves default status and requires persisted DID-only op
     assert.equal((await post(body)).status, 400);
   }
   assert.equal(calls.reserve, 1);
+  assert.equal((await (await post({})).json()).credential.renderMethod, undefined);
+  const rendered = await post({ renderMethod: "embedded", templateId: "fta" });
+  assert.equal(rendered.status, 200);
+  assert.deepEqual((await rendered.json()).credential.renderMethod,
+    [{ type: "EMBEDDED_RENDERER", templateName: "fta" }]);
+  assert.equal((await post({ renderMethod: "bad" })).status, 400);
+  assert.equal((await post({ renderMethod: "embedded",
+    data: { ...data, issuingMethods: ["ethereum"] } })).status, 400);
   enabled = false;
   assert.equal((await post({ statusProfile: "bitstring" })).status, 500);
   assert.equal(calls.reserve, 1);

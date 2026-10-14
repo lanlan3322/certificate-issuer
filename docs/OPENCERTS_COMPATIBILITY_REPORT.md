@@ -1,8 +1,55 @@
 # OpenCerts compatibility report
 
 Updated: 2026-10-14  
-Overall: **FAIL for the supplied artifacts against tested reference requirements;
-hosted portal execution not performed**
+Overall: **Historical artifacts FAIL; fresh W3C artifact is not OA-wrapped;
+hosted OpenCerts execution not performed**
+
+## Embedded renderer opt-in — 2026-10-14
+
+New DID issuances may opt in to a signed W3C `renderMethod`
+(`EMBEDDED_RENDERER`, `id` `https://verifiable.sg/renderer/`, `templateName` from
+the local template registry). The static renderer page implements the
+embedded-renderer frame protocol and passed a local penpal host smoke test.
+`/renderMethod` is mandatory in the selective-disclosure proof; tampering fails.
+Hosted rendering is **unverified until deployed and tested with a fresh opt-in
+certificate**. Existing certificates have no renderMethod and are unchanged.
+OpenCerts selects the W3C renderer from `renderMethod[0].id`; the document is still a W3C VC, not OA-wrapped.
+
+## Fresh artifact upstream execution — 2026-10-14 16:16 +08:00
+
+TrustVC pinned reference fragment execution on the unchanged fresh artifact
+returns signature VALID, issuer VALID, but W3C status ERROR for both entries:
+`Invalid encodedList: encodedList cannot be decoded`. Installed status SDK 2.5.0
+does not consume the required Multibase `u` prefix before base64url/gzip decode.
+Original live lists reproduce `incorrect header check`; unsigned diagnostic
+copies without the prefix decode with index 3 false. No altered signed list
+verification or hosted acceptance claimed.
+
+This is a tested TrustVC reference/dependency blocker, not evidence of the
+hosted OpenCerts portal's exact behavior. The artifact remains a DID-only W3C VC,
+not an OA v2/v3 wrapped OpenCerts document. Missing renderMethod remains a
+separate rendering gap. Keep compliant status output; do not strip signed fields
+or disable revocation to force acceptance. See the
+[TradeTrust report](./TRADETRUST_COMPATIBILITY_REPORT.md) for reference results.
+
+## Production application acceptance update — 2026-10-14 15:55 +08:00
+
+Fresh production `certificate-Laurence9.json` inspected unchanged locally;
+SHA-256 `1aca57166136b617ba26e691d7d589c561eec8ef80d8dea5c97ec1ed44f2be25`.
+Live DID-authorized ecdsa-sd-2023 proof and signed revocation/suspension index 3
+verify through the actual application entry point. Installed W3C SDK independent
+cryptographic verification also PASS. No recipient data uploaded.
+OpenCerts overall remains **PARTIAL/unverified**, not hosted acceptance.
+`/renderMethod` absent; top-level `/type` only VerifiableCredential, not the
+earlier OpenCerts-marker profile. `/issuers`, `/openAttestationMetadata` and OA
+wrapped Merkle proof absent: this artifact is not an OA v2/v3 wrapped document.
+No new OA schema execution or aggregate verifier run claimed in this checkpoint.
+
+User reports successful deployment and production issue/verify/view after
+sequential dependency patch repair. The fresh download was subsequently
+inspected and verified locally as above. Application success does not establish
+OpenCerts or OA wrapped-document acceptance. Historical supplied-artifact FAIL
+remains; hosted fresh-profile acceptance remains unverified.
 
 ## Step 12 local opt-in status profile — 2026-10-14
 

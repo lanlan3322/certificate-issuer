@@ -1,8 +1,64 @@
 # TradeTrust compatibility report
 
 Updated: 2026-10-14  
-Overall: **FAIL for the supplied artifacts against tested reference requirements;
-hosted portal execution not performed**
+Overall: **Fresh W3C artifact blocked by tested upstream status decoder;
+historical artifacts FAIL; hosted portal execution not performed**
+
+## Embedded renderer opt-in — 2026-10-14
+
+New DID issuances may opt in to a signed W3C `renderMethod`
+(`EMBEDDED_RENDERER`, `id` `https://verifiable.sg/renderer/`, `templateName` from
+the local template registry). The static renderer page implements the
+embedded-renderer frame protocol and passed a local penpal host smoke test.
+`/renderMethod` is mandatory in the selective-disclosure proof; tampering fails.
+Hosted rendering is **unverified until deployed and tested with a fresh opt-in
+certificate**. Existing certificates have no renderMethod and are unchanged.
+The Step 19 status decoder ERROR is unaffected by this change.
+
+## Fresh artifact upstream execution — 2026-10-14 16:16 +08:00
+
+Executed the pinned TrustVC reference
+[`25007968939db4c40231fcfea8b426e33892e6d9`](https://github.com/TrustVC/trustvc/commit/25007968939db4c40231fcfea8b426e33892e6d9)
+fragment code on unchanged `certificate-Laurence9.json` with real installed
+dependencies, live DID/status resolution and Node 24.9.0:
+
+| Fragment | Selected | Result |
+|---|---|---|
+| EcdsaW3CSignatureIntegrity | Yes | VALID after derivation |
+| W3CIssuerIdentity | Yes | VALID |
+| W3CCredentialStatus | Yes | ERROR: Invalid encodedList: encodedList cannot be decoded (both entries) |
+
+The installed `@trustvc/w3c-credential-status@2.5.0` decoder directly
+base64url-decodes the W3C-required Multibase `u` prefix instead of consuming
+it first. Both original live lists reproduce gzip `incorrect header check`.
+Unsigned diagnostic subject copies without the prefix decode and show bit 3
+false; this isolates encoding handling, not proof verification of altered lists.
+
+**Fresh reference compatibility is blocked**, despite application verification
+PASS. Preserve standards-compliant signed output; remedy requires a
+Multibase-aware external consumer/version. Patching our dependency alone would
+not repair a separately hosted verifier. No aggregate builder or hosted portal
+execution claimed; exact hosted versions remain unknown. Missing renderMethod
+is a separate rendering gap, not the cause of this status error. No recipient
+JSON transmitted and original artifact bytes/object unchanged.
+
+## Production application acceptance update — 2026-10-14 15:55 +08:00
+
+Subsequently inspected production download `certificate-Laurence9.json`
+(SHA-256 `1aca57166136b617ba26e691d7d589c561eec8ef80d8dea5c97ec1ed44f2be25`).
+Actual application verification with live DID/status resolution **PASS**; separate
+installed W3C SDK cryptographic verification **PASS**. Authorized
+`#ecdsa-2026-01` proof and both active status-list entries at index 3 verified.
+No credential contents uploaded. Fresh TradeTrust overall remains **PARTIAL**:
+aggregate/hosted execution not performed and `/renderMethod` absent. This
+artifact has only VerifiableCredential top-level type, not OpenCerts markers.
+No mandatory OA targetHash/store requirement imposed on this W3C profile.
+
+User reports deployment and issue/verify/view all working after sequential
+dependency patch repair. The fresh credential was subsequently inspected and
+verified as above; this is not hosted TradeTrust acceptance. Earlier historical
+artifact FAIL remains. The latest upstream fragment result supersedes the
+initial PARTIAL/unverified reference result. No hosted recipient upload.
 
 ## Step 12 local opt-in status profile — 2026-10-14
 

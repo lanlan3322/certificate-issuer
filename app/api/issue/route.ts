@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { authorize, errorResponse } from "../../../lib/apiAuth";
-import { buildVCPayload, getDIDKeyPairFromEnv, signDocumentWithDID } from "../../../lib/trustvc";
+import {
+  buildVCPayload,
+  getDIDKeyPairFromEnv,
+  signDocumentWithDID,
+  withEmbeddedRenderMethod,
+} from "../../../lib/trustvc";
+import { resolveTemplateId } from "../../templates/registry";
 import { AuditService } from "../../../services/AuditService";
 import { CredentialService, DuplicateCredentialError } from "../../../services/CredentialService";
 import { registerHash, isRegistered } from "../../../lib/document-store";
@@ -83,6 +89,7 @@ export async function POST(request: Request) {
       persist?: boolean;
       certificateFormat?: "standard" | "opencerts" | "v1" | "w3c";
       statusProfile?: "legacy" | "bitstring";
+      renderMethod?: "none" | "embedded";
     };
 
     if (!body.data || typeof body.data !== "object") {
@@ -94,6 +101,12 @@ export async function POST(request: Request) {
     const data = validated.value;
     if (body.statusProfile !== undefined && body.statusProfile !== "legacy" && body.statusProfile !== "bitstring") {
       return NextResponse.json({ error: "Unsupported status profile." }, { status: 400 });
+    }
+    if (body.renderMethod !== undefined && body.renderMethod !== "none" && body.renderMethod !== "embedded") {
+      return NextResponse.json({ error: "Unsupported render method." }, { status: 400 });
+    }
+    if (body.renderMethod === "embedded" && !data.issuingMethods?.includes("did")) {
+      return NextResponse.json({ error: "Embedded rendering requires DID issuance." }, { status: 400 });
     }
     if (body.statusProfile === "bitstring") {
       if (body.persist === false || data.issuingMethods?.length !== 1 || data.issuingMethods[0] !== "did") {
@@ -124,9 +137,12 @@ export async function POST(request: Request) {
     }
 
     const payload = buildVCPayload(data, body.certificateFormat);
-    const credential: Record<string, unknown> = body.statusProfile === "bitstring"
+    const statusCredential: Record<string, unknown> = body.statusProfile === "bitstring"
       ? { ...payload, credentialStatus: await StatusListService.reserve(user.issuerId, data.id) }
       : payload;
+    const credential = body.renderMethod === "embedded"
+      ? withEmbeddedRenderMethod(statusCredential, resolveTemplateId(data.templateId ?? body.templateId))
+      : statusCredential;
     const result = await signDocumentWithDID(credential);
     if (!result.signed) {
       return NextResponse.json(

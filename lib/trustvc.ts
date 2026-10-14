@@ -442,6 +442,34 @@ export function buildVCPayload(data: CertificateData, mode?: string) {
   };
 }
 
+export const RENDER_METHOD_CONTEXT_V2_URL = "https://trustvc.io/context/render-method-context-v2.json";
+export const EMBEDDED_RENDERER_URL = `${ISSUER_CONFIG.url}/renderer/`;
+
+/**
+ * Adds a TradeTrust/OpenCerts embedded-renderer `renderMethod` to an unsigned
+ * credential. It must be applied before signing; signing makes it mandatory.
+ */
+export function withEmbeddedRenderMethod(
+  credential: Record<string, unknown>,
+  templateName: string
+): Record<string, unknown> {
+  if ("proof" in credential) {
+    throw new Error("renderMethod must be added before the credential is signed.");
+  }
+  if (!/^[a-z0-9-]+$/.test(templateName)) {
+    throw new Error("Unsupported renderer template name.");
+  }
+  const contexts = credential["@context"];
+  const contextList = Array.isArray(contexts) ? contexts : contexts === undefined ? [] : [contexts];
+  return {
+    ...credential,
+    "@context": contextList.includes(RENDER_METHOD_CONTEXT_V2_URL)
+      ? contextList
+      : [...contextList, RENDER_METHOD_CONTEXT_V2_URL],
+    renderMethod: [{ id: EMBEDDED_RENDERER_URL, type: "EMBEDDED_RENDERER", templateName }],
+  };
+}
+
 // Note: Actual signing requires a valid key pair
 // For demo purposes, we create the unsigned credential
 export async function createUnsignedCredential(
@@ -877,6 +905,8 @@ function getMandatoryCredentialPointers(document: Record<string, unknown>): stri
     return ["/id", "/type", "/credentialSubject"];
   }
   const pointers = new Set<string>(["/credentialSubject/certificateId", "/credentialSubject/name"]);
+  // External hosts select the renderer from this field, so it must survive derivation.
+  if (document.renderMethod !== undefined) pointers.add("/renderMethod");
   const credentialSubject = document.credentialSubject;
 
   if (credentialSubject && typeof credentialSubject === "object") {

@@ -2,6 +2,84 @@
 
 Last Updated: 2026-10-14
 
+## Step 20: opt-in embedded renderer and signed renderMethod
+
+- Added static public `/renderer/` page implementing the TradeTrust/OpenAttestation
+  embedded-renderer frame protocol (penpal v6 `connectToParent`, host actions
+  `RENDER_DOCUMENT`, `GET_TEMPLATES`, `SELECT_TEMPLATE`, `PRINT`; frame sends
+  `UPDATE_TEMPLATES` and `UPDATE_HEIGHT`). Site chrome is hidden on this route.
+  Reuses the existing local templates; no new serverless function (8 API entry
+  points, 10 dynamic route handlers plus proxy).
+- `/api/issue` accepts `renderMethod: "none" | "embedded"` (default none;
+  invalid values or non-DID issuance return 400). Embedded adds the bundled
+  render-method context v2 and `renderMethod[0] = {id: https://verifiable.sg/renderer/,
+  type: EMBEDDED_RENDERER, templateName}` before signing; `/renderMethod` is a
+  mandatory ecdsa-sd pointer so `[]`-pointer derivations still disclose and
+  protect it. Issue form exposes an opt-in checkbox for DID issuance.
+- Existing certificates and default issuance are unchanged. New dependency:
+  `penpal@6.2.2` only (lockfile entries inserted without dropping `libc` data).
+- Validation: 42/42 tests PASS (JSON-LD expansion, signing, `[]` derivation,
+  application verification with published-key loader, tampered renderer URL
+  fails, view mapping/rendering, route opt-in/validation); `next build` PASS with
+  `/renderer` static. Local iframe smoke test with penpal `connectToChild`
+  rendered a synthetic VC and received template/height messages.
+- Not yet verified: hosted TradeTrust/OpenCerts rendering (requires deployment
+  and a fresh opt-in issuance). TradeTrust status remains the upstream Step 19
+  ERROR. No commit, deployment or production write in this step.
+
+## Step 19: fresh production artifact upstream fragment execution
+
+- Executed TrustVC reference revision
+  `25007968939db4c40231fcfea8b426e33892e6d9` integrity, status and issuer
+  fragment implementations on the unchanged Step 18 artifact, using actual
+  installed runtime dependencies and live public resolution. Node 24.9.0,
+  require(ESM) disabled. No fragment mocks or recipient uploads.
+- `EcdsaW3CSignatureIntegrity`: selected, VALID after derivation.
+  `W3CIssuerIdentity`: selected, VALID.
+  `W3CCredentialStatus`: selected, ERROR on both entries:
+  `Invalid encodedList: encodedList cannot be decoded`.
+- Root cause reproduced independently: installed status SDK 2.5.0 directly
+  base64url-decodes Multibase `u`-prefixed encodedList before gzip expansion.
+  Both original live lists fail with `incorrect header check`; unsigned
+  diagnostic copies with only the prefix removed decode with index 3 false.
+  This copy experiment is not signature verification of modified lists.
+- Preserve W3C Multibase output and fail-closed application checks. Do not strip
+  signed fields, remove statuses or call this hosted verifier acceptance.
+  Compatibility blocker belongs to this reference/installed dependency
+  combination; exact hosted dependency behavior remains untested.
+- External rendering remains separate and untested. No application changes,
+  production writes, key operations, commit or deployment in this step.
+
+## Step 18: user-reported production issue/verify/view success
+
+Fresh artifact subsequently obtained from the active editor:
+`/Users/mmtelc/Downloads/certificate-Laurence9.json`, SHA-256
+`1aca57166136b617ba26e691d7d589c561eec8ef80d8dea5c97ec1ed44f2be25`.
+Local verification of the unchanged production download with live public
+resolution **PASS**: ecdsa-sd-2023 signature, issuer assertion authorization,
+both signed status-list proofs and active index 3. Independent installed W3C SDK
+full-disclosure derivation/cryptographic verification also returns verified true.
+Only public DID/context/status URLs fetched; recipient JSON never uploaded.
+
+Artifact top-level type is only VerifiableCredential; it is not the OpenCerts-
+marker profile tested earlier. No renderMethod, OA issuers collection,
+openAttestationMetadata or wrapped Merkle proof present. Bitstring profile
+intentionally has no targetHash or Document Store linkage; those are not required
+for this DID-only W3C profile. External aggregate/hosted verifier acceptance still
+unrun: do not relabel this SDK result as TradeTrust/OpenCerts full PASS.
+
+- 2026-10-14 15:55 +08:00: user reported deployment complete and successful
+  Issue Certificate, Verify Certificate and View Certificate tests.
+  Local HEAD is `24fb22f1` (`build error`), containing sequential patch fixes.
+- Record these as user-reported production acceptance, not independently
+  inspected deployment logs. Subsequent downloaded-proof verification is
+  recorded above; upstream fragment execution is recorded in Step 19.
+  Do not claim hosted external PASS based solely on application success.
+- Production suspend/reinstate/revoke and historical/auth/reset regression checks
+  have not been reported in this checkpoint. Previously exposed signing key
+  still requires controlled replacement before real credential issuance.
+- No application changes or production operations performed in this checkpoint.
+
 ## Step 17: patch installation failure reproduced and repaired
 
 - Reported Vercel postinstall failure for the combined VC patch. Downloaded the

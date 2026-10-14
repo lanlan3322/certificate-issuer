@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Footer from "../components/Footer";
 import NavBar from "../components/NavBar";
+import SiteChrome from "../components/SiteChrome";
 import AgentWidget from "../components/agent/AgentWidget";
 import "./globals.css";
 
@@ -29,12 +30,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-gray-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-        <div className="flex min-h-screen flex-col">
-          <NavBar />
-          <div className="flex-1">{children}</div>
-          <Footer />
-          <AgentWidget />
-        </div>
+        <SiteChrome header={<NavBar />} footer={<Footer />} widget={<AgentWidget />}>
+          {children}
+        </SiteChrome>
       </body>
     </html>
   );

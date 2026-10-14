@@ -420,6 +420,8 @@ per-field checks, risks and live read-only infrastructure observations.
    all old keys and continue verification of old documents.
 5. Add W3C `renderMethod` only once a protocol-compliant renderer is available,
    without changing current local certificate templates.
+   Implemented as opt-in (`renderMethod: "embedded"`, DID issuance only) with the
+   static `/renderer/` page; hosted TradeTrust/OpenCerts rendering pending.
 
 Gate every change on issuance, cryptographic verification, view, actual legacy
 verification, format JSON checks and `npm run build`. Do not enable the new

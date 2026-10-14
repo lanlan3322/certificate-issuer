@@ -83,6 +83,7 @@ interface IssueFormState {
   validUntil: string | null;
   certificateFormat: "v1" | "w3c";
   statusProfile?: "legacy" | "bitstring";
+  embeddedRenderer?: boolean;
 }
 
 function getTodayDateInputValue(): string {
@@ -323,6 +324,7 @@ export default function InsurancePage() {
             type: "did",
             certificateFormat: formData.certificateFormat,
             statusProfile: issuingMethods.length === 1 ? formData.statusProfile ?? "legacy" : "legacy",
+            renderMethod: formData.embeddedRenderer ? "embedded" : "none",
           }),
         });
 
@@ -842,6 +844,19 @@ export default function InsurancePage() {
                       />
                       <span>Use the opt-in signed Bitstring Status List profile.
                         Requires server enablement and the status-list database migration.</span>
+                    </label>
+                  )}
+                  {issuingMethods.includes("did") && (
+                    <label className="flex items-start gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={formData.embeddedRenderer === true}
+                        onChange={(event) => setFormData((previous) => ({
+                          ...previous, embeddedRenderer: event.target.checked,
+                        }))}
+                      />
+                      <span>Add a signed embedded renderer so TradeTrust and OpenCerts can display this
+                        certificate with the selected template.</span>
                     </label>
                   )}
                   {issuingMethods.includes("did") && (
