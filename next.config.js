@@ -52,6 +52,9 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
   },
+  // Trailing-slash redirects are issued by proxy.ts so public verifier documents
+  // can be served at their signed URLs without a CORS-less redirect hop.
+  skipTrailingSlashRedirect: true,
   turbopack: {
     resolveAlias: Object.fromEntries(
       stubbedModules.map((name) => [name, "./lib/stubs/empty.js"])

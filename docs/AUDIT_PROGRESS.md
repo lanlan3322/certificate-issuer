@@ -2,6 +2,23 @@
 
 Last Updated: 2026-10-14
 
+## Step 22: CORS for browser verifiers
+
+- User-reported TradeTrust error: fetch of `https://verifiable.sg/.well-known/did.json`
+  from `https://ref.tradetrust.io` blocked by CORS. Cause: every hop must carry
+  CORS headers. (1) Vercel domain redirect `verifiable.sg` -> `www` (308, no
+  CORS); (2) Next trailing-slash redirect on signed status URLs (308, no CORS);
+  (3) status-list 200 responses had no `Access-Control-Allow-Origin`.
+- Code fix: `skipTrailingSlashRedirect` with equivalent 308 slash redirects in
+  `proxy.ts`, except public verifier paths (`/api/status-list/`,
+  `/api/.well-known/`, `/.well-known/`), which are served at their signed URLs
+  without a redirect or Supabase call; API verifier paths add
+  `Access-Control-Allow-Origin: *`. Verified locally; 42/42 tests and build PASS.
+- Required dashboard fix (not possible in code): `did:web:verifiable.sg` and the
+  signed status URLs use the apex domain, so `verifiable.sg` must serve
+  Production directly instead of redirecting to `www`. Keep `www` serving too
+  (renderer URL).
+
 ## Step 21: renderer origin fix after deployment
 
 - Production test (synthetic VC only, local penpal host, same `connectToChild`

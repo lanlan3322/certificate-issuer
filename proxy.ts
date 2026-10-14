@@ -13,6 +13,19 @@ const protectedApiPrefixes = [
 ];
 
 export async function proxy(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+  // Browser verifiers (TradeTrust, OpenCerts) fetch these cross-origin at their
+  // signed URLs, so they must not redirect and must allow any origin.
+  if (pathname.startsWith("/api/status-list/") || pathname.startsWith("/api/.well-known/")) {
+    const publicResponse = NextResponse.next();
+    publicResponse.headers.set("Access-Control-Allow-Origin", "*");
+    return publicResponse;
+  }
+  if (pathname.startsWith("/.well-known/")) return NextResponse.next();
+  if (!pathname.endsWith("/") && !pathname.startsWith("/_next/") && !/\.[^/]+$/.test(pathname)) {
+    return NextResponse.redirect(new URL(`${pathname}/${search}`, request.url), 308);
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -37,7 +50,6 @@ export async function proxy(request: NextRequest) {
   const { data } = await supabase.auth.getUser();
   const user = data.user;
 
-  const pathname = request.nextUrl.pathname;
   const isProtectedPage = protectedPages.some((route) => pathname === route || pathname.startsWith(`${route}/`));
   const isProtectedApi = protectedApiPrefixes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
   if (!isProtectedPage && !isProtectedApi) return response;
