@@ -25,6 +25,11 @@ Original live lists reproduce `incorrect header check`; unsigned diagnostic
 copies without the prefix decode with index 3 false. No altered signed list
 verification or hosted acceptance claimed.
 
+**Update (Step 23):** status lists are now published as bare base64url, the
+form TrustVC 2.5.0 decodes; the app verifier accepts both forms. Hosted
+re-check pending deployment.
+
+
 This is a tested TrustVC reference/dependency blocker, not evidence of the
 hosted OpenCerts portal's exact behavior. The artifact remains a DID-only W3C VC,
 not an OA v2/v3 wrapped OpenCerts document. Missing renderMethod remains a

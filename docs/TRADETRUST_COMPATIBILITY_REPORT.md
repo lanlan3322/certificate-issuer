@@ -34,6 +34,11 @@ it first. Both original live lists reproduce gzip `incorrect header check`.
 Unsigned diagnostic subject copies without the prefix decode and show bit 3
 false; this isolates encoding handling, not proof verification of altered lists.
 
+**Update (Step 23):** status lists are now published as bare base64url, the
+form TrustVC 2.5.0 decodes; the app verifier accepts both forms. Hosted
+re-check pending deployment.
+
+
 **Fresh reference compatibility is blocked**, despite application verification
 PASS. Preserve standards-compliant signed output; remedy requires a
 Multibase-aware external consumer/version. Patching our dependency alone would

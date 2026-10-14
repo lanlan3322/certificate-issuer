@@ -61,8 +61,9 @@ export async function createStatusListDocument(
       id: `${url}#list`,
       type: "BitstringStatusList",
       statusPurpose: purpose,
-      // This SDK returns bare base64url; VC Bitstring Status List requires Multibase.
-      encodedList: `u${await list.encode()}`,
+      // TradeTrust/TrustVC (w3c-credential-status 2.5) only decode bare base64url, not the
+      // Multibase "u" form named by the W3C spec; our verifier accepts both forms.
+      encodedList: await list.encode(),
       ttl: STATUS_LIST_TTL_MS,
     },
   };

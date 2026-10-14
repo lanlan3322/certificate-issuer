@@ -2,6 +2,23 @@
 
 Last Updated: 2026-10-14
 
+## Step 23: TrustVC-compatible status list encoding
+
+- User report: TradeTrust and TrustVC show "document is invalid" for
+  `certificate-New.json`. Pinned TrustVC reference fragments: signature VALID,
+  issuer VALID, W3CCredentialStatus ERROR (`encodedList cannot be decoded`).
+  Any ERROR fragment makes the whole document invalid.
+- Cause: `@trustvc/w3c-credential-status@2.5.0` encodes and decodes bare
+  base64url, but our lists had the W3C Multibase `u` prefix.
+- Decision (user): publish bare base64url (`lib/bitstring-status.ts`). The app
+  verifier accepts both forms; a leading `u` is unambiguous because bare gzip
+  base64url always starts with `H4sI`. Lists are generated and signed per
+  request, so existing Bitstring certificates are fixed with no reissue.
+  Trade-off: strict W3C Multibase verifiers may reject the list encoding.
+- Tests: TrustVC `StatusList.decode` accepts published lists; prefixed lists
+  still verify in the app; 42/42 PASS; build PASS. Production confirmation
+  pending deployment.
+
 ## Step 22: CORS for browser verifiers
 
 - User-reported TradeTrust error: fetch of `https://verifiable.sg/.well-known/did.json`
@@ -18,6 +35,9 @@ Last Updated: 2026-10-14
   signed status URLs use the apex domain, so `verifiable.sg` must serve
   Production directly instead of redirecting to `www`. Keep `www` serving too
   (renderer URL).
+- 2026-10-14 17:05: apex redirect removed in Vercel. Production check with
+  `Origin: https://ref.tradetrust.io`: DID document, both status lists and
+  renderer return 200 with `Access-Control-Allow-Origin: *` on apex and `www`.
 
 ## Step 21: renderer origin fix after deployment
 

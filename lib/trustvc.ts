@@ -1176,14 +1176,16 @@ async function verifyBitstringStatuses(
     if (!isRecord(subject) || subject.type !== "BitstringStatusList" ||
         subject.id !== `${url.href}#list` || subject.ttl !== 60000 ||
         subject.statusPurpose !== entry.statusPurpose || typeof subject.encodedList !== "string" ||
-        subject.encodedList.length > 24000 || !/^u[A-Za-z0-9_-]+$/.test(subject.encodedList)) {
+        subject.encodedList.length > 24000 || !/^u?[A-Za-z0-9_-]+$/.test(subject.encodedList)) {
       return { valid: false, message: "Invalid encoded status list subject." };
     }
     const { StatusList } = await loadCommonJSModule<typeof import("@trustvc/w3c-credential-status")>(
       "@trustvc/w3c-credential-status"
     );
     const { gunzipSync } = await loadCommonJSModule<typeof import("node:zlib")>("node:zlib");
-    const uncompressed = gunzipSync(Buffer.from(subject.encodedList.slice(1), "base64url"), {
+    // Bare gzip base64url always starts with "H4sI", so a leading "u" is unambiguously Multibase.
+    const encoded = subject.encodedList.startsWith("u") ? subject.encodedList.slice(1) : subject.encodedList;
+    const uncompressed = gunzipSync(Buffer.from(encoded, "base64url"), {
       maxOutputLength: 16384,
     });
     // The SDK ignores Buffer.byteOffset, so provide an unpooled, exact-length buffer.
