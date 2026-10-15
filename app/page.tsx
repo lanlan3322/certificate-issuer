@@ -55,11 +55,11 @@ import {
   formatIssuingMethodLabels,
   IssuingMethod,
 } from "../lib/constants";
-import {
-  CertificateTemplateRenderer,
-  DEFAULT_TEMPLATE_ID,
-  TEMPLATE_OPTIONS,
-} from "./templates";
+import { buildVerificationUrl, withBasePath } from "../lib/site";
+import { mapVcToCertEntry } from "../lib/credential-mapper";
+import { resolveTemplateId } from "./templates/registry";
+import { CertificateTemplateRenderer, DEFAULT_TEMPLATE_ID, TEMPLATE_OPTIONS } from "./templates";
+import type { CertEntry } from "./gallery/page";
 
 const MAX_VISIBLE_FAILED_FILES = 5;
 const MAX_FAILED_FILE_NAME_LENGTH = 40;
@@ -277,7 +277,7 @@ export default function HomePage() {
                               className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-cyan-600 bg-cyan-50 border border-cyan-200 rounded-md hover:bg-cyan-100 dark:text-cyan-400 dark:bg-cyan-900/30 dark:border-cyan-800"
                               title="View certificate details"
                             >
-                              <Eye className="h-3 w-3" /> View
+                              View
                             </button>
                           ) : (
                             <span className="text-slate-400 text-xs">—</span>
@@ -308,6 +308,124 @@ export default function HomePage() {
             </div>
           )}
         </section>
+
+        {/* ─── Certificate Detail Modal ───────────────────────────── */}
+        {selectedCredential && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal aria-label="Certificate details">
+            <div className="w-full max-w-3xl mx-auto my-6 bg-white rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                <h2 className="text-lg font-semibold text-slate-900">Certificate Details</h2>
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6">
+                {/* Certificate Visual Preview */}
+                <div className="mb-6 space-y-3">
+                  <div className="mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm] text-gray-900 shadow-lg">
+                    {(() => {
+                      const vc = selectedCredential.credential;
+                      const emailFromVC = (vc?.credentialSubject || vc?.subject)
+                        ? ((vc as any).credentialSubject || (vc as any).subject)?.email
+                        : "";
+                      // Use `as Record<string, unknown>` to safely add `email` which CertificateData lacks.
+                      const certEntry: Record<string, unknown> = vc
+                        ? {
+                            id: (vc.certificateId ?? "").toString(),
+                            templateId: (vc.templateId ?? undefined) || undefined,
+                            recipientName: ((vc.recipientName || vc.name || "Recipient") as string),
+                            email: (emailFromVC || selectedCredential.recipientEmail) || "",
+                            issuerName: ((vc.issuerName || (vc.issuer as any)?.name || "RTO Issuer") as string),
+                            issueDate: String(vc.issueDate || vc.date || ""),
+                            validFrom: String(vc.validFrom || vc.effectiveDate || ""),
+                            certificateType: (vc.certificateType || vc.type || "Certificate") as string,
+                            status: selectedCredential.status === "ISSUED" ? "Issued" : "Pending",
+                          }
+                        : {};
+                      const recipientName = (certEntry.recipientName as string) || selectedCredential.recipientName || "Recipient";
+                      const issuerName = (certEntry.issuerName as string) || "RTO Issuer";
+                      const id = (selectedCredential.id || "").toString();
+                      const cert = {
+                        id,
+                        templateId: selectedCredential.templateId ?? undefined,
+                        recipientName,
+                        email: ((certEntry.email as string) || selectedCredential.recipientEmail || "") || "",
+                        issuerName,
+                        issueDate: String(vc?.issueDate || vc?.date || ""),
+                        validFrom: String(vc?.validFrom || vc?.effectiveDate || ""),
+                      };
+                      const certTyped = cert as unknown as CertificateData;
+                      const verificationUrl = `${buildVerificationUrl(id)}/certificate/${cert.id || "unknown"}`;
+                      return (
+                        <>
+                          <div className="flex-1">
+                            <CertificateTemplateRenderer certificate={{ ...certTyped, verificationUrl }} />
+                          </div>
+                          {resolveTemplateId(cert.templateId) !== "fta" && (
+                            <div className="mt-8 flex items-end gap-6 border-t border-gray-200 pt-5">
+                              <div className="flex shrink-0 flex-col items-center gap-2">
+                                <QRCodeSVG value={verificationUrl} size={86} level="M" includeMargin />
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Scan to verify</span>
+                              </div>
+                              <div className="min-w-0 flex-1 text-xs text-gray-500">
+                                <p className="font-semibold text-gray-700">Digital signature and verification</p>
+                                <p className="mt-1 font-medium text-gray-800">{cert.issuerName}</p>
+                                <p className="mt-1">Issued to {cert.recipientName}</p>
+                                <p className="mt-1 break-all">{verificationUrl}</p>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <div className="mx-auto max-w-[210mm] rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    <p>Issued: {String(selectedCredential.credential.issueDate || selectedCredential.credential.date || "")}</p>
+                    <p>
+                      Valid: {formatDate(String(selectedCredential.credential.validFrom || ""))} to{" "}
+                      {selectedCredential.credential.validUntil ? formatDate(String(selectedCredential.credential.validUntil)) : "N/A"}
+                    </p>
+                    <p>
+                      Template: {TEMPLATE_OPTIONS.find((t) => t.id === resolveTemplateId(selectedCredential.templateId || ""))?.label}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Details Grid */}
+                <div className="mx-auto max-w-[210mm] grid md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-slate-500">Certificate ID</p>
+                    <p className="font-mono text-slate-800">{selectedCredential.id || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">Status</p>
+                    <p className="flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span className="text-green-700 font-medium">{selectedCredential.status}</span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">Recipient</p>
+                    <p className="text-slate-800">{selectedCredential.recipientName}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">Recipient Email</p>
+                    <p className="text-slate-800">{selectedCredential.recipientEmail}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     );
   }
