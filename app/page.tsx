@@ -19,6 +19,7 @@ import {
   ArrowRight,
   ChevronUp,
   ChevronDown,
+  Eye,
   X,
 } from "lucide-react";
 import BatchIssuePanel, {
