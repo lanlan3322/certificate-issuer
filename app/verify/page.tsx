@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, FileCheck, Eye, X, Download, Loader2 } from "lucide-react";
+import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, FileCheck, Eye, X } from "lucide-react";
 import CertificateTemplateRenderer from "../templates/CertificateTemplateRenderer";
+import CertificatePdfDownload from "../../components/CertificatePdfDownload";
 import { CertificateTemplateData } from "../templates/types";
 import { useWalletConnection } from "../../hooks/useWalletConnection";
 import { DOCUMENT_STORE_CONFIG, TRUSTVC_CONFIG } from "../../lib/constants";
@@ -24,7 +25,6 @@ export default function VerifyPage() {
   const [revoking, setRevoking] = useState(false);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
   const [showCertificateView, setShowCertificateView] = useState(false);
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const certificatePreviewRef = useRef<HTMLDivElement>(null);
   const [showAdvancedRevoke, setShowAdvancedRevoke] = useState(false);
   const [revokeHashMode, setRevokeHashMode] = useState<RevocationHashMode>("auto");
@@ -291,38 +291,6 @@ export default function VerifyPage() {
         verificationUrl,
       }
     : null;
-
-  const handleDownloadPdf = async () => {
-    if (!certificatePreviewRef.current || !certificateForView) return;
-
-    setDownloadingPdf(true);
-    const wasDarkMode = document.documentElement.classList.contains("dark");
-    try {
-      document.documentElement.classList.remove("dark");
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf"),
-      ]);
-      const canvas = await html2canvas(certificatePreviewRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-      });
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const imageData = canvas.toDataURL("image/png");
-      pdf.addImage(imageData, "PNG", 0, 0, 210, 297, undefined, "FAST");
-      const recipientFileName = certificateForView.recipientName
-        .trim()
-        .replace(/[^a-z0-9]+/gi, "-")
-        .replace(/^-+|-+$/g, "") || "recipient";
-      pdf.save(`certificate-${recipientFileName}.pdf`);
-    } catch (error) {
-      setRevokeError(`Unable to download PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      document.documentElement.classList.toggle("dark", wasDarkMode);
-      setDownloadingPdf(false);
-    }
-  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -692,15 +660,10 @@ export default function VerifyPage() {
                 <p className="text-xs text-gray-500">Rendered using the credential&apos;s selected template.</p>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleDownloadPdf}
-                  disabled={downloadingPdf}
-                  className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {downloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                  {downloadingPdf ? "Preparing..." : "Download PDF"}
-                </button>
+                <CertificatePdfDownload
+                  certificateRef={certificatePreviewRef}
+                  recipientName={certificateForView.recipientName}
+                />
                 <button
                   type="button"
                   onClick={() => setShowCertificateView(false)}

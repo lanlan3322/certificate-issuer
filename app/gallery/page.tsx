@@ -6,6 +6,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { DEMO_CERTIFICATES } from "../../lib/constants";
 import { mapVcsToCertEntries } from "../../lib/credential-mapper";
 import { formatDate } from "../../lib/certificate";
+import CertificatePdfDownload from "../../components/CertificatePdfDownload";
 import { buildVerificationUrl, withBasePath } from "../../lib/site";
 import {
   CertificateTemplateRenderer,
@@ -34,6 +35,7 @@ export default function GalleryPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const certificatePreviewRef = useRef<HTMLDivElement>(null);
 
   // Fetch real credentials from the API on mount (falls back to demo data)
   useEffect(() => {
@@ -372,12 +374,20 @@ const id =
                       {selectedCert.recipientName}
                     </h2>
                   </div>
-                  <button
-                    onClick={() => setSelectedCert(null)}
-                    className="text-white/80 hover:text-white text-2xl"
-                  >
-                    ×
-                  </button>
+                  <div className="flex items-start gap-3">
+                    <CertificatePdfDownload
+                      key={selectedCert.id ?? selectedCert.recipientName}
+                      certificateRef={certificatePreviewRef}
+                      recipientName={selectedCert.recipientName}
+                    />
+                    <button
+                      onClick={() => setSelectedCert(null)}
+                      className="text-white/80 hover:text-white text-2xl"
+                      aria-label="Close certificate preview"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -385,7 +395,7 @@ const id =
               <div className="bg-gray-100 p-4 sm:p-8">
                 {/* Certificate Visual */}
                 <div className="mb-6 space-y-3">
-                  <div className="mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm] text-gray-900 shadow-lg">
+                  <div ref={certificatePreviewRef} className="mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm] text-gray-900 shadow-lg">
                     <div className="flex-1">
                       <CertificateTemplateRenderer certificate={{ ...selectedCert, verificationUrl }} />
                     </div>

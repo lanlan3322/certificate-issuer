@@ -16,6 +16,8 @@ import {
   Loader2,
   Check,
   Layers,
+  ArrowRight,
+  Eye,
 } from "lucide-react";
 import BatchIssuePanel, {
   BatchIssuedCertificatesPanel,
@@ -473,15 +475,15 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <section className="bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.16),_transparent_35%),linear-gradient(135deg,#0f172a_0%,#111827_18%,#0f172a_100%)] text-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-20">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
           <div className="grid items-center gap-8 sm:gap-10 md:gap-10 lg:grid-cols-[1.2fr_0.8fr]">
             <div>
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200">
                 <Shield className="h-3.5 w-3.5" />
                 TrustVC platform
               </div>
-              <h1 className="max-w-xl text-3xl font-black tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl">
-                Trusted digital credentials for institutions that need scale and trust.
+              <h1 className="max-w-xl text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
+                Trusted credentials.<br />One connected workflow.
               </h1>
               <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-200 sm:text-base md:text-lg">
                 Issue, verify, and manage verifiable credentials with enterprise controls,
@@ -493,6 +495,13 @@ export default function HomePage() {
                   className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100 min-h-[48px]"
                 >
                   Issue Certificate
+                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                </a>
+                <a
+                  href="/verify"
+                  className="inline-flex min-h-[48px] items-center justify-center rounded-xl border border-white/25 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+                >
+                  Verify Certificate
                 </a>
               </div>
               <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-300 sm:text-base">
@@ -501,16 +510,72 @@ export default function HomePage() {
                 <div><span className="font-semibold text-white">Multi-issuer</span> support</div>
               </div>
             </div>
-
+            <aside aria-labelledby="workflow-heading" className="rounded-2xl border border-white/15 bg-white/5 p-5 sm:p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">From issuance to verification</p>
+              <h2 id="workflow-heading" className="mt-2 text-xl font-bold text-white">Your credential workflow</h2>
+              <ol className="mt-5 space-y-4">
+                {[
+                  ["01", "Create & sign", "Choose a template and issue a signed credential."],
+                  ["02", "Share & deliver", "Download certificates or deliver them to recipients."],
+                  ["03", "Verify & manage", "Check authenticity and manage credential status."],
+                ].map(([step, title, description]) => (
+                  <li key={step} className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-300/10 text-xs font-bold text-cyan-200">{step}</span>
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">{title}</h3>
+                      <p className="mt-1 text-sm leading-relaxed text-slate-300">{description}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </aside>
             
           </div>
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        <section className="mb-10 sm:mb-12 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 md:p-8">
+      <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:space-y-10 sm:px-6 sm:py-10 lg:px-8">
+        <section aria-labelledby="quick-actions-heading">
+          <div className="mb-4">
+            <h2 id="quick-actions-heading" className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">What would you like to do?</h2>
+            <p className="mt-1 text-sm text-slate-600">Go straight to the tools you need.</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {[
+              { href: "/insurance", title: "Issue certificates", description: "Create a single certificate or issue a batch from Excel or CSV.", icon: FileText, action: "Start issuing" },
+              { href: "/verify", title: "Verify a credential", description: "Check a certificate's signature, authenticity, and revocation status.", icon: ShieldCheck, action: "Open verification" },
+              { href: "/gallery/", title: "View certificates", description: "Browse certificate designs, preview credentials, and download PDFs.", icon: Eye, action: "View certificates" },
+            ].map(({ href, title, description, icon: Icon, action }) => (
+              <a key={href} href={href} className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-cyan-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-600 sm:p-6">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700"><Icon className="h-5 w-5" aria-hidden="true" /></span>
+                <h3 className="mt-4 text-base font-semibold text-slate-900">{title}</h3>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">{description}</p>
+                <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-cyan-700">{action}<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" /></span>
+              </a>
+            ))}
+          </div>
+        </section>
+
+        <section aria-labelledby="standards-heading" className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+          <h2 id="standards-heading" className="text-lg font-bold text-slate-900">Built on open standards</h2>
+          <div className="mt-4 grid gap-5 md:grid-cols-3">
+            {[
+              { title: "W3C credentials", description: "Verifiable Credentials following international W3C standards.", icon: ShieldCheck },
+              { title: "Ethereum anchoring", description: "Optional on-chain document hashes for tamper-proof verification.", icon: CheckCircle },
+              { title: "TradeTrust compatibility", description: "OpenAttestation-compatible workflows for credential verification.", icon: FileText },
+            ].map(({ title, description, icon: Icon }) => (
+              <div key={title} className="flex items-start gap-3">
+                <Icon className="mt-0.5 h-5 w-5 shrink-0 text-cyan-700" aria-hidden="true" />
+                <div><h3 className="text-sm font-semibold text-slate-900">{title}</h3><p className="mt-1 text-sm leading-relaxed text-slate-600">{description}</p></div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section aria-labelledby="faq-heading" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700 sm:text-sm">FAQ</p>
-          <div className="mt-5 grid gap-3 sm:gap-4 md:grid-cols-2">
+          <h2 id="faq-heading" className="mt-2 text-xl font-bold text-slate-900">Common questions</h2>
+          <div className="mt-4 grid gap-3 sm:gap-4 md:grid-cols-2">
             {[
               ["What is TrustVC?", "A verifiable credentials platform for issuing and validating trusted digital certificates across multiple institutional scenarios."],
               ["Can it support multiple issuers?", "Yes. The platform is designed to support multi-issuer operations with role-based governance and controlled issuance flows."],
@@ -525,48 +590,14 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="mb-10 sm:mb-12 rounded-3xl bg-slate-900 p-6 text-center text-white shadow-[0_20px_50px_rgba(15,23,42,0.22)] sm:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300 sm:text-sm">Ready to issue</p>
-          <h2 className="mt-3 text-2xl font-bold sm:text-3xl md:text-4xl">Build trust into every credential.</h2>
-          <p className="mx-auto mt-4 max-w-xl sm:max-w-2xl text-sm leading-relaxed text-slate-300">
-            TrustVC gives teams a clear path from certificate creation to public verification in a secure, scalable, and enterprise-ready platform.
-          </p>
-          <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
-            <a href="/insurance" className="btn-primary inline-flex items-center justify-center min-h-[48px] bg-white text-slate-900 hover:bg-slate-100">Issue Certificate</a>
-            <a href="/enterprise" className="btn-secondary inline-flex items-center justify-center min-h-[48px] border border-slate-700 bg-slate-800 text-white hover:border-slate-600 hover:bg-slate-700">Talk to sales</a>
+        <section className="flex flex-col gap-4 rounded-2xl bg-slate-900 p-5 text-white sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div>
+            <h2 className="text-lg font-semibold text-white">Need an institutional workflow?</h2>
+            <p className="mt-1 text-sm text-slate-300">Explore enterprise controls and multi-issuer operations.</p>
           </div>
+          <a href="/enterprise" className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl border border-white/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10">Talk to sales<ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" /></a>
         </section>
 
-        {/* Info Cards - Responsive Grid */}
-        <div className="mt-8 md:mt-12 grid gap-3 sm:gap-4 md:grid-cols-3">
-          <div className="card text-center">
-            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
-              <ShieldCheck className="w-5 h-5 text-primary" />
-            </div>
-            <h3 className="font-semibold mb-1 text-sm">W3C Standard</h3>
-            <p className="text-xs text-gray-600">
-              Verifiable Credentials following international W3C standards
-            </p>
-          </div>
-          <div className="card text-center">
-            <div className="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-3">
-              <CheckCircle className="w-5 h-5 text-secondary" />
-            </div>
-            <h3 className="font-semibold mb-1 text-sm">On-Chain</h3>
-            <p className="text-xs text-gray-600">
-              Document hashes stored on Ethereum for tamper-proof verification
-            </p>
-          </div>
-          <div className="card text-center">
-            <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-3">
-              <FileText className="w-5 h-5 text-accent" />
-            </div>
-            <h3 className="font-semibold mb-1 text-sm">TradeTrust</h3>
-            <p className="text-xs text-gray-600">
-              OpenAttestation-compatible for universal verification
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );

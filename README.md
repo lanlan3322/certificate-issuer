@@ -32,6 +32,8 @@ also uses signed Bitstring Status Lists and requires server enablement and the
 status-list database migration; combined DID/Ethereum issuance retains legacy
 status references. These settings are fixed rather than exposed as form options.
 MetaMask controls appear beside **Issuing Methods** only when Ethereum is selected.
+PDF downloads are available in the insurance certificate preview, gallery popup,
+and verification preview. Exports fit the certificate proportionally on A4.
 
 ## Tech Stack
 
