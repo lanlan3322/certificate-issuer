@@ -1,4 +1,4 @@
-import type { CertEntry } from "@/app/gallery/page";
+import type { CertEntry } from "./certificate-types";
 
 // --- FTA detection constants ---
 

@@ -319,11 +319,9 @@ test("dashboard opens shared preview with nested credential data and public cert
     assert.equal(selected.templateId, "fta");
     assert.equal(selected.status, status);
   }
-  for (const file of ["app/page.tsx", "app/gallery/page.tsx"]) {
-    const page = sourceFile(file);
-    findNode(page, (node) => ts.isJsxSelfClosingElement(node) &&
-      node.tagName.getText(page) === "CertificatePreviewModal");
-  }
+  const page = sourceFile("app/page.tsx");
+  findNode(page, (node) => ts.isJsxSelfClosingElement(node) &&
+    node.tagName.getText(page) === "CertificatePreviewModal");
 });
 
 test("dashboard revocation retains the row after success and reports server failures", async () => {

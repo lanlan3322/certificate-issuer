@@ -14,7 +14,7 @@ function renderOverview() {
   const javascript = ts.transpileModule(`const render = () => (${returned.expression.getText(source)});`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
-  const names = ["Shield", "ArrowRight", "FileText", "ShieldCheck", "Eye", "CheckCircle"];
+  const names = ["Shield", "ArrowRight", "FileText", "ShieldCheck", "CheckCircle"];
   const render = new Function("require", "exports", ...names, `${javascript}\nreturn render;`)(
     require, {}, ...names.map((name) => icons[name])
   );
@@ -23,7 +23,7 @@ function renderOverview() {
 
 test("overview prioritizes actionable navigation before standards and FAQ", () => {
   const html = renderOverview();
-  for (const href of ["/insurance", "/verify", "/gallery/", "/enterprise"]) {
+  for (const href of ["/insurance", "/verify", "/enterprise"]) {
     assert.ok(html.includes(`href="${href}"`), `Preserve ${href} navigation`);
   }
   assert.ok(html.indexOf("quick-actions-heading") < html.indexOf("standards-heading"));

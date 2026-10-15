@@ -18,7 +18,6 @@ import {
   ArrowRight,
   ChevronUp,
   ChevronDown,
-  Eye,
 } from "lucide-react";
 import BatchIssuePanel, {
   BatchIssuedCertificatesPanel,
@@ -57,7 +56,7 @@ import {
 import { buildVerificationUrl, withBasePath } from "../lib/site";
 import { mapVcToCertEntry } from "../lib/credential-mapper";
 import { CertificateTemplateRenderer, DEFAULT_TEMPLATE_ID, TEMPLATE_OPTIONS } from "./templates";
-import type { CertEntry } from "./gallery/page";
+import type { CertEntry } from "../lib/certificate-types";
 
 const MAX_VISIBLE_FAILED_FILES = 5;
 const MAX_FAILED_FILE_NAME_LENGTH = 40;
@@ -751,7 +750,6 @@ export default function HomePage() {
             {[
               { href: "/insurance", title: "Issue certificates", description: "Create a single certificate or issue a batch from Excel or CSV.", icon: FileText, action: "Start issuing" },
               { href: "/verify", title: "Verify a credential", description: "Check a certificate's signature, authenticity, and revocation status.", icon: ShieldCheck, action: "Open verification" },
-              { href: "/gallery/", title: "View certificates", description: "Browse certificate designs, preview credentials, and download PDFs.", icon: Eye, action: "View certificates" },
             ].map(({ href, title, description, icon: Icon, action }) => (
               <a key={href} href={href} className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-cyan-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-600 sm:p-6">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700"><Icon className="h-5 w-5" aria-hidden="true" /></span>

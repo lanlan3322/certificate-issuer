@@ -55,8 +55,6 @@ export function createLocalAgentResponse(message: string, context: AgentContext)
     "/insurance": issuancePrompts.recipientName,
     "/verify": "Paste or upload a credential, then select Verify Credential. A valid credential can be previewed or revoked from the result.",
     "/did": "Create or import an issuer DID, then keep its signing material in a secure server-side service.",
-    "/admin": "Create issuer workspaces and manage their active status from this page.",
-    "/gallery": "Browse example credentials to compare templates and credential structures.",
   };
   return { message: pageHelp[context.currentPage] ?? "Welcome to Verifiable. I can help issue credentials, configure DID identity, verify certificates, and manage revocation. What would you like to do?" };
 }

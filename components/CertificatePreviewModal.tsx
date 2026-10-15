@@ -2,7 +2,7 @@
 
 import { useRef, useCallback } from "react";
 import { CheckCircle, Download, XCircle } from "lucide-react";
-import type { CertEntry } from "../app/gallery/page";
+import type { CertEntry } from "../lib/certificate-types";
 import { QRCodeSVG } from "qrcode.react";
 import { CertificateTemplateRenderer, resolveTemplateId, TEMPLATE_OPTIONS } from "../app/templates";
 import { formatDate } from "../lib/certificate";
