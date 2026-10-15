@@ -2,12 +2,10 @@
 
 import { useRef, useMemo, useState, useEffect } from "react";
 import { Shield, FileText, CheckCircle, ExternalLink, Upload, X as XIcon, XCircle, AlertTriangle, Loader2 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 import { DEMO_CERTIFICATES } from "../../lib/constants";
 import { mapVcsToCertEntries } from "../../lib/credential-mapper";
-import { formatDate } from "../../lib/certificate";
-import CertificatePdfDownload from "../../components/CertificatePdfDownload";
-import { buildVerificationUrl, withBasePath } from "../../lib/site";
+import CertificatePreviewModal from "../../components/CertificatePreviewModal";
+import { withBasePath } from "../../lib/site";
 import {
   CertificateTemplateRenderer,
   DEFAULT_TEMPLATE_ID,
@@ -40,7 +38,6 @@ export default function GalleryPage() {
   const [revoking, setRevoking] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const certificatePreviewRef = useRef<HTMLDivElement>(null);
 
   // Fetch real credentials from the API on mount (falls back to demo data)
   useEffect(() => {
@@ -92,9 +89,6 @@ export default function GalleryPage() {
   }, []);
 
   const certificates: CertEntry[] = isLoading ? [] : uploadedCerts ?? DEMO_CERTIFICATES;
-  const verificationUrl = buildVerificationUrl(
-    typeof window === "undefined" ? "" : window.location.origin, selectedCert?.id
-  );
   const certTypeCount = useMemo(
     () => new Set(certificates.map((c) => c.certificateType)).size,
     [certificates]
@@ -417,96 +411,7 @@ const id =
 
         {/* Modal */}
         {selectedCert && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-5xl w-full max-h-[92vh] overflow-auto">
-              {/* Modal Header */}
-              <div className="bg-gradient-to-r from-primary to-accent text-white p-6 rounded-t-xl">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-secondary text-sm uppercase tracking-wider">
-                      {selectedCert.certificateType}
-                    </p>
-                    <h2 className="text-2xl font-bold mt-1">
-                      {selectedCert.recipientName}
-                    </h2>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <CertificatePdfDownload
-                      key={selectedCert.id ?? selectedCert.recipientName}
-                      certificateRef={certificatePreviewRef}
-                      recipientName={selectedCert.recipientName}
-                    />
-                    <button
-                      onClick={() => setSelectedCert(null)}
-                      className="text-white/80 hover:text-white text-2xl"
-                      aria-label="Close certificate preview"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Modal Body */}
-              <div className="bg-gray-100 p-4 sm:p-8">
-                {/* Certificate Visual */}
-                <div className="mb-6 space-y-3">
-                  <div ref={certificatePreviewRef} className="mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm] text-gray-900 shadow-lg">
-                    <div className="flex-1">
-                      <CertificateTemplateRenderer certificate={{ ...selectedCert, verificationUrl }} />
-                    </div>
-                    <div className={`${resolveTemplateId(selectedCert.templateId) === "fta" ? "hidden" : "mt-8 flex"} items-end gap-6 border-t border-gray-200 pt-5`}>
-                      <div className="flex shrink-0 flex-col items-center gap-2">
-                        <QRCodeSVG value={verificationUrl} size={86} level="M" includeMargin />
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Scan to verify</span>
-                      </div>
-                      <div className="min-w-0 flex-1 text-xs text-gray-500">
-                        <p className="font-semibold text-gray-700">Digital signature and verification</p>
-                        <div className="mt-5 max-w-xs border-b border-gray-500 pb-1 text-base italic text-gray-800">{selectedCert.issuerName}</div>
-                        <p className="mt-1 font-medium text-gray-700">{selectedCert.issuerName}</p>
-                        <p className="mt-1">Issued to {selectedCert.recipientName}</p>
-                        <p className="mt-1 break-all">ID: {selectedCert.id || "N/A"}</p>
-                        <p className="mt-1 break-all">{verificationUrl}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
-                    <p>Issued: {formatDate(selectedCert.issueDate)}</p>
-                    <p>
-                      Valid: {formatDate(selectedCert.validFrom)} to{" "}
-                      {selectedCert.validUntil ? formatDate(selectedCert.validUntil) : "N/A"}
-                    </p>
-                    <p>
-                      Template: {TEMPLATE_OPTIONS.find((t) => t.id === resolveTemplateId(selectedCert.templateId))?.label}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Details */}
-                <div className="grid md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-500">Certificate ID</p>
-                    <p className="font-mono text-gray-800">{selectedCert.id || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Status</p>
-                    <p className="flex items-center space-x-1">
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      <span className="text-green-700 font-medium">Valid</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Recipient Email</p>
-                    <p className="text-gray-800">{selectedCert.recipientEmail}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Issuer</p>
-                    <p className="text-gray-800">{selectedCert.issuerName}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <CertificatePreviewModal certificate={selectedCert} onClose={() => setSelectedCert(null)} />
         )}
 
         {/* Revoke Confirmation Modal */}

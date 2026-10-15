@@ -287,16 +287,19 @@ export function mapVcToCertEntry(
       (s.recipient_email as string),
     ]);
     const certificateType = extractString([
+      (s.certificateType as string),
       (s.certificate_type as string),
       (s.type as string),
     ]);
     const description = (s.description as string) ?? "";
     const validFrom = extractString([
+      (s.validFrom as string),
       (s.valid_from as string),
       vc.validFrom as string,
       vc.issuanceDate as string,
     ]);
     const validUntil = extractString([
+      (s.validUntil as string),
       (s.valid_until as string),
       vc.validUntil as string,
     ]);
@@ -327,7 +330,7 @@ export function mapVcToCertEntry(
       recipientEmail: recipientEmail ?? "",
       certificateType: certificateType ?? "Certificate",
       issuerName,
-      issueDate: validFrom ?? new Date().toISOString(),
+      issueDate: extractString([s.issuedOn as string, s.issueDate as string, vc.issueDate as string]) ?? validFrom ?? new Date().toISOString(),
       description,
       validFrom: validFrom ?? new Date().toISOString(),
       validUntil,

@@ -4,6 +4,7 @@ const { readFileSync } = require("node:fs");
 const path = require("node:path");
 const ts = require("typescript");
 const React = require("react");
+const icons = require("lucide-react");
 const { renderToStaticMarkup } = require("react-dom/server");
 
 const root = path.resolve(__dirname, "..");
@@ -243,12 +244,144 @@ test("PDF download control reports capture failures and always clears its busy s
 });
 
 test("all certificate views wire PDF download to their certificate capture element", () => {
-  for (const file of ["app/insurance/page.tsx", "app/gallery/page.tsx", "app/verify/page.tsx"]) {
+  for (const file of ["app/insurance/page.tsx", "components/CertificatePreviewModal.tsx", "app/verify/page.tsx"]) {
     const source = sourceFile(file);
     const button = findNode(source, (node) => ts.isJsxSelfClosingElement(node) &&
       node.tagName.getText(source) === "CertificatePdfDownload");
     assert.match(button.getText(source), /certificateRef=\{certificatePreviewRef\}/);
     findNode(source, (node) => ts.isJsxAttribute(node) &&
       node.getText(source) === "ref={certificatePreviewRef}");
+  }
+});
+
+function evaluate(expression, dependencies = {}) {
+  const javascript = ts.transpileModule(`const value = ${expression};`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
+  return new Function("require", "exports", ...Object.keys(dependencies), `${javascript}\nreturn value;`)(
+    require, {}, ...Object.values(dependencies)
+  );
+}
+
+const mapper = load("lib/credential-mapper.ts");
+const dashboardCredential = {
+  id: "database-id", externalId: "certificate-id", recipientName: "Recipient",
+  recipientEmail: "test@example.com", status: "issued", issuedAt: "2026-10-14",
+  templateId: "fta", credential: {
+    issuer: { name: "Academy" }, validFrom: "2026-10-14",
+    credentialSubject: {
+      name: "Recipient", email: "test@example.com", certificateType: "Training",
+      description: "Completed training", issuedOn: "2026-10-14",
+      validFrom: "2026-10-14", validUntil: "2027-10-14", templateId: "fta",
+    },
+  },
+};
+
+test("dashboard headers match every cell and revoked rows hide Revoke but retain View", () => {
+  const source = sourceFile("app/page.tsx");
+  const dashboard = findNode(source, (node) => ts.isIfStatement(node) &&
+    node.expression.getText(source) === "user");
+  const returned = dashboard.thenStatement.statements.find(ts.isReturnStatement);
+  for (const status of ["issued", "revoked", "REVOKED"]) {
+    const render = evaluate(`() => (${returned.expression.getText(source)})`, {
+      user: { displayName: "Issuer" }, Link: "a", LogOut: icons.LogOut,
+      handleLogout() {}, credentialLoading: false, revokeLoading: null,
+      allCredentials: [{ ...dashboardCredential, status }],
+      mapVcToCertEntry: mapper.mapVcToCertEntry,
+      handleViewCredential() {}, handleRevoke() {}, selectedCredential: null,
+    });
+    const html = renderToStaticMarkup(render());
+    const headers = [...html.matchAll(/<th\b[^>]*>(.*?)<\/th>/g)].map((match) => match[1]);
+    assert.deepEqual(headers, ["Recipient", "Email", "Cert Type", "Status", "Issued", "View", "Actions"]);
+    assert.equal((html.match(/<td\b/g) ?? []).length, headers.length);
+    assert.match(html, />Training<\/td>/);
+    assert.match(html, /title="View certificate details"/);
+    assert.equal(html.includes('title="Revoke certificate"'), status === "issued");
+  }
+});
+
+test("dashboard opens shared preview with nested credential data and public certificate ID", () => {
+  const source = sourceFile("app/page.tsx");
+  const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
+    node.name.getText(source) === "handleViewCredential");
+  for (const status of ["issued", "revoked"]) {
+    let selected;
+    evaluate(handler.initializer.getText(source), {
+      mapVcToCertEntry: mapper.mapVcToCertEntry,
+      setSelectedCredential(value) { selected = value; },
+    })({ ...dashboardCredential, status });
+    assert.equal(selected.id, "certificate-id");
+    assert.equal(selected.recipientName, "Recipient");
+    assert.equal(selected.certificateType, "Training");
+    assert.equal(selected.description, "Completed training");
+    assert.equal(selected.issueDate, "2026-10-14");
+    assert.equal(selected.validUntil, "2027-10-14");
+    assert.equal(selected.templateId, "fta");
+    assert.equal(selected.status, status);
+  }
+  for (const file of ["app/page.tsx", "app/gallery/page.tsx"]) {
+    const page = sourceFile(file);
+    findNode(page, (node) => ts.isJsxSelfClosingElement(node) &&
+      node.tagName.getText(page) === "CertificatePreviewModal");
+  }
+});
+
+test("dashboard revocation retains the row after success and reports server failures", async () => {
+  const source = sourceFile("app/page.tsx");
+  const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
+    node.name.getText(source) === "handleRevoke");
+  for (const ok of [true, false]) {
+    let credentials = [dashboardCredential];
+    let error;
+    let busy;
+    const revoke = evaluate(handler.initializer.getText(source), {
+      allCredentials: credentials, prompt: () => "Revocation reason",
+      setRevokeLoading(value) { busy = value; },
+      fetch: async () => ({ ok, json: async () => ({ error: "Not authorized" }) }),
+      setAllCredentials(update) { credentials = update(credentials); },
+      alert(message) { error = message; },
+    });
+    await revoke("database-id");
+    assert.equal(credentials.length, 1);
+    assert.equal(credentials[0].status, ok ? "revoked" : "issued");
+    assert.equal(error, ok ? undefined : "Not authorized");
+    assert.equal(busy, null);
+  }
+  const revoke = evaluate(handler.initializer.getText(source), {
+    allCredentials: [{ ...dashboardCredential, status: "revoked" }],
+    prompt() { assert.fail("Already revoked certificates must not prompt"); },
+  });
+  await revoke("database-id");
+});
+
+test("shared popup preserves gallery layout, PDF capture, verification URL and accurate status", () => {
+  const site = load("lib/site.ts");
+  let renderedCertificate;
+  const Modal = load("components/CertificatePreviewModal.tsx", {
+    "../app/templates": {
+      CertificateTemplateRenderer({ certificate }) {
+        renderedCertificate = certificate;
+        return React.createElement("div", null, certificate.description);
+      },
+      resolveTemplateId: (id) => id,
+      TEMPLATE_OPTIONS: [{ id: "fta", label: "FTA" }],
+    },
+    "../lib/certificate": { formatDate: (value) => value },
+    "../lib/site": site,
+    "./CertificatePdfDownload": { default: () => React.createElement("button", null, "Download PDF"), __esModule: true },
+  }).default;
+  for (const status of ["issued", "revoked", "REVOKED"]) {
+    const certificate = { ...mapper.mapVcToCertEntry(dashboardCredential.credential), id: "certificate-id", status };
+    const html = renderToStaticMarkup(React.createElement(Modal, { certificate, onClose() {} }));
+    assert.match(html, /max-w-5xl/);
+    assert.match(html, /max-h-\[92vh\] overflow-auto/);
+    assert.match(html, /Download PDF/);
+    assert.match(html, /Completed training/);
+    assert.match(html, /Academy/);
+    assert.match(html, /Template: FTA/);
+    assert.match(html, /Close certificate preview/);
+    assert.equal(html.includes(">Valid</span>"), status === "issued");
+    assert.equal(html.includes(">Revoked</span>"), status !== "issued");
+    assert.equal(renderedCertificate.verificationUrl, site.buildVerificationUrl("", "certificate-id"));
   }
 });

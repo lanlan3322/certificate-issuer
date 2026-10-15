@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import {
   FileText,
   Download,
@@ -20,13 +19,13 @@ import {
   ChevronUp,
   ChevronDown,
   Eye,
-  X,
 } from "lucide-react";
 import BatchIssuePanel, {
   BatchIssuedCertificatesPanel,
   IssuedCertificateItem,
 } from "../components/BatchIssuePanel";
 import IssuingMethodSelector from "../components/IssuingMethodSelector";
+import CertificatePreviewModal from "../components/CertificatePreviewModal";
 import { useWalletConnection } from "../hooks/useWalletConnection";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -57,7 +56,6 @@ import {
 } from "../lib/constants";
 import { buildVerificationUrl, withBasePath } from "../lib/site";
 import { mapVcToCertEntry } from "../lib/credential-mapper";
-import { resolveTemplateId } from "./templates/registry";
 import { CertificateTemplateRenderer, DEFAULT_TEMPLATE_ID, TEMPLATE_OPTIONS } from "./templates";
 import type { CertEntry } from "./gallery/page";
 
@@ -136,10 +134,7 @@ export default function HomePage() {
   const [credentialLoading, setCredentialLoading] = useState(false);
   const [revokeLoading, setRevokeLoading] = useState<string | null>(null);
   const [allCredentials, setAllCredentials] = useState<CredentialItem[]>([]);
-  const [selectedCredential, setSelectedCredential] = useState<CredentialItem | null>(null);
-
-  // Template preview state for the modal
-  const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
+  const [selectedCredential, setSelectedCredential] = useState<CertEntry | null>(null);
 
   // Detect auth session and load credentials on mount
   useEffect(() => {
@@ -179,31 +174,45 @@ export default function HomePage() {
   };
 
   const handleRevoke = async (credId: string) => {
+    if (allCredentials.find((cred) => cred.id === credId)?.status.toLowerCase() === "revoked") return;
     const reason = prompt("Enter a reason for revoking this certificate:");
     if (!reason) return;
     setRevokeLoading(credId);
     try {
-      await fetch("/api/revocation", {
+      const response = await fetch("/api/revocation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ credentialId: credId, action: "revoke", reason }),
       });
-      setAllCredentials((prev) => prev.filter((c) => c.id !== credId));
-    } catch {
-      alert("Failed to revoke certificate.");
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Failed to revoke certificate.");
+      setAllCredentials((prev) => prev.map((cred) => cred.id === credId ? { ...cred, status: "revoked" } : cred));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to revoke certificate.");
     } finally {
       setRevokeLoading(null);
     }
   };
 
   const handleViewCredential = (cred: CredentialItem) => {
-    if (cred.status === "REVOKED") return;
-    setSelectedCredential(cred);
+    const certificate = mapVcToCertEntry(cred.credential);
+    if (!certificate) {
+      alert("Unable to display this certificate.");
+      return;
+    }
+    setSelectedCredential({
+      ...certificate,
+      id: cred.externalId || certificate.id || cred.id,
+      recipientName: cred.recipientName,
+      recipientEmail: cred.recipientEmail,
+      issueDate: certificate.issueDate || cred.issuedAt,
+      templateId: cred.templateId ?? certificate.templateId,
+      status: cred.status,
+    });
   };
 
   const handleCloseModal = () => {
     setSelectedCredential(null);
-    setPreviewTemplateId(null);
   };
 
   if (authLoading) {
@@ -247,13 +256,19 @@ export default function HomePage() {
               <table className="w-full min-w-[860px] text-left text-sm">
                 <thead className="border-b border-slate-200 text-slate-500 dark:border-slate-700">
                   <tr>
-                    <th className="px-3 py-3 text-right">View</th>
-                    <th className="px-3 py-3 text-right">Actions</th>
+                    <th scope="col" className="px-3 py-3">Recipient</th>
+                    <th scope="col" className="px-3 py-3">Email</th>
+                    <th scope="col" className="px-3 py-3">Cert Type</th>
+                    <th scope="col" className="px-3 py-3">Status</th>
+                    <th scope="col" className="px-3 py-3">Issued</th>
+                    <th scope="col" className="px-3 py-3 text-center">View</th>
+                    <th scope="col" className="px-3 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {allCredentials.map((cred) => {
-                    const certType = (cred.credential?.certificateType as string) || "Certificate";
+                    const certType = mapVcToCertEntry(cred.credential)?.certificateType || "Certificate";
+                    const isRevoked = cred.status.toLowerCase() === "revoked";
                     return (
                       <tr
                         key={cred.id}
@@ -262,7 +277,7 @@ export default function HomePage() {
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => { if (e.key === "Enter") handleViewCredential(cred); }}
-                        style={{ cursor: cred.status === "REVOKED" ? "default" : "pointer" }}
+                        style={{ cursor: "pointer" }}
                       >
                         <td className="px-3 py-3 font-medium text-slate-800 dark:text-slate-200">{cred.recipientName}</td>
                         <td className="px-3 py-3 text-slate-600 dark:text-slate-400">{cred.recipientEmail}</td>
@@ -270,21 +285,17 @@ export default function HomePage() {
                         <td className="px-3 py-3 uppercase text-xs">{cred.status}</td>
                         <td className="px-3 py-3 text-slate-600 dark:text-slate-400">{new Date(cred.issuedAt).toLocaleDateString()}</td>
                         <td className="px-3 py-3 text-center">
-                          {cred.status !== "REVOKED" ? (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); handleViewCredential(cred); }}
-                              className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-cyan-600 bg-cyan-50 border border-cyan-200 rounded-md hover:bg-cyan-100 dark:text-cyan-400 dark:bg-cyan-900/30 dark:border-cyan-800"
-                              title="View certificate details"
-                            >
-                              View
-                            </button>
-                          ) : (
-                            <span className="text-slate-400 text-xs">—</span>
-                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleViewCredential(cred); }}
+                            className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-cyan-600 bg-cyan-50 border border-cyan-200 rounded-md hover:bg-cyan-100 dark:text-cyan-400 dark:bg-cyan-900/30 dark:border-cyan-800"
+                            title="View certificate details"
+                          >
+                            View
+                          </button>
                         </td>
                         <td className="px-3 py-3 text-right">
-                          {revokeLoading === cred.id ? (
+                          {!isRevoked && (revokeLoading === cred.id ? (
                             <div className="inline-flex items-center justify-end gap-2">
                               <div className="h-4 w-4 animate-spin border-[2] border-cyan-500 border-t-transparent rounded-full" />
                             </div>
@@ -292,13 +303,12 @@ export default function HomePage() {
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); handleRevoke(cred.id); }}
-                              disabled={cred.status === "REVOKED"}
                               className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed"
                               title="Revoke certificate"
                             >
                               Revoke
                             </button>
-                          )}
+                          ))}
                         </td>
                       </tr>
                     );
@@ -311,120 +321,7 @@ export default function HomePage() {
 
         {/* ─── Certificate Detail Modal ───────────────────────────── */}
         {selectedCredential && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal aria-label="Certificate details">
-            <div className="w-full max-w-3xl mx-auto my-6 bg-white rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-
-              {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-                <h2 className="text-lg font-semibold text-slate-900">Certificate Details</h2>
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                  aria-label="Close"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Body */}
-              <div className="p-6">
-                {/* Certificate Visual Preview */}
-                <div className="mb-6 space-y-3">
-                  <div className="mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm] text-gray-900 shadow-lg">
-                    {(() => {
-                      const vc = selectedCredential.credential;
-                      const emailFromVC = (vc?.credentialSubject || vc?.subject)
-                        ? ((vc as any).credentialSubject || (vc as any).subject)?.email
-                        : "";
-                      // Use `as Record<string, unknown>` to safely add `email` which CertificateData lacks.
-                      const certEntry: Record<string, unknown> = vc
-                        ? {
-                            id: (vc.certificateId ?? "").toString(),
-                            templateId: (vc.templateId ?? undefined) || undefined,
-                            recipientName: ((vc.recipientName || vc.name || "Recipient") as string),
-                            email: (emailFromVC || selectedCredential.recipientEmail) || "",
-                            issuerName: ((vc.issuerName || (vc.issuer as any)?.name || "RTO Issuer") as string),
-                            issueDate: String(vc.issueDate || vc.date || ""),
-                            validFrom: String(vc.validFrom || vc.effectiveDate || ""),
-                            certificateType: (vc.certificateType || vc.type || "Certificate") as string,
-                            status: selectedCredential.status === "ISSUED" ? "Issued" : "Pending",
-                          }
-                        : {};
-                      const recipientName = (certEntry.recipientName as string) || selectedCredential.recipientName || "Recipient";
-                      const issuerName = (certEntry.issuerName as string) || "RTO Issuer";
-                      const id = (selectedCredential.id || "").toString();
-                      const cert = {
-                        id,
-                        templateId: selectedCredential.templateId ?? undefined,
-                        recipientName,
-                        email: ((certEntry.email as string) || selectedCredential.recipientEmail || "") || "",
-                        issuerName,
-                        issueDate: String(vc?.issueDate || vc?.date || ""),
-                        validFrom: String(vc?.validFrom || vc?.effectiveDate || ""),
-                      };
-                      const certTyped = cert as unknown as CertificateData;
-                      const verificationUrl = `${buildVerificationUrl(id)}/certificate/${cert.id || "unknown"}`;
-                      return (
-                        <>
-                          <div className="flex-1">
-                            <CertificateTemplateRenderer certificate={{ ...certTyped, verificationUrl }} />
-                          </div>
-                          {resolveTemplateId(cert.templateId) !== "fta" && (
-                            <div className="mt-8 flex items-end gap-6 border-t border-gray-200 pt-5">
-                              <div className="flex shrink-0 flex-col items-center gap-2">
-                                <QRCodeSVG value={verificationUrl} size={86} level="M" includeMargin />
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Scan to verify</span>
-                              </div>
-                              <div className="min-w-0 flex-1 text-xs text-gray-500">
-                                <p className="font-semibold text-gray-700">Digital signature and verification</p>
-                                <p className="mt-1 font-medium text-gray-800">{cert.issuerName}</p>
-                                <p className="mt-1">Issued to {cert.recipientName}</p>
-                                <p className="mt-1 break-all">{verificationUrl}</p>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                  <div className="mx-auto max-w-[210mm] rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                    <p>Issued: {String(selectedCredential.credential.issueDate || selectedCredential.credential.date || "")}</p>
-                    <p>
-                      Valid: {formatDate(String(selectedCredential.credential.validFrom || ""))} to{" "}
-                      {selectedCredential.credential.validUntil ? formatDate(String(selectedCredential.credential.validUntil)) : "N/A"}
-                    </p>
-                    <p>
-                      Template: {TEMPLATE_OPTIONS.find((t) => t.id === resolveTemplateId(selectedCredential.templateId || ""))?.label}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Details Grid */}
-                <div className="mx-auto max-w-[210mm] grid md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-slate-500">Certificate ID</p>
-                    <p className="font-mono text-slate-800">{selectedCredential.id || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500">Status</p>
-                    <p className="flex items-center gap-1">
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                      <span className="text-green-700 font-medium">{selectedCredential.status}</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500">Recipient</p>
-                    <p className="text-slate-800">{selectedCredential.recipientName}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500">Recipient Email</p>
-                    <p className="text-slate-800">{selectedCredential.recipientEmail}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <CertificatePreviewModal certificate={selectedCredential} onClose={handleCloseModal} />
         )}
       </main>
     );
