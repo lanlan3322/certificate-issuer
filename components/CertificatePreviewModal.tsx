@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef } from "react";
-import { CheckCircle, XCircle } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
+import { useRef, useCallback } from "react";
+import { CheckCircle, Download, XCircle } from "lucide-react";
 import type { CertEntry } from "../app/gallery/page";
+import { QRCodeSVG } from "qrcode.react";
 import { CertificateTemplateRenderer, resolveTemplateId, TEMPLATE_OPTIONS } from "../app/templates";
 import { formatDate } from "../lib/certificate";
 import { buildVerificationUrl } from "../lib/site";
@@ -24,6 +24,20 @@ export default function CertificatePreviewModal({
   const status = certificate.status.toLowerCase();
   const isValid = status === "valid" || status === "issued";
 
+  const handleDownloadJson = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const json = JSON.stringify(certificate, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `certificate-${(certificate.id || certificate.recipientName).replace(/\s+/g, "-").toLowerCase()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [certificate]);
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label="Certificate preview">
       <div className="bg-white rounded-xl max-w-5xl w-full max-h-[92vh] overflow-auto">
@@ -39,6 +53,14 @@ export default function CertificatePreviewModal({
                 certificateRef={certificatePreviewRef}
                 recipientName={certificate.recipientName}
               />
+              <button
+                onClick={handleDownloadJson}
+                type="button"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors border border-white/30"
+              >
+                <Download className="w-4 h-4" />
+                JSON
+              </button>
               <button type="button" onClick={onClose} className="text-white/80 hover:text-white text-2xl" aria-label="Close certificate preview">
                 ×
               </button>

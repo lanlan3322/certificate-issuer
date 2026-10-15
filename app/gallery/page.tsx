@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useMemo, useState, useEffect } from "react";
-import { Shield, FileText, CheckCircle, ExternalLink, Upload, X as XIcon, XCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { Shield, FileText, CheckCircle, ExternalLink, X as XIcon, XCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { DEMO_CERTIFICATES } from "../../lib/constants";
 import { mapVcsToCertEntries } from "../../lib/credential-mapper";
 import CertificatePreviewModal from "../../components/CertificatePreviewModal";
@@ -29,15 +29,14 @@ export type CertEntry = {
 
 export default function GalleryPage() {
   const [selectedCert, setSelectedCert] = useState<CertEntry | null>(null);
-  const [uploadedCerts, setUploadedCerts] = useState<CertEntry[] | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showRevokeModal, setShowRevokeModal] = useState(false);
   const [revokeReason, setRevokeReason] = useState("");
   const [revocationError, setRevocationError] = useState<string | null>(null);
   const [revoking, setRevoking] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Local variable to hold fetched certificate entries (client upload removed)
+  let certificatesData: CertEntry[] | null = null;
 
   // Fetch real credentials from the API on mount (falls back to demo data)
   useEffect(() => {
@@ -74,8 +73,7 @@ export default function GalleryPage() {
             );
           });
           if (entries.length > 0) {
-            const mapped = mapVcsToCertEntries(entries);
-            setUploadedCerts(mapped);
+            certificatesData = mapVcsToCertEntries(entries);
           }
         }
       })
@@ -88,7 +86,7 @@ export default function GalleryPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const certificates: CertEntry[] = isLoading ? [] : uploadedCerts ?? DEMO_CERTIFICATES;
+  const certificates: CertEntry[] = isLoading ? [] : certificatesData ?? DEMO_CERTIFICATES;
   const certTypeCount = useMemo(
     () => new Set(certificates.map((c) => c.certificateType)).size,
     [certificates]
@@ -174,61 +172,6 @@ const id =
     };
   }
 
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files ? Array.from(e.target.files) : [];
-    if (files.length === 0) return;
-
-    let allCerts: CertEntry[] = [];
-    let filesRead = 0;
-    let hasError = false;
-
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const text = event.target?.result as string;
-          const parsed = JSON.parse(text);
-          const arr: unknown[] = Array.isArray(parsed) ? parsed : [parsed];
-          const certs = arr
-            .map((item) => (isValidCertEntry(item) ? item : mapVcToCertEntry(item)))
-            .filter((c): c is CertEntry => c !== null);
-          allCerts = [...allCerts, ...certs];
-        } catch {
-          hasError = true;
-        }
-        filesRead++;
-        if (filesRead === files.length) {
-          if (allCerts.length === 0) {
-            setUploadError(
-              hasError
-                ? "One or more files contained invalid JSON. No valid certificate entries were found."
-                : "No valid certificate entries found. Each entry must include: id, recipientName, recipientEmail, certificateType, issuerName, issueDate, description, validFrom, and status."
-            );
-            setUploadedCerts(null);
-          } else {
-            setUploadedCerts(allCerts);
-            setUploadError(
-              hasError
-                ? "Some files were skipped due to invalid JSON or missing required fields."
-                : null
-            );
-            setSelectedCert(null);
-          }
-        }
-      };
-      reader.readAsText(file);
-    });
-  }
-
-  function clearUpload() {
-    setUploadedCerts(null);
-    setUploadError(null);
-    setSelectedCert(null);
-    setShowRevokeModal(false);
-    setRevokeReason("");
-    setRevocationError(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
 
   async function handleRevokeCertificate() {
     setRevoking(true);
@@ -281,46 +224,6 @@ const id =
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* JSON Upload */}
-        <div className="card mb-8">
-          <div className="flex items-center space-x-3 mb-3">
-            <Upload className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-gray-800">Upload JSON</h2>
-          </div>
-          <p className="text-sm text-gray-500 mb-4">
-            Upload one or more JSON files (single certificate object or array) to render them in the view.
-          </p>
-          <div className="flex items-center space-x-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json,application/json"
-              multiple
-              onChange={handleFileUpload}
-              className="block text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-accent"
-            />
-            {uploadedCerts && (
-              <button
-                onClick={clearUpload}
-                className="flex items-center space-x-1 text-sm text-red-600 hover:text-red-800"
-              >
-                <XIcon className="w-4 h-4" />
-                <span>Clear</span>
-              </button>
-            )}
-          </div>
-          {uploadError && (
-            <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
-              {uploadError}
-            </p>
-          )}
-          {uploadedCerts && (
-            <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-              Loaded {uploadedCerts.length} certificate{uploadedCerts.length !== 1 ? "s" : ""} from file{uploadedCerts.length !== 1 ? "s" : ""}.
-            </p>
-          )}
-        </div>
-
         {/* Stats */}
         <div className="grid md:grid-cols-4 gap-4 mb-8">
           <div className="card text-center">
