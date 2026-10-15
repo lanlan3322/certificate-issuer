@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
   FileText,
@@ -25,6 +25,8 @@ import BatchIssuePanel, {
 } from "../components/BatchIssuePanel";
 import IssuingMethodSelector from "../components/IssuingMethodSelector";
 import { useWalletConnection } from "../hooks/useWalletConnection";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   CertificateData,
   generateCertificateId,
@@ -83,6 +85,9 @@ interface IssueFormState {
   certificateFormat: "standard" | "opencerts";
 }
 
+interface AuthUser { issuerId: string; email: string; displayName: string; issuerName: string }
+interface CredentialItem { id: string; externalId: string; recipientName: string; recipientEmail: string; status: string; issuedAt: string; credential: Record<string, unknown>; templateId: string | null }
+
 function getTodayDateInputValue(): string {
   const now = new Date();
   const year = now.getFullYear();
@@ -122,6 +127,121 @@ function dateInputToISO(dateInput: string, endOfDay = false): string | null {
 }
 
 export default function HomePage() {
+  const router = useRouter();
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [credentialLoading, setCredentialLoading] = useState(false);
+  const [allCredentials, setAllCredentials] = useState<CredentialItem[]>([]);
+
+  // Detect auth session and load credentials on mount
+  useEffect(() => {
+    let cancelled = false;
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { method: "POST" });
+        const payload = await res.json() as { user?: AuthUser | null };
+        if (!cancelled) {
+          if (payload.user) {
+            setUser(payload.user);
+            setCredentialLoading(true);
+            try {
+              const credRes = await fetch("/api/credentials");
+              const credPayload = await credRes.json() as { credentials?: CredentialItem[] };
+              setAllCredentials(credPayload.credentials ?? []);
+            } catch {
+              /* non-critical */
+            } finally {
+              setCredentialLoading(false);
+            }
+          }
+          setAuthLoading(false);
+        }
+      } catch {
+        if (!cancelled) setAuthLoading(false);
+      }
+    };
+    void checkAuth();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleLogout = async () => {
+    try { await fetch("/api/auth/logout", { method: "POST" }); } catch { /* ignore */ }
+    setUser(null);
+    setAllCredentials([]);
+  };
+
+  if (authLoading) {
+    return (
+      <main className="flex min-h-[60vh] items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-cyan-500 border-t-transparent rounded-full" />
+      </main>
+    );
+  }
+
+  /* ─── Authenticated Dashboard ──────────────────────────────────── */
+  if (user) {
+    return (
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Welcome bar */}
+        <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">Dashboard</p>
+            <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">Welcome, {user.displayName}</h1>
+            <p className="mt-1 text-slate-600 dark:text-slate-300">{user.issuerName} · {user.email}</p>
+          </div>
+          <div className="flex gap-2">
+            <Link href="/insurance/" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 dark:hover:bg-slate-600">Issue certificate</Link>
+            <button type="button" onClick={handleLogout} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200">
+              <LogOut className="h-4 w-4" /> Log out
+            </button>
+          </div>
+        </div>
+
+        {/* Issued certificates table */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">Issued certificates</h2>
+          {credentialLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin h-6 w-6 border-2 border-cyan-500 border-t-transparent rounded-full" />
+            </div>
+          ) : allCredentials.length === 0 ? (
+            <p className="text-slate-500">No certificates have been issued yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-left text-sm">
+                <thead className="border-b border-slate-200 text-slate-500 dark:border-slate-700">
+                  <tr>
+                    <th className="px-3 py-3">Recipient</th>
+                    <th className="px-3 py-3">Email</th>
+                    <th className="px-3 py-3">Cert Type</th>
+                    <th className="px-3 py-3">Status</th>
+                    <th className="px-3 py-3">Issued</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allCredentials.map((cred) => {
+                    const certType = (cred.credential?.certificateType as string) || "Certificate";
+                    return (
+                      <tr key={cred.id} className="border-b border-slate-100 dark:border-slate-800">
+                        <td className="px-3 py-3 font-medium text-slate-800 dark:text-slate-200">{cred.recipientName}</td>
+                        <td className="px-3 py-3 text-slate-600 dark:text-slate-400">{cred.recipientEmail}</td>
+                        <td className="px-3 py-3 font-medium text-slate-700 dark:text-slate-300">{certType}</td>
+                        <td className="px-3 py-3 uppercase text-xs">{cred.status}</td>
+                        <td className="px-3 py-3 text-slate-600 dark:text-slate-400">{new Date(cred.issuedAt).toLocaleDateString()}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </main>
+    );
+  }
+
+  /* ─── End dashboard (unauthenticated page follows) ─────────────── */
+
   const {
     connected,
     connecting,
