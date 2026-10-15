@@ -19,8 +19,12 @@ Last Updated: 2026-10-14
   verifiers. The response still excludes recipient details.
 - Gallery maps camelCase `credentialSubject.certificateId` (the stored
   `external_id`) as the entry ID.
-- Tests: `lib/site.test.js` added; 43/43 pass; `next build` passes. Not yet
-  deployed.
+- First deploy found the record but reported "Missing required field:
+  @context": issuance writes `JSON.stringify(credential)` into the JSONB
+  column, so rows hold a JSON string. `lib/stored-credential.ts`
+  `parseStoredCredential` now normalises rows to objects in
+  `CredentialService` (gallery and revocation already accepted both shapes).
+- Tests: `lib/site.test.js` added; 44/44 pass; `next build` passes.
 
 ## Step 25: retire exposed key `#ecdsa-2026-01`
 

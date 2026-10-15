@@ -1,4 +1,5 @@
 import { getSupabaseAdmin, getSupabaseServerClient } from "../lib/supabase/server";
+import { parseStoredCredential } from "../lib/stored-credential";
 
 export interface CredentialInput {
   issuerId: string;
@@ -38,7 +39,7 @@ const mapRow = (row: Record<string, unknown>): CredentialRecord => ({
   externalId: String(row.external_id),
   recipientName: String(row.recipient_name),
   recipientEmail: String(row.recipient_email),
-  credential: (row.credential as Record<string, unknown>) ?? {},
+  credential: parseStoredCredential(row.credential),
   documentHash: row.document_hash ? String(row.document_hash) : null,
   issuingMethods: (row.issuing_methods as string[]) ?? [],
   status: row.status as CredentialRecord["status"],
