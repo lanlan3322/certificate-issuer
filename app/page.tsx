@@ -131,6 +131,7 @@ export default function HomePage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [credentialLoading, setCredentialLoading] = useState(false);
+  const [revokeLoading, setRevokeLoading] = useState<string | null>(null);
   const [allCredentials, setAllCredentials] = useState<CredentialItem[]>([]);
 
   // Detect auth session and load credentials on mount
@@ -168,6 +169,24 @@ export default function HomePage() {
     try { await fetch("/api/auth/logout", { method: "POST" }); } catch { /* ignore */ }
     setUser(null);
     setAllCredentials([]);
+  };
+
+  const handleRevoke = async (credId: string) => {
+    const reason = prompt("Enter a reason for revoking this certificate:");
+    if (!reason) return;
+    setRevokeLoading(credId);
+    try {
+      await fetch("/api/revocation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credentialId: credId, action: "revoke", reason }),
+      });
+      setAllCredentials((prev) => prev.filter((c) => c.id !== credId));
+    } catch {
+      alert("Failed to revoke certificate.");
+    } finally {
+      setRevokeLoading(null);
+    }
   };
 
   if (authLoading) {
@@ -216,6 +235,7 @@ export default function HomePage() {
                     <th className="px-3 py-3">Cert Type</th>
                     <th className="px-3 py-3">Status</th>
                     <th className="px-3 py-3">Issued</th>
+                    <th className="px-3 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -228,6 +248,22 @@ export default function HomePage() {
                         <td className="px-3 py-3 font-medium text-slate-700 dark:text-slate-300">{certType}</td>
                         <td className="px-3 py-3 uppercase text-xs">{cred.status}</td>
                         <td className="px-3 py-3 text-slate-600 dark:text-slate-400">{new Date(cred.issuedAt).toLocaleDateString()}</td>
+                        <td className="px-3 py-3 text-right">
+                          {revokeLoading === cred.id ? (
+                            <div className="inline-flex items-center justify-end gap-2">
+                              <div className="h-4 w-4 animate-spin border-[2] border-cyan-500 border-t-transparent rounded-full" />
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleRevoke(cred.id)}
+                              disabled={cred.status === "REVOKED"}
+                              className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Revoke certificate"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
