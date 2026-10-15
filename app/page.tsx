@@ -17,7 +17,9 @@ import {
   Check,
   Layers,
   ArrowRight,
-  Eye,
+  ChevronUp,
+  ChevronDown,
+  X,
 } from "lucide-react";
 import BatchIssuePanel, {
   BatchIssuedCertificatesPanel,
@@ -133,6 +135,10 @@ export default function HomePage() {
   const [credentialLoading, setCredentialLoading] = useState(false);
   const [revokeLoading, setRevokeLoading] = useState<string | null>(null);
   const [allCredentials, setAllCredentials] = useState<CredentialItem[]>([]);
+  const [selectedCredential, setSelectedCredential] = useState<CredentialItem | null>(null);
+
+  // Template preview state for the modal
+  const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
 
   // Detect auth session and load credentials on mount
   useEffect(() => {
@@ -189,6 +195,16 @@ export default function HomePage() {
     }
   };
 
+  const handleViewCredential = (cred: CredentialItem) => {
+    if (cred.status === "REVOKED") return;
+    setSelectedCredential(cred);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedCredential(null);
+    setPreviewTemplateId(null);
+  };
+
   if (authLoading) {
     return (
       <main className="flex min-h-[60vh] items-center justify-center">
@@ -230,11 +246,7 @@ export default function HomePage() {
               <table className="w-full min-w-[860px] text-left text-sm">
                 <thead className="border-b border-slate-200 text-slate-500 dark:border-slate-700">
                   <tr>
-                    <th className="px-3 py-3">Recipient</th>
-                    <th className="px-3 py-3">Email</th>
-                    <th className="px-3 py-3">Cert Type</th>
-                    <th className="px-3 py-3">Status</th>
-                    <th className="px-3 py-3">Issued</th>
+                    <th className="px-3 py-3 text-right">View</th>
                     <th className="px-3 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -242,12 +254,34 @@ export default function HomePage() {
                   {allCredentials.map((cred) => {
                     const certType = (cred.credential?.certificateType as string) || "Certificate";
                     return (
-                      <tr key={cred.id} className="border-b border-slate-100 dark:border-slate-800">
+                      <tr
+                        key={cred.id}
+                        className="border-b border-slate-100 dark:border-slate-800"
+                        onClick={() => handleViewCredential(cred)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleViewCredential(cred); }}
+                        style={{ cursor: cred.status === "REVOKED" ? "default" : "pointer" }}
+                      >
                         <td className="px-3 py-3 font-medium text-slate-800 dark:text-slate-200">{cred.recipientName}</td>
                         <td className="px-3 py-3 text-slate-600 dark:text-slate-400">{cred.recipientEmail}</td>
                         <td className="px-3 py-3 font-medium text-slate-700 dark:text-slate-300">{certType}</td>
                         <td className="px-3 py-3 uppercase text-xs">{cred.status}</td>
                         <td className="px-3 py-3 text-slate-600 dark:text-slate-400">{new Date(cred.issuedAt).toLocaleDateString()}</td>
+                        <td className="px-3 py-3 text-center">
+                          {cred.status !== "REVOKED" ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleViewCredential(cred); }}
+                              className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-cyan-600 bg-cyan-50 border border-cyan-200 rounded-md hover:bg-cyan-100 dark:text-cyan-400 dark:bg-cyan-900/30 dark:border-cyan-800"
+                              title="View certificate details"
+                            >
+                              <Eye className="h-3 w-3" /> View
+                            </button>
+                          ) : (
+                            <span className="text-slate-400 text-xs">—</span>
+                          )}
+                        </td>
                         <td className="px-3 py-3 text-right">
                           {revokeLoading === cred.id ? (
                             <div className="inline-flex items-center justify-end gap-2">
@@ -255,7 +289,8 @@ export default function HomePage() {
                             </div>
                           ) : (
                             <button
-                              onClick={() => handleRevoke(cred.id)}
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleRevoke(cred.id); }}
                               disabled={cred.status === "REVOKED"}
                               className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed"
                               title="Revoke certificate"
