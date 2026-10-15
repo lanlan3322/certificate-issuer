@@ -578,24 +578,6 @@ export default function InsurancePage() {
               </button>
             </div>
 
-            {issueMode === "single" && errors.length > 0 && (
-              <div className="mb-4 p-3 md:p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-start space-x-2">
-                  <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-red-500 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium text-red-800 text-sm md:text-base">
-                      Please fix the following:
-                    </p>
-                    <ul className="text-xs md:text-sm text-red-600 mt-1 list-disc list-inside">
-                      {errors.map((err, i) => (
-                        <li key={i}>{err}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {issueMode === "single" && (
               <>
                 <div className="space-y-3 md:space-y-4">
@@ -762,9 +744,27 @@ export default function InsurancePage() {
                     )}
                     <span>{issuing ? "Issuing..." : "Issue Certificate"}</span>
                   </button>
+
+                  {errors.length > 0 && (
+                    <div className="mt-3 p-3 md:p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-start space-x-2">
+                        <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-sm md:text-base">
+                            Please fix the following:
+                          </p>
+                          <ul className="text-xs md:text-sm text-red-600 mt-1 list-disc list-inside">
+                            {errors.map((err, i) => (
+                              <li key={i}>{err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {issuedCert && (didResult || ethereumResult) && (
+                {issueMode === "single" && issuedCert && (didResult || ethereumResult) && (
                   <div className="mt-3 md:mt-4 space-y-2">
                     {didResult && (
                       <div

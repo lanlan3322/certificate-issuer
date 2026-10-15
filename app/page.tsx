@@ -278,11 +278,11 @@ export default function HomePage() {
                         onKeyDown={(e) => { if (e.key === "Enter") handleViewCredential(cred); }}
                         style={{ cursor: "pointer" }}
                       >
-                        <td className="px-3 py-3 font-medium text-slate-800 dark:text-slate-200">{cred.recipientName}</td>
-                        <td className="px-3 py-3 text-slate-600 dark:text-slate-400">{cred.recipientEmail}</td>
-                        <td className="px-3 py-3 font-medium text-slate-700 dark:text-slate-300">{certType}</td>
-                        <td className="px-3 py-3 uppercase text-xs">{cred.status}</td>
-                        <td className="px-3 py-3 text-slate-600 dark:text-slate-400">{new Date(cred.issuedAt).toLocaleDateString()}</td>
+                        <td className={`px-3 py-3 font-medium ${isRevoked ? "text-gray-400 italic" : "text-slate-800 dark:text-slate-200"}`}>{cred.recipientName}</td>
+                        <td className={`px-3 py-3 ${isRevoked ? "text-gray-400 italic" : "text-slate-600 dark:text-slate-400"}`}>{cred.recipientEmail}</td>
+                        <td className={`px-3 py-3 font-medium ${isRevoked ? "text-gray-400 italic" : "text-slate-700 dark:text-slate-300"}`}>{certType}</td>
+                        <td className={`px-3 py-3 uppercase text-xs ${isRevoked ? "text-gray-400 italic" : ""}`}>{cred.status}</td>
+                        <td className={`px-3 py-3 ${isRevoked ? "text-gray-400 italic" : "text-slate-600 dark:text-slate-400"}`}>{new Date(cred.issuedAt).toLocaleDateString()}</td>
                         <td className="px-3 py-3 text-center">
                           <button
                             type="button"
