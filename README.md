@@ -26,6 +26,13 @@ A modern web application for issuing **W3C Verifiable Credentials** certificates
 - 📱 **QR Code Verification** — Scan QR code to verify certificate
 - 🔗 **On-Chain Verification** — Document hashes stored on Ethereum for tamper-proof records
 
+The insurance issuance console uses V1 format for single and batch certificates.
+DID issuance includes a signed embedded renderer by default. DID-only issuance
+also uses signed Bitstring Status Lists and requires server enablement and the
+status-list database migration; combined DID/Ethereum issuance retains legacy
+status references. These settings are fixed rather than exposed as form options.
+MetaMask controls appear beside **Issuing Methods** only when Ethereum is selected.
+
 ## Tech Stack
 
 - **Framework:** Next.js 14 (App Router, TypeScript, static export)

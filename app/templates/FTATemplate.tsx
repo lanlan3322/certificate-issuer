@@ -1,6 +1,7 @@
 "use client";
 
 import { QRCodeSVG } from "qrcode.react";
+import { formatDate } from "../../lib/certificate";
 import { CertificateTemplateData } from "./types";
 
 interface TemplateProps {
@@ -37,7 +38,7 @@ export default function FTATemplate({ certificate }: TemplateProps) {
         <p className="mt-6 text-2xl font-medium text-gray-700">({certificate.certificateType})</p>
         <p className="mt-3 text-xl text-gray-600">Accredited by IBF</p>
         <p className="mt-6 text-lg font-semibold text-gray-700">({certificate.id})</p>
-        <p className="mt-4 text-lg text-gray-500">{certificate.issueDate}</p>
+        <p className="mt-4 text-lg text-gray-500">{formatDate(certificate.issueDate)}</p>
 
         <div className="mt-10 grid shrink-0 grid-cols-[128px_minmax(0,1fr)_160px] items-end gap-6 border-t-2 border-gray-200 pt-8 sm:gap-8">
           <div className="flex flex-col items-center gap-3">
@@ -54,7 +55,7 @@ export default function FTATemplate({ certificate }: TemplateProps) {
             <div className="mx-auto mt-4 h-0.5 w-48 bg-gray-400" />
             <p className="mt-3 text-lg font-medium leading-tight text-gray-800">Dr. Lillian Koh, Ph.D</p>
             <p className="text-base text-gray-600">CEO, Fintech Academy</p>
-            <p className="mt-2 whitespace-nowrap text-base text-gray-700">{certificate.issueDate}</p>
+            <p className="mt-2 whitespace-nowrap text-base text-gray-700">{formatDate(certificate.issueDate)}</p>
           </div>
 
           <div className="flex h-40 w-40 items-center justify-center rounded-full border-[12px] border-red-700 bg-red-600/90 text-center text-xs font-semibold uppercase tracking-widest text-red-100 shadow-inner">

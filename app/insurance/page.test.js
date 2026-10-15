@@ -117,8 +117,9 @@ test("DID-only issuance preserves server proof without connecting or invoking a 
   assert.equal(calls.signers, 0);
   assert.equal(calls.walletSignatures, 0);
   assert.equal(calls.requests[0].url, "/api/issue");
-  assert.equal(calls.requests[0].body.certificateFormat, "w3c");
-  assert.equal(calls.requests[0].body.statusProfile, "legacy");
+  assert.equal(calls.requests[0].body.certificateFormat, "v1");
+  assert.equal(calls.requests[0].body.statusProfile, "bitstring");
+  assert.equal(calls.requests[0].body.renderMethod, "embedded");
 
   const current = compile(expression("currentCredential"), {
     useMemo: (callback) => callback(),
@@ -131,13 +132,16 @@ test("DID-only issuance preserves server proof without connecting or invoking a 
   assert.deepEqual(JSON.parse(JSON.stringify(current)).proof, original.proof);
 });
 
-test("signed status lists are explicitly opt-in and limited to DID-only UI requests", async () => {
-  const optedIn = setup({ statusProfile: "bitstring" });
-  await optedIn.run();
-  assert.equal(optedIn.calls.requests[0].body.statusProfile, "bitstring");
+test("fixed issuance settings override stale form values and keep status lists DID-only", async () => {
+  const didOnly = setup({ statusProfile: "legacy" });
+  await didOnly.run();
+  assert.equal(didOnly.calls.requests[0].body.statusProfile, "bitstring");
+  assert.equal(didOnly.calls.requests[0].body.certificateFormat, "v1");
+  assert.equal(didOnly.calls.requests[0].body.renderMethod, "embedded");
   const combined = setup({ methods: ["did", "ethereum"], connected: true, statusProfile: "bitstring" });
   await combined.run();
   assert.equal(combined.calls.requests[0].body.statusProfile, "legacy");
+  assert.equal(combined.calls.requests[0].body.renderMethod, "embedded");
 });
 
 test("combined issuance preserves DID download while retaining separate Ethereum signing and anchoring", async () => {

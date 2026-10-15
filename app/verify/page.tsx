@@ -476,8 +476,8 @@ export default function VerifyPage() {
                             !["blockchainVerification", "transactionHash", "blockNumber"].includes(key)
                         )
                         .map(([key, value]) => (
-                        <div key={key} className="flex">
-                          <dt className="font-medium text-gray-600 capitalize w-32">
+                        <div key={key} className="grid grid-cols-1 gap-x-4 sm:grid-cols-[14rem_minmax(0,1fr)]">
+                          <dt className="font-medium text-gray-600 capitalize break-words">
                             {key}:
                           </dt>
                           <dd className="text-gray-800 break-all">
@@ -489,8 +489,8 @@ export default function VerifyPage() {
                       {/* Show blockchain verification status if available */}
                       {typeof result.details.blockchainVerification === "string" ? (
                         <>
-                          <div className="flex mt-2 pt-2 border-t">
-                            <dt className="font-medium text-gray-600 capitalize w-32">
+                          <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-[14rem_minmax(0,1fr)] mt-2 pt-2 border-t">
+                            <dt className="font-medium text-gray-600 capitalize break-words">
                               Blockchain Verified:
                             </dt>
                             <dd
@@ -516,8 +516,8 @@ export default function VerifyPage() {
                           </div>
 
                           {typeof result.details.blockNumber === "number" && result.details.blockNumber ? (
-                            <div className="flex mt-1">
-                              <dt className="font-medium text-gray-600 capitalize w-32">
+                            <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-[14rem_minmax(0,1fr)] mt-1">
+                              <dt className="font-medium text-gray-600 capitalize break-words">
                                 Block Number:
                               </dt>
                               <dd className="text-gray-800">

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import {
   DEFAULT_ISSUING_METHODS,
   formatIssuingMethodLabels,
@@ -11,17 +12,22 @@ interface IssuingMethodSelectorProps {
   selectedMethods: IssuingMethod[];
   onToggle: (method: IssuingMethod) => void;
   helperText?: string;
+  headerAction?: ReactNode;
 }
 
 export default function IssuingMethodSelector({
   selectedMethods,
   onToggle,
   helperText = `${formatIssuingMethodLabels(DEFAULT_ISSUING_METHODS)} are selected by default.`,
+  headerAction,
 }: IssuingMethodSelectorProps) {
   return (
     <div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <label className="label text-sm md:text-base">Issuing Methods</label>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="label text-sm md:text-base">Issuing Methods</label>
+          {selectedMethods.includes("ethereum") && headerAction}
+        </div>
         <span className="text-xs text-gray-500">
           Default: {formatIssuingMethodLabels(DEFAULT_ISSUING_METHODS)}
         </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import {
   Upload,
   Download,
@@ -73,6 +74,7 @@ interface BatchIssuePanelProps {
   onToggleIssuingMethod: (method: IssuingMethod) => void;
   onIssuedCertificatesChange: (certificates: IssuedCertificateItem[]) => void;
   onIssuingChange: (issuing: boolean) => void;
+  walletControls?: ReactNode;
 }
 
 export interface IssuedCertificateItem {
@@ -172,6 +174,7 @@ export default function BatchIssuePanel({
   onToggleIssuingMethod,
   onIssuedCertificatesChange,
   onIssuingChange,
+  walletControls,
 }: BatchIssuePanelProps) {
   const [rows, setRows] = useState<BatchRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -183,7 +186,8 @@ export default function BatchIssuePanel({
     const today = getTodayDateInputValue();
     return getNextYearSameDateInputValue(today);
   });
-  const [certificateFormat, setCertificateFormat] = useState<"v1" | "w3c">("v1");
+  const certificateFormat = "v1";
+  const walletRequired = issuingMethods.includes("ethereum");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validRows = rows.filter((r) => r.errors.length === 0);
@@ -240,7 +244,7 @@ export default function BatchIssuePanel({
   };
 
   const handleIssueAll = async () => {
-    if (!connected || issuing) return;
+    if ((walletRequired && !connected) || issuing) return;
 
     if (hasValidity) {
       if (!validFromDate || !validUntilDate) {
@@ -306,7 +310,13 @@ export default function BatchIssuePanel({
           const response = await fetch("/api/issue", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ data: certData, type: "did", certificateFormat }),
+            body: JSON.stringify({
+              data: certData,
+              type: "did",
+              certificateFormat,
+              statusProfile: issuingMethods.length === 1 ? "bitstring" : "legacy",
+              renderMethod: "embedded",
+            }),
           });
           const result = (await response.json().catch(() => ({}))) as {
             signed?: boolean;
@@ -396,69 +406,8 @@ export default function BatchIssuePanel({
         selectedMethods={issuingMethods}
         onToggle={onToggleIssuingMethod}
         helperText="These methods apply to every certificate issued from this batch."
+        headerAction={walletControls}
       />
-
-      {/* Certificate Format Selector */}
-      <div className="space-y-2">
-        <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">Certificate Format</label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => setCertificateFormat("v1")}
-            className={`rounded-lg border-2 p-4 text-left transition-colors ${
-              certificateFormat === "v1"
-                ? "border-primary bg-primary/5"
-                : "border-gray-200 hover:border-gray-300 bg-white"
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <div
-                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                  certificateFormat === "v1"
-                    ? "border-primary"
-                    : "border-gray-300"
-                }`}
-              >
-                {certificateFormat === "v1" && (
-                  <div className="w-2 h-2 rounded-full bg-primary" />
-                )}
-              </div>
-              <span className="text-sm font-semibold text-gray-900">v1</span>
-            </div>
-            <p className="mt-1.5 text-xs text-gray-600">
-              OpenCerts template format with embedded renderer
-            </p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setCertificateFormat("w3c")}
-            className={`rounded-lg border-2 p-4 text-left transition-colors ${
-              certificateFormat === "w3c"
-                ? "border-primary bg-primary/5"
-                : "border-gray-200 hover:border-gray-300 bg-white"
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <div
-                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                  certificateFormat === "w3c"
-                    ? "border-primary"
-                    : "border-gray-300"
-                }`}
-              >
-                {certificateFormat === "w3c" && (
-                  <div className="w-2 h-2 rounded-full bg-primary" />
-                )}
-              </div>
-              <span className="text-sm font-semibold text-gray-900">W3C</span>
-            </div>
-            <p className="mt-1.5 text-xs text-gray-600">
-              Standard W3C Verifiable Credential format
-            </p>
-          </button>
-        </div>
-      </div>
 
       <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-3 sm:p-4">
         <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -689,7 +638,7 @@ export default function BatchIssuePanel({
           {!isComplete && (
             <button
               onClick={handleIssueAll}
-              disabled={!connected || issuing || validRows.length === 0}
+              disabled={(walletRequired && !connected) || issuing || validRows.length === 0}
               className="mt-3 btn-primary w-full flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
             >
               {issuing ? (
@@ -707,7 +656,7 @@ export default function BatchIssuePanel({
             </button>
           )}
 
-          {!connected && rows.length > 0 && (
+          {walletRequired && !connected && rows.length > 0 && (
             <p className="text-xs text-gray-500 mt-2 text-center">
               Connect your wallet above to issue certificates.
             </p>

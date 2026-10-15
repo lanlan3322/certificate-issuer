@@ -82,9 +82,6 @@ interface IssueFormState {
   hasValidity: boolean;
   validFrom: string;
   validUntil: string | null;
-  certificateFormat: "v1" | "w3c";
-  statusProfile?: "legacy" | "bitstring";
-  embeddedRenderer?: boolean;
 }
 
 function getTodayDateInputValue(): string {
@@ -151,7 +148,6 @@ export default function InsurancePage() {
       hasValidity: true,
       validFrom,
       validUntil: getNextYearSameDateInputValue(validFrom),
-      certificateFormat: "v1",
     };
   });
   const [issuedCert, setIssuedCert] = useState<CertificateData | null>(null);
@@ -323,9 +319,9 @@ export default function InsurancePage() {
           body: JSON.stringify({
             data: certData,
             type: "did",
-            certificateFormat: formData.certificateFormat,
-            statusProfile: issuingMethods.length === 1 ? formData.statusProfile ?? "legacy" : "legacy",
-            renderMethod: formData.embeddedRenderer ? "embedded" : "none",
+            certificateFormat: "v1",
+            statusProfile: issuingMethods.length === 1 ? "bitstring" : "legacy",
+            renderMethod: "embedded",
           }),
         });
 
@@ -360,7 +356,7 @@ export default function InsurancePage() {
             await switchToSepolia();
           }
           const signer = await getSigner();
-          const unsignedCredential = buildVCPayload(certData, formData.certificateFormat) as Record<string, unknown>;
+          const unsignedCredential = buildVCPayload(certData, "v1") as Record<string, unknown>;
           const walletSigned = await signCredentialWithEthereum(unsignedCredential, signer);
           const result = await issueCertificateToEthereum(
             walletSigned.credential,
@@ -479,6 +475,40 @@ export default function InsurancePage() {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
+  const walletControls = (
+    <div className="space-y-2">
+      {connected ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Check className="h-4 w-4 text-green-600" />
+          <span className="text-gray-800">{truncateAddress(address!)}</span>
+          <span className="text-gray-600">{balance}</span>
+          <span className={network === "sepolia" ? "text-green-700" : "text-yellow-700"}>
+            {network === "sepolia" ? "Sepolia" : network}
+          </span>
+          <button onClick={disconnect} className="p-2 text-gray-500 hover:text-red-500" title="Disconnect" aria-label="Disconnect wallet">
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={handleConnectWallet}
+          disabled={connecting}
+          className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
+        >
+          {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+          {connecting ? "Connecting..." : "Connect MetaMask"}
+        </button>
+      )}
+      {walletError && <p role="alert" className="text-sm text-red-600">{walletError}</p>}
+      {isMetaMaskInstalled() === false && !walletWarningDismissed && (
+        <div className="flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-2 text-sm text-yellow-800">
+          <span>MetaMask not detected. <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="underline">Install MetaMask</a></span>
+          <button onClick={() => setWalletWarningDismissed(true)} aria-label="Dismiss MetaMask warning">×</button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-3 py-8 sm:px-4 sm:py-10 lg:px-8">
@@ -544,88 +574,6 @@ export default function InsurancePage() {
                 <Layers className="h-4 w-4" />
                 <span>Batch (Excel / CSV)</span>
               </button>
-            </div>
-
-            <div className="mb-4 md:mb-6 p-3 md:p-4 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg border border-primary/20">
-              {connected ? (
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 md:w-10 md:h-10 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Check className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-medium text-gray-800 text-sm md:text-base truncate">
-                        {truncateAddress(address!)}
-                      </p>
-                      <p className="text-xs md:text-sm text-gray-600">{balance}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full ${
-                        network === "sepolia"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}
-                    >
-                      {network === "sepolia" ? "Sepolia" : network}
-                    </span>
-                    <button
-                      onClick={disconnect}
-                      className="p-2 text-gray-500 hover:text-red-500 transition-colors"
-                      title="Disconnect"
-                    >
-                      <LogOut className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <Wallet className="w-8 h-8 md:w-10 md:h-10 text-primary mx-auto mb-2" />
-                  <p className="text-sm md:text-base text-gray-600 mb-3">
-                    Connect your wallet to issue certificates
-                  </p>
-                  <button
-                    onClick={handleConnectWallet}
-                    disabled={connecting}
-                    className="mx-auto flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary/90 disabled:opacity-50 sm:w-auto md:px-6 md:text-base"
-                  >
-                    {connecting ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Wallet className="w-4 h-4" />
-                    )}
-                    <span>
-                      {connecting ? "Connecting..." : "Connect MetaMask"}
-                    </span>
-                  </button>
-                </div>
-              )}
-
-              {isMetaMaskInstalled() === false && !walletWarningDismissed && (
-                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-start space-x-2">
-                    <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-yellow-500 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 text-sm">
-                      <strong>MetaMask not detected.</strong>{" "}
-                      <a
-                        href="https://metamask.io/download/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline text-primary"
-                      >
-                        Install MetaMask
-                      </a>
-                    </div>
-                    <button
-                      onClick={() => setWalletWarningDismissed(true)}
-                      className="text-yellow-500 hover:text-yellow-700"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
             {issueMode === "single" && errors.length > 0 && (
@@ -762,104 +710,8 @@ export default function InsurancePage() {
                   <IssuingMethodSelector
                     selectedMethods={issuingMethods}
                     onToggle={handleToggleIssuingMethod}
+                    headerAction={walletControls}
                   />
-
-                  {/* Certificate Format Selector */}
-                  <div className="space-y-2">
-                    <label className="label text-sm md:text-base">Certificate Format</label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({ ...prev, certificateFormat: "v1" }))
-                        }
-                        className={`rounded-lg border-2 p-4 text-left transition-colors ${
-                          formData.certificateFormat === "v1"
-                            ? "border-primary bg-primary/5"
-                            : "border-gray-200 hover:border-gray-300 bg-white"
-                        }`}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <div
-                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                              formData.certificateFormat === "v1"
-                                ? "border-primary"
-                                : "border-gray-300"
-                            }`}
-                          >
-                            {formData.certificateFormat === "v1" && (
-                              <div className="w-2 h-2 rounded-full bg-primary" />
-                            )}
-                          </div>
-                          <span className="text-sm font-semibold text-gray-900">
-                            v1
-                          </span>
-                        </div>
-                        <p className="mt-1.5 text-xs text-gray-600">
-                          OpenCerts template format with embedded renderer
-                        </p>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({ ...prev, certificateFormat: "w3c" }))
-                        }
-                        className={`rounded-lg border-2 p-4 text-left transition-colors ${
-                          formData.certificateFormat === "w3c"
-                            ? "border-primary bg-primary/5"
-                            : "border-gray-200 hover:border-gray-300 bg-white"
-                        }`}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <div
-                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                              formData.certificateFormat === "w3c"
-                                ? "border-primary"
-                                : "border-gray-300"
-                            }`}
-                          >
-                            {formData.certificateFormat === "w3c" && (
-                              <div className="w-2 h-2 rounded-full bg-primary" />
-                            )}
-                          </div>
-                          <span className="text-sm font-semibold text-gray-900">
-                            W3C
-                          </span>
-                        </div>
-                        <p className="mt-1.5 text-xs text-gray-600">
-                          Standard W3C Verifiable Credential format
-                        </p>
-                      </button>
-                    </div>
-                  </div>
-
-                  {issuingMethods.length === 1 && issuingMethods.includes("did") && (
-                    <label className="flex items-start gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={formData.statusProfile === "bitstring"}
-                        onChange={(event) => setFormData((previous) => ({
-                          ...previous, statusProfile: event.target.checked ? "bitstring" : "legacy",
-                        }))}
-                      />
-                      <span>Use the opt-in signed Bitstring Status List profile.
-                        Requires server enablement and the status-list database migration.</span>
-                    </label>
-                  )}
-                  {issuingMethods.includes("did") && (
-                    <label className="flex items-start gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={formData.embeddedRenderer === true}
-                        onChange={(event) => setFormData((previous) => ({
-                          ...previous, embeddedRenderer: event.target.checked,
-                        }))}
-                      />
-                      <span>Add a signed embedded renderer so TradeTrust and OpenCerts can display this
-                        certificate with the selected template.</span>
-                    </label>
-                  )}
                   {issuingMethods.includes("did") && (
                     <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
                       <p className="font-semibold">Revocation prerequisites</p>
@@ -867,7 +719,7 @@ export default function InsurancePage() {
                         These need to be in place before a credential can be revoked later:
                       </p>
                       <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-blue-800">
-                        {(formData.statusProfile === "bitstring" && issuingMethods.length === 1 ? [
+                        {(issuingMethods.length === 1 ? [
                           "Enable signed status lists on the server and apply the status-list migration before issuing.",
                           "Keep the published DID assertion key and signing service available.",
                           "Use the revocation controls to revoke, suspend or reinstate; verifiers fetch updated signed lists.",
@@ -1037,6 +889,7 @@ export default function InsurancePage() {
                 onToggleIssuingMethod={handleToggleIssuingMethod}
                 onIssuedCertificatesChange={handleBatchIssuedCertificatesChange}
                 onIssuingChange={setBatchIssuing}
+                walletControls={walletControls}
               />
             )}
           </div>
