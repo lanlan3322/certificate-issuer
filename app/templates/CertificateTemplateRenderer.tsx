@@ -97,7 +97,7 @@ export default function CertificateTemplateRenderer({ certificate, theme }: Rend
     <div className="flex min-h-[297mm] w-full flex-col">
       <div className="flex-1">{content}</div>
       <div className="mt-8 flex items-end gap-6 border-t border-gray-200 pt-5 sm:gap-8">
-        <div className="ml-auto text-xs text-gray-400">Certificate Owner: {footerIssuerName}</div>
+        <div className="ml-auto text-xs text-gray-400">Certificate Issuer: {footerIssuerName}</div>
       </div>
     </div>
   );
