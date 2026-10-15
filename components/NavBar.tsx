@@ -16,10 +16,9 @@ import {
 
   Palette,
   Wallet,
-  Send,
   LogOut,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function NavBar() {
   const pathname = usePathname();
@@ -28,6 +27,17 @@ export default function NavBar() {
   const [darkMode, setDarkMode] = useState(false);
   const [issuerAuthenticated, setIssuerAuthenticated] = useState(false);
   const [issuerMenuOpen, setIssuerMenuOpen] = useState(false);
+  const issuerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (issuerRef.current && !issuerRef.current.contains(event.target as Node)) {
+        setIssuerMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const storedTheme = window.localStorage.getItem("trustvc-theme");
@@ -61,11 +71,11 @@ export default function NavBar() {
     { href: "/platform", label: "Platform", icon: KeyRound },
   ];
   const issuerNavItems = [
+    { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/insurance", label: "Issue", icon: FilePlus2 },
     { href: "/branding", label: "Branding", icon: Palette },
     { href: "/did", label: "DID lifecycle", icon: KeyRound },
     { href: "/wallet", label: "Wallet", icon: Wallet },
-    { href: "/delivery", label: "Delivery", icon: Send },
   ];
 
   const logout = async () => {
@@ -108,7 +118,7 @@ export default function NavBar() {
                 </Link>
               );
             })}
-            <div className="relative">
+            <div ref={issuerRef} className="relative">
               <button
                 type="button"
                 onClick={() => setIssuerMenuOpen((open) => !open)}
