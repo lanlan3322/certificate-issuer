@@ -2,34 +2,23 @@
 
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, FileCheck, Eye, X } from "lucide-react";
+import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, X } from "lucide-react";
 import CertificateTemplateRenderer from "../templates/CertificateTemplateRenderer";
 import CertificatePdfDownload from "../../components/CertificatePdfDownload";
 import { CertificateTemplateData } from "../templates/types";
-import { useWalletConnection } from "../../hooks/useWalletConnection";
 import { DOCUMENT_STORE_CONFIG, TRUSTVC_CONFIG } from "../../lib/constants";
 import { buildVerificationUrl, withBasePath } from "../../lib/site";
 import {
   VerificationResult,
-  RevocationHashMode,
-  revokeCertificateViaOcspResponder,
-  revokeCertificateOnEthereum,
 } from "../../lib/trustvc";
 
 export default function VerifyPage() {
-  const { connected, connect, getSigner, network, switchToSepolia } = useWalletConnection();
   const [credentialJson, setCredentialJson] = useState("");
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [verifiedDocument, setVerifiedDocument] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
-  const [revoking, setRevoking] = useState(false);
-  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
   const [showCertificateView, setShowCertificateView] = useState(false);
   const certificatePreviewRef = useRef<HTMLDivElement>(null);
-  const [showAdvancedRevoke, setShowAdvancedRevoke] = useState(false);
-  const [revokeHashMode, setRevokeHashMode] = useState<RevocationHashMode>("auto");
-  const [revokeMessage, setRevokeMessage] = useState<string | null>(null);
-  const [revokeError, setRevokeError] = useState<string | null>(null);
   const [idLookup, setIdLookup] = useState<IdLookup | null>(null);
 
   // QR codes on issued certificates link to /verify/?id=<certificate id>, so
@@ -43,8 +32,6 @@ export default function VerifyPage() {
   const handleVerifyById = async (id: string) => {
     setLoading(true);
     setVerifiedDocument(null);
-    setRevokeMessage(null);
-    setRevokeError(null);
     setIdLookup({ id });
     try {
       const response = await fetch(withBasePath("/api/verify"), {
@@ -78,8 +65,6 @@ export default function VerifyPage() {
     }
 
     setLoading(true);
-    setRevokeMessage(null);
-    setRevokeError(null);
     let doc: Record<string, unknown>;
     try {
       doc = JSON.parse(credentialJson) as Record<string, unknown>;
@@ -115,146 +100,6 @@ export default function VerifyPage() {
       setLoading(false);
     }
   };
-
-  const handleRevoke = async () => {
-    if (!result?.valid || !verifiedDocument) {
-      setRevokeError("Verify a valid credential before revoking.");
-      return;
-    }
-
-    setRevoking(true);
-    setRevokeMessage(null);
-    setRevokeError(null);
-
-    const issuer = verifiedDocument["issuer"];
-    const issuerRevocation =
-      issuer && typeof issuer === "object"
-        ? (issuer as Record<string, unknown>)["revocation"]
-        : null;
-    const revocationType =
-      issuerRevocation && typeof issuerRevocation === "object"
-        ? String((issuerRevocation as Record<string, unknown>)["type"] ?? "")
-        : "";
-    const revocationLocation =
-      issuerRevocation && typeof issuerRevocation === "object"
-        ? String((issuerRevocation as Record<string, unknown>)["location"] ?? "")
-        : "";
-
-    try {
-      const isOcspRevocation = revocationType === "OCSP_RESPONDER";
-      const revocationResult = isOcspRevocation
-        ? await revokeCertificateViaOcspResponder(verifiedDocument, revocationLocation || TRUSTVC_CONFIG.revocation.location, {
-            hashMode: revokeHashMode,
-          })
-        : await (async () => {
-            if (!connected) {
-              await connect();
-            }
-
-            if (network !== "sepolia") {
-              await switchToSepolia();
-            }
-
-            const signer = await getSigner();
-            return revokeCertificateOnEthereum(
-              verifiedDocument,
-              DOCUMENT_STORE_CONFIG.address,
-              signer,
-              { hashMode: revokeHashMode }
-            );
-          })();
-
-      if (revocationResult.error) {
-        setRevokeError(revocationResult.error);
-        return;
-      }
-
-      const txPreview = revocationResult.txHash
-        ? ` (tx: ${revocationResult.txHash.slice(0, 10)}...)`
-        : "";
-      const submittedPreview = revocationResult.submittedViaBeacon
-        ? " (submitted to OCSP responder)"
-        : "";
-
-      setRevokeMessage(
-        isOcspRevocation
-          ? `Credential revoked successfully via OCSP responder${submittedPreview}.`
-          : `Credential revoked successfully${txPreview}.`
-      );
-      setResult({
-        valid: false,
-        message: isOcspRevocation
-          ? revocationResult.submittedViaBeacon
-            ? "Credential revocation was submitted to the OCSP responder."
-            : "Credential has been revoked via the OCSP responder."
-          : "Credential has been revoked on blockchain.",
-        details: {
-          ...(result.details ?? {}),
-          revoked: true,
-          blockchainVerification: isOcspRevocation ? "skipped" : "failed",
-          transactionHash: revocationResult.txHash,
-          revocationSubmission: revocationResult.submittedViaBeacon ? "beacon" : isOcspRevocation ? "fetch" : "transaction",
-          revocationType: isOcspRevocation ? "OCSP_RESPONDER" : "REVOCATION_STORE",
-          message: isOcspRevocation
-            ? "Document hash is marked as revoked in the OCSP responder"
-            : "Document hash is marked as revoked on document store",
-        },
-      });
-    } catch (e) {
-      setRevokeError(`Revocation failed: ${(e as Error).message}`);
-    } finally {
-      setRevoking(false);
-    }
-  };
-
-  const handleOpenRevokeConfirm = () => {
-    setRevokeMessage(null);
-    setRevokeError(null);
-    setShowAdvancedRevoke(false);
-    setRevokeHashMode("auto");
-    setShowRevokeConfirm(true);
-  };
-
-  const handleCloseRevokeConfirm = () => {
-    if (revoking) return;
-    setShowRevokeConfirm(false);
-  };
-
-  const handleConfirmRevoke = async () => {
-    await handleRevoke();
-    setShowRevokeConfirm(false);
-  };
-
-  const signature = verifiedDocument?.["signature"];
-  const signatureObj = signature && typeof signature === "object"
-    ? (signature as Record<string, unknown>)
-    : null;
-  const hasTargetHash =
-    typeof signatureObj?.targetHash === "string" && /^0x[a-fA-F0-9]{64}$/.test(signatureObj.targetHash);
-  const hasMerkleRoot =
-    typeof signatureObj?.merkleRoot === "string" && /^0x[a-fA-F0-9]{64}$/.test(signatureObj.merkleRoot);
-  const issuerValue = verifiedDocument?.["issuer"];
-  const issuerObject: Record<string, unknown> | null =
-    issuerValue && typeof issuerValue === "object"
-      ? (issuerValue as Record<string, unknown>)
-      : null;
-  const issuerRevocation = issuerObject
-    ? (issuerObject as Record<string, unknown>)["revocation"]
-    : null;
-  const revocationType =
-    issuerRevocation && typeof issuerRevocation === "object"
-      ? String((issuerRevocation as Record<string, unknown>)["type"] ?? "")
-      : "";
-  const revocationLocation =
-    issuerRevocation && typeof issuerRevocation === "object"
-      ? String((issuerRevocation as Record<string, unknown>)["location"] ?? "")
-      : "";
-  const revocationLabel =
-    revocationType === "OCSP_RESPONDER"
-      ? `DID / OCSP responder${revocationLocation ? `: ${revocationLocation}` : ""}`
-      : revocationType === "REVOCATION_STORE"
-        ? `Ethereum / document store${revocationLocation ? `: ${revocationLocation}` : ""}`
-        : null;
 
   const certificateSubject =
     verifiedDocument?.["credentialSubject"] &&
@@ -526,38 +371,13 @@ export default function VerifyPage() {
 
                 {result.valid && verifiedDocument && (
                   <div className="mt-4">
-                    {revocationLabel && (
-                      <div className="mb-3 inline-flex max-w-full items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700">
-                        <span className="truncate">{revocationLabel}</span>
-                      </div>
-                    )}
-                    <button
-                      onClick={handleOpenRevokeConfirm}
-                      disabled={revoking}
-                      className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {revoking ? "Revoking..." : "Revoke"}
-                    </button>
                     <button
                       onClick={() => setShowCertificateView(true)}
-                      className="ml-2 inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
+                      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
                     >
-                      <Eye className="h-4 w-4" />
-                      View
+                      View Certificate
                     </button>
                   </div>
-                )}
-
-                {revokeMessage && (
-                  <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                    {revokeMessage}
-                  </p>
-                )}
-
-                {revokeError && (
-                  <p className="mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                    {revokeError}
-                  </p>
                 )}
               </div>
             </div>
@@ -581,75 +401,6 @@ export default function VerifyPage() {
           </div>
         </div>
       </div>
-
-      {showRevokeConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
-            <div className="border-b border-gray-100 px-5 py-4">
-              <h3 className="text-lg font-semibold text-gray-900">Confirm Revocation</h3>
-            </div>
-            <div className="px-5 py-4">
-              {revocationLabel && (
-                <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
-                  <span className="font-semibold">Revocation path:</span>{" "}
-                  <span className="break-all">{revocationLabel}</span>
-                </div>
-              )}
-              <p className="text-sm text-gray-700">
-                Revoking is an on-chain action and cannot be undone. This certificate will fail future blockchain verification checks.
-              </p>
-
-              <button
-                type="button"
-                onClick={() => setShowAdvancedRevoke((prev) => !prev)}
-                className="mt-3 text-sm font-medium text-primary hover:underline"
-              >
-                {showAdvancedRevoke ? "Hide advanced options" : "Show advanced options"}
-              </button>
-
-              {showAdvancedRevoke && (
-                <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Revocation Scope
-                  </p>
-                  <select
-                    value={revokeHashMode}
-                    onChange={(e) => setRevokeHashMode(e.target.value as RevocationHashMode)}
-                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                  >
-                    <option value="auto">Auto (prefer targetHash)</option>
-                    <option value="targetHash" disabled={!hasTargetHash}>
-                      Document only (targetHash){!hasTargetHash ? " - unavailable" : ""}
-                    </option>
-                    <option value="merkleRoot" disabled={!hasMerkleRoot}>
-                      Batch revoke (merkleRoot){!hasMerkleRoot ? " - unavailable" : ""}
-                    </option>
-                  </select>
-                  <p className="mt-2 text-xs text-gray-600">
-                    `targetHash` revokes a single wrapped document. `merkleRoot` revokes all documents in the same wrapped batch.
-                  </p>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-5 py-4">
-              <button
-                onClick={handleCloseRevokeConfirm}
-                disabled={revoking}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmRevoke}
-                disabled={revoking}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {revoking ? "Revoking..." : "Confirm Revoke"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showCertificateView && certificateForView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

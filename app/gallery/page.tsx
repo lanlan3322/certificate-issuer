@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useMemo, useState, useEffect } from "react";
-import { Shield, FileText, CheckCircle, ExternalLink, Upload, X as XIcon } from "lucide-react";
+import { Shield, FileText, CheckCircle, ExternalLink, Upload, X as XIcon, XCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { DEMO_CERTIFICATES } from "../../lib/constants";
 import { mapVcsToCertEntries } from "../../lib/credential-mapper";
@@ -34,6 +34,11 @@ export default function GalleryPage() {
   const [uploadedCerts, setUploadedCerts] = useState<CertEntry[] | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showRevokeModal, setShowRevokeModal] = useState(false);
+  const [revokeReason, setRevokeReason] = useState("");
+  const [revocationError, setRevocationError] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const certificatePreviewRef = useRef<HTMLDivElement>(null);
 
@@ -225,8 +230,44 @@ const id =
     setUploadedCerts(null);
     setUploadError(null);
     setSelectedCert(null);
+    setShowRevokeModal(false);
+    setRevokeReason("");
+    setRevocationError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
+
+  async function handleRevokeCertificate() {
+    setRevoking(true);
+    setRevocationError(null);
+    try {
+      const response = await fetch("/api/revocation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          credentialId: selectedCert?.id,
+          action: "revoke",
+          reason: revokeReason.trim(),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to revoke certificate.");
+      }
+      // Update local state to mark the cert as revoked
+      if (selectedCert) {
+        setSelectedCert({ ...selectedCert, status: "revoked" });
+      }
+      setShowRevokeModal(false);
+      setRevokeReason("");
+      setRevocationError(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "An unexpected error occurred.";
+      setRevocationError(message);
+    } finally {
+      setRevoking(false);
+    }
+  }
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -331,14 +372,29 @@ const id =
                       {cert.issueDate}
                     </p>
                   </div>
-                  <div
-                    className={`px-2 py-1 rounded text-xs font-medium ${
-                      cert.status === "valid"
-                        ? "bg-green-500 text-white"
-                        : "bg-red-500 text-white"
-                    }`}
-                  >
-                    {cert.status.toUpperCase()}
+                  <div className="flex items-center space-x-2">
+                    {(cert.status === "valid" || cert.status === "pending") && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedCert(cert);
+                          setShowRevokeModal(true);
+                        }}
+                        className="p-1.5 rounded bg-white/20 hover:bg-white/30 transition-colors"
+                        title="Revoke Certificate"
+                      >
+                        <XCircle className="w-4 h-4 text-white" />
+                      </button>
+                    )}
+                    <div
+                      className={`px-2 py-1 rounded text-xs font-medium ${
+                        cert.status === "valid"
+                          ? "bg-green-500 text-white"
+                          : "bg-red-500 text-white"
+                      }`}
+                    >
+                      {cert.status.toUpperCase()}
+                    </div>
                   </div>
                 </div>
                 <h3 className="text-xl font-bold mb-2">{cert.recipientName}</h3>
@@ -448,6 +504,96 @@ const id =
                     <p className="text-gray-800">{selectedCert.issuerName}</p>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Revoke Confirmation Modal */}
+        {showRevokeModal && selectedCert && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+              {/* Header */}
+              <div className="flex items-start gap-4 p-6 border-b border-gray-200">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-100">
+                  <AlertTriangle className="h-6 w-6 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900">Revoke Certificate</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Are you sure you want to revoke this certificate? This action is irreversible.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowRevokeModal(false);
+                    setRevokeReason("");
+                    setRevocationError(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-500 transition-colors"
+                >
+                  <XIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Certificate Info */}
+              <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <p className="text-sm font-medium text-gray-900">{selectedCert.recipientName}</p>
+                <p className="text-sm text-gray-500">
+                  {selectedCert.certificateType} &middot; ID: {selectedCert.id || "N/A"}
+                </p>
+              </div>
+
+              {/* Reason Input */}
+              <div className="px-6 py-4 space-y-3">
+                <div>
+                  <label htmlFor="revoke-reason" className="block text-sm font-medium text-gray-700 mb-1">
+                    Reason for Revocation <span className="text-gray-400">(optional)</span>
+                  </label>
+                  <textarea
+                    id="revoke-reason"
+                    rows={3}
+                    value={revokeReason}
+                    onChange={(e) => setRevokeReason(e.target.value)}
+                    placeholder="Enter the reason for revoking this certificate..."
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
+                  />
+                </div>
+
+                {revocationError && (
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+                    {revocationError}
+                  </p>
+                )}
+              </div>
+
+              {/* Footer Actions */}
+              <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+                <button
+                  onClick={() => {
+                    setShowRevokeModal(false);
+                    setRevokeReason("");
+                    setRevocationError(null);
+                  }}
+                  disabled={revoking}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRevokeCertificate}
+                  disabled={revoking}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {revoking ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Revoking...
+                    </>
+                  ) : (
+                    "Revoke Certificate"
+                  )}
+                </button>
               </div>
             </div>
           </div>
