@@ -18,6 +18,7 @@ export default function VerifyPage() {
   const [verifiedDocument, setVerifiedDocument] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [showCertificateView, setShowCertificateView] = useState(false);
+  const [credentialToDownload, setCredentialToDownload] = useState<Record<string, unknown> | null>(null);
   const certificatePreviewRef = useRef<HTMLDivElement>(null);
   const [idLookup, setIdLookup] = useState<IdLookup | null>(null);
 
@@ -146,6 +147,22 @@ export default function VerifyPage() {
       };
       reader.readAsText(file);
     }
+  };
+
+  const handleDownloadJson = () => {
+    if (!credentialToDownload) return;
+    const blob = new Blob([JSON.stringify(credentialToDownload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const subject = credentialToDownload.credentialSubject as Record<string, unknown> | undefined;
+    const recipient = typeof subject?.name === "string" ? subject.name : "certificate";
+    const nameStr = typeof recipient === "string" ? recipient.replace(/[^a-z0-9]+/gi, "_").toLowerCase() : "certificate";
+    link.download = `certificate_${nameStr}_${credentialToDownload.id ?? Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleSampleCredential = () => {
@@ -372,7 +389,10 @@ export default function VerifyPage() {
                 {result.valid && verifiedDocument && (
                   <div className="mt-4">
                     <button
-                      onClick={() => setShowCertificateView(true)}
+                      onClick={() => {
+                        setShowCertificateView(true);
+                        if (verifiedDocument) setCredentialToDownload(verifiedDocument);
+                      }}
                       className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
                     >
                       View Certificate
@@ -415,6 +435,17 @@ export default function VerifyPage() {
                   certificateRef={certificatePreviewRef}
                   recipientName={certificateForView.recipientName}
                 />
+                {credentialToDownload && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadJson}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    title="Download credential as JSON"
+                  >
+                    <FileJson className="h-4 w-4" />
+                    <span className="hidden sm:inline">Download JSON</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowCertificateView(false)}
