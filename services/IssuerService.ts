@@ -75,4 +75,17 @@ export const IssuerService = {
     if (!data) throw new Error("Issuer not found.");
     return mapRow(data);
   },
+
+  async transfer(id: string, targetOrganizationId: string) {
+    const supabase = await getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("issuers")
+      .update({ organization_id: targetOrganizationId })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    if (!data) throw new Error("Issuer not found.");
+    return mapRow(data);
+  },
 };

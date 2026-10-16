@@ -2,17 +2,41 @@ import { NextResponse } from "next/server";
 import { authorize, errorResponse } from "../../../lib/apiAuth";
 import { AuditService } from "../../../services/AuditService";
 import { IssuerService, type IssuerRecord } from "../../../services/IssuerService";
+import { getSupabaseServerClient } from "../../../lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const STATUSES: IssuerRecord["status"][] = ["active", "disabled", "suspended"];
 
-export async function GET() {
+export async function GET(request: Request) {
   const { user, response } = await authorize();
   if (response) return response;
   try {
-    return NextResponse.json({ issuers: await IssuerService.list(user.organizationId) });
+    const { searchParams } = new URL(request.url);
+    const organizationId = searchParams.get("organization_id");
+    // When an org is explicitly requested, list issuers from that org.
+    // When no filter or "all" is passed, list all issuers across all organizations (admin mode).
+    if (organizationId && organizationId !== "all") {
+      return NextResponse.json({ issuers: await IssuerService.list(organizationId) });
+    }
+    const { data, error } = await (await getSupabaseServerClient())
+      .from("issuers")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return NextResponse.json({
+      issuers: (data ?? []).map((row: Record<string, unknown>) => ({
+        id: String(row.id),
+        organizationId: String(row.organization_id),
+        name: String(row.name),
+        slug: String(row.slug),
+        contactEmail: String(row.contact_email),
+        didUri: row.did_uri ? String(row.did_uri) : undefined,
+        status: row.status as IssuerRecord["status"],
+        createdAt: String(row.created_at),
+      })),
+    });
   } catch (error) {
     return errorResponse(error, "Unable to load issuers.", 500);
   }
@@ -27,6 +51,7 @@ export async function POST(request: Request) {
       slug?: string;
       contactEmail?: string;
       didUri?: string;
+      organizationId?: string;
     };
 
     const name = body.name?.trim();
@@ -40,9 +65,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Slug must be 2-63 lowercase letters, numbers, or hyphens." }, { status: 400 });
     }
 
-    // organizationId comes from the session, never the request body.
+    // organizationId comes from the session (or is explicitly set for admin cross-org creation).
+    const targetOrgId = body.organizationId?.trim() || user.organizationId;
+
     const issuer = await IssuerService.create({
-      organizationId: user.organizationId,
+      organizationId: targetOrgId,
       name,
       slug,
       contactEmail,
@@ -50,7 +77,7 @@ export async function POST(request: Request) {
     });
 
     await AuditService.record({
-      organizationId: user.organizationId,
+      organizationId: targetOrgId,
       issuerId: issuer.id,
       userId: user.id,
       action: "issuer.created",
@@ -75,10 +102,30 @@ export async function PATCH(request: Request) {
       name?: string;
       contactEmail?: string;
       didUri?: string;
+      organizationId?: string;
     };
 
     const id = body.id?.trim();
     if (!id) return NextResponse.json({ error: "id is required." }, { status: 400 });
+
+    // --- Transfer ---
+    if (body.organizationId) {
+      const newOrgId = body.organizationId.trim();
+      if (!STATUSES.includes(body.status ?? "active")) {
+        return NextResponse.json({ error: `transfer requires a valid status (${STATUSES.join(", ")}).` }, { status: 400 });
+      }
+      const issuer = await IssuerService.transfer(id, newOrgId);
+      await AuditService.record({
+        organizationId: issuer.organizationId,
+        issuerId: issuer.id,
+        userId: user.id,
+        action: "issuer.transferred",
+        entityType: "issuer",
+        entityId: issuer.id,
+        metadata: { fromOrganizationId: user.organizationId, toOrganizationId: newOrgId },
+      });
+      return NextResponse.json({ issuer });
+    }
 
     if (body.status) {
       if (!STATUSES.includes(body.status)) {

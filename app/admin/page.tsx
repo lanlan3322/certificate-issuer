@@ -44,6 +44,10 @@ export default function AdminPage() {
   const [issuerLoading, setIssuerLoading] = useState(false);
   const [issuerForm, setIssuerForm] = useState({ name: "", slug: "", contactEmail: "" });
   const [issuerError, setIssuerError] = useState<string | null>(null);
+  const [globalFilter, setGlobalFilter] = useState<"all" | string>("all");
+  const [createOrgId, setCreateOrgId] = useState<string>("");
+  const [transferringIssuerId, setTransferringIssuerId] = useState<string | null>(null);
+  const [transferError, setTransferError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -196,7 +200,7 @@ export default function AdminPage() {
       const response = await fetch(withBasePath("/api/issuers"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug, contactEmail }),
+        body: JSON.stringify({ name, slug, contactEmail, organizationId: createOrgId || undefined }),
       });
 
       const data = (await response.json()) as { error?: string; issuer?: IssuerRecord };
@@ -235,20 +239,136 @@ export default function AdminPage() {
     }
   };
 
+  const handleTransferIssuer = async (issuerId: string, newOrgId: string) => {
+    setTransferError(null);
+    setTransferringIssuerId(issuerId);
+
+    try {
+      const response = await fetch(withBasePath("/api/issuers"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: issuerId, organizationId: newOrgId }),
+      });
+
+      const data = (await response.json()) as { error?: string; issuer?: IssuerRecord };
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to transfer issuer.");
+      }
+
+      setIssuers((prev) => prev.map((i) => (i.id === issuerId ? data.issuer! : i)));
+      setTransferError("Issuer transferred successfully!");
+    } catch (err) {
+      setTransferError(err instanceof Error ? err.message : "An unexpected error occurred.");
+    } finally {
+      setTransferringIssuerId(null);
+    }
+  };
+
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Organization Administration</h1>
-        <p className="mt-2 text-slate-600">
-          Manage organizations, their activation state, and platform issuance eligibility.
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Organization Administration</h1>
+          <p className="mt-2 text-slate-600">
+            Manage organizations, their activation state, and platform issuance eligibility.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setGlobalFilter((prev) => (prev === "all" ? "scoped" : "all"));
+            setSelectedOrg(null);
+            setIssuers([]);
+            setCreateOrgId("");
+          }}
+          className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            globalFilter === "all"
+              ? "bg-indigo-600 text-white shadow-sm hover:bg-indigo-500"
+              : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          {globalFilter === "all" ? "Scoped View" : "View All"}
+        </button>
       </div>
 
-      {/* Organizations section */}
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-semibold text-slate-900">Organizations</h2>
+      {/* Global Mode: Issuer Management */}
+      {globalFilter === "all" && (
+        <section className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-xl font-semibold text-slate-900">Platform Issuer Management</h2>
+          <p className="mb-5 text-sm text-slate-500">Create issuers for any organization or reassign existing ones.</p>
 
-        {loading ? (
+          {transferError && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{transferError}</div>
+          )}
+
+          <div className="mb-8 rounded-lg border border-slate-200 p-5">
+            <h3 className="mb-4 text-base font-semibold text-slate-800">Create New Issuer</h3>
+            <form onSubmit={handleCreateIssuer} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Assign to organization</label>
+                  <select required className="w-full rounded-md border border-slate-300 px-3 py-2" value={createOrgId} onChange={(e) => setCreateOrgId(e.target.value)}>
+                    <option value="">Select an organization</option>
+                    {organizations.filter((o) => o.status === "active").map((org) => (
+                      <option key={org.id} value={org.id}>{org.name} ({org.slug})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Issuer name</label>
+                  <input required className="w-full rounded-md border border-slate-300 px-3 py-2" placeholder="e.g. Root CA" name="name" value={issuerForm.name} onChange={(e) => setIssuerForm({ ...issuerForm, name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Slug</label>
+                  <input required className="w-full rounded-md border border-slate-300 px-3 py-2" placeholder="e.g. root-ca" name="slug" value={issuerForm.slug} onChange={(e) => setIssuerForm({ ...issuerForm, slug: e.target.value })} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Contact email</label>
+                  <input required type="email" className="w-full rounded-md border border-slate-300 px-3 py-2" placeholder="e.g. ca-admin@example.com" name="contactEmail" value={issuerForm.contactEmail} onChange={(e) => setIssuerForm({ ...issuerForm, contactEmail: e.target.value })} />
+                </div>
+              </div>
+              {issuerError && <p className="text-sm text-red-600">{issuerError}</p>}
+              <button type="submit" className={`w-full rounded-md px-4 py-2 font-medium text-white ${!createOrgId ? "cursor-not-allowed bg-slate-400" : "bg-indigo-600 hover:bg-indigo-500"}`}>Create issuer</button>
+            </form>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 p-5">
+            <h3 className="mb-4 text-base font-semibold text-slate-800">Reassign Issuer to Organization</h3>
+            <form onSubmit={(e) => { e.preventDefault(); const f=e.target as HTMLFormElement; const d=new FormData(f); const iid=(d.get("issuerId")?.toString()||"").trim(); const nid=(d.get("newOrgId")?.toString()||"").trim(); if(!iid){setTransferError("Please select an issuer.");return;} if(!nid){setTransferError("Please select a target organization.");return;} handleTransferIssuer(iid,nid); }} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Issuer</label>
+                  <select required className="w-full rounded-md border border-slate-300 px-3 py-2" name="issuerId">
+                    <option value="">Select an issuer</option>
+                    {issuers.map((i) => (
+                      <option key={i.id} value={i.id}>{i.name} ({i.slug}) — Current: {organizations.find((o)=>o.id===i.organizationId)?.name ?? i.organizationId}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Target organization</label>
+                  <select required className="w-full rounded-md border border-slate-300 px-3 py-2" name="newOrgId">
+                    <option value="">Select organization</option>
+                    {organizations.filter((o) => o.status === "active").map((org) => (
+                      <option key={org.id} value={org.id}>{org.name} ({org.slug})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button type="submit" className="w-full rounded-md bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-500">Transfer issuer</button>
+            </form>
+          </div>
+        </section>
+      )}
+
+      {/* Organizations section — scoped mode only */}
+      {globalFilter !== "all" && (
+        <section className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-xl font-semibold text-slate-900">Organizations</h2>
+
+          {loading ? (
           <p className="text-slate-500">Loading organizations…</p>
         ) : organizations.length === 0 ? (
           <>
@@ -363,6 +483,7 @@ export default function AdminPage() {
           </div>
         )}
       </section>
+      )}
 
       {selectedOrg && (
         <section className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
