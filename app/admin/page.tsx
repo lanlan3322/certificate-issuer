@@ -175,7 +175,8 @@ export default function AdminPage() {
         throw new Error("Failed to load issuers.");
       }
       const data = (await response.json()) as IssuersResponse;
-      setIssuers(Array.isArray(data.issuers) ? data.issuers : []);
+      const allIssuers = Array.isArray(data.issuers) ? data.issuers : [];
+      setIssuers(allIssuers.filter((i) => i.organizationId === org.id));
     } catch (err) {
       setIssuerError(err instanceof Error ? err.message : "Unable to load issuers.");
     } finally {
@@ -436,7 +437,10 @@ export default function AdminPage() {
 
                 <button
                   type="button"
-                  onClick={() => void handleToggleOrgStatus(org)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleToggleOrgStatus(org);
+                  }}
                   className={`rounded-md px-3 py-2 text-sm font-medium ${
                     org.status === "active"
                       ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
