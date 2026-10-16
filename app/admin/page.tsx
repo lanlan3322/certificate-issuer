@@ -21,6 +21,14 @@ interface OrganizationRecord {
   createdAt: string;
 }
 
+interface OrganizationsResponse {
+  organizations?: OrganizationRecord[];
+}
+
+interface CurrentOrgResponse {
+  organization?: OrganizationRecord | null;
+}
+
 const initialForm = {
   name: "",
   slug: "",
@@ -35,6 +43,8 @@ const orgInitialForm = {
 
 export default function IssuerAdminPage() {
   const [organization, setOrganization] = useState<OrganizationRecord | null>(null);
+  const [organizations, setOrganizations] = useState<OrganizationRecord[]>([]);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | "">("");
   const [issuers, setIssuers] = useState<IssuerRecord[]>([]);
   const [form, setForm] = useState(initialForm);
   const [orgForm, setOrgForm] = useState(orgInitialForm);
@@ -44,17 +54,26 @@ export default function IssuerAdminPage() {
   useEffect(() => {
     void (async () => {
       try {
-        // Load organization first
+        // Load all organizations for the dropdown
         const orgRes = await fetch(withBasePath("/api/organizations"));
-        let orgData: OrganizationRecord | null = null;
+        let fetchedOrgs: OrganizationRecord[] = [];
+
         if (orgRes.ok) {
-          const orgPayload = (await orgRes.json()) as { organization?: OrganizationRecord | null };
-          orgData = orgPayload.organization ?? null;
-          setOrganization(orgData);
+          const json = await orgRes.json();
+          const listPayload = json as OrganizationsResponse;
+
+          if (Array.isArray(listPayload.organizations)) {
+            fetchedOrgs = listPayload.organizations;
+            setOrganizations(fetchedOrgs);
+            // Use the first org as current user's default display
+            setOrganization(fetchedOrgs[0] ?? null);
+            // Pre-select the first organization in the issuer form dropdown
+            setSelectedOrganizationId(fetchedOrgs[0]?.id ?? "");
+          }
         }
 
-        // Load issuers (only meaningful if an org exists)
-        if (orgData) {
+        // Load issuers if we have organizations
+        if (fetchedOrgs.length > 0) {
           const response = await fetch(withBasePath("/api/issuers"));
           const payload = (await response.json()) as { issuers?: IssuerRecord[] };
           setIssuers(payload.issuers ?? []);
@@ -129,6 +148,12 @@ export default function IssuerAdminPage() {
       }
 
       setOrganization(payload.organization ?? null);
+      // Append newly created org to the list so it appears in the dropdown immediately
+      if (payload.organization) {
+        setOrganizations((prev) => [...prev, payload.organization!]);
+        // Pre-select the newly created organization in the issuer form dropdown
+        setSelectedOrganizationId(payload.organization.id);
+      }
       setOrgForm(orgInitialForm);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred.");
@@ -167,7 +192,7 @@ export default function IssuerAdminPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, slug, contactEmail, didUri: form.didUri.trim() || undefined }),
+        body: JSON.stringify({ name, slug, contactEmail, didUri: form.didUri.trim() || undefined, organizationId: selectedOrganizationId }),
       });
 
       const payload = (await response.json()) as { error?: string; issuer?: IssuerRecord };
@@ -272,6 +297,27 @@ export default function IssuerAdminPage() {
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-xl font-semibold text-slate-900">Create issuer</h2>
           <form className="space-y-4" onSubmit={handleSubmit}>
+            {/* Organization selector */}
+            {organizations.length > 1 ? (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Organization</label>
+                <select
+                  required
+                  className="w-full rounded-md border border-slate-300 px-3 py-2"
+                  value={selectedOrganizationId}
+                  onChange={(event) => setSelectedOrganizationId(event.target.value)}
+                >
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : organizations.length === 1 ? (
+              <input type="hidden" name="organizationId" value={organizations[0].id} />
+            ) : null}
+
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Issuer name</label>
               <input

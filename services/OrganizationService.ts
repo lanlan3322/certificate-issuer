@@ -65,5 +65,19 @@ export const OrganizationService = {
 
     return mapRow(org);
   },
+
+  async list(): Promise<OrganizationRecord[]> {
+    const supabase = getSupabaseAdmin();
+
+    const { data: orgs, error } = await supabase
+      .from("organizations")
+      .select("*")
+      .eq("status", "active")
+      .order("created_at", { ascending: true });
+
+    if (error) throw new Error(`Failed to list organizations: ${error.message}`);
+
+    return (orgs ?? []).map(mapRow);
+  },
 };
 

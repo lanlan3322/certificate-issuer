@@ -5,11 +5,12 @@ import * as templates from "../templates/handler";
 import * as audit from "../audit/handler";
 import * as revocation from "../revocation/handler";
 import * as stats from "../platform/stats/handler";
+import * as organizations from "../organizations/handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const routes = { credentials, issuers, templates, audit, revocation, "platform/stats": stats };
+const routes = { credentials, issuers, templates, audit, revocation, "platform/stats": stats, organizations };
 
 async function dispatch(request: Request, context: { params: Promise<{ resource: string[] }> }) {
   const { resource } = await context.params;

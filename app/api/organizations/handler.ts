@@ -12,10 +12,11 @@ export async function GET() {
   const { user, response } = await authorize();
   if (response) return response;
   try {
-    const org = await OrganizationService.get(user.id);
-    return NextResponse.json({ organization: org });
+    // Return all organizations so the admin page can present a dropdown.
+    const orgs = await OrganizationService.list();
+    return NextResponse.json({ organizations: orgs });
   } catch (error) {
-    return errorResponse(error, "Unable to load organization.", 500);
+    return errorResponse(error, "Unable to load organizations.", 500);
   }
 }
 
