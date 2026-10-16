@@ -287,7 +287,7 @@ export default function AdminPage() {
               : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
           }`}
         >
-          {globalFilter === "all" ? "Scoped View" : "View All"}
+          {globalFilter === "all" ? "Switch to Organization" : "Switch to Issuer"}
         </button>
       </div>
 
@@ -580,48 +580,6 @@ export default function AdminPage() {
                   </div>
                 ))}
               </div>
-              <form onSubmit={handleCreateIssuer} className="mt-6 space-y-4 pt-6 border-t border-slate-200">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Create new issuer</label>
-                  <input
-                    required
-                    className="w-full rounded-md border border-slate-300 px-3 py-2"
-                    placeholder="e.g. Intermediate CA"
-                    name="name"
-                    value={issuerForm.name}
-                    onChange={(e) => setIssuerForm({ ...issuerForm, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <input
-                    required
-                    className="w-full rounded-md border border-slate-300 px-3 py-2"
-                    placeholder="e.g. intermediate-ca"
-                    name="slug"
-                    value={issuerForm.slug}
-                    onChange={(e) => setIssuerForm({ ...issuerForm, slug: e.target.value })}
-                  />
-                  <p className="mt-1 text-xs text-slate-500">Lowercase letters, numbers, and hyphens only.</p>
-                </div>
-                <div>
-                  <input
-                    required
-                    type="email"
-                    className="w-full rounded-md border border-slate-300 px-3 py-2"
-                    placeholder="e.g. ca-admin@example.com"
-                    name="contactEmail"
-                    value={issuerForm.contactEmail}
-                    onChange={(e) => setIssuerForm({ ...issuerForm, contactEmail: e.target.value })}
-                  />
-                </div>
-                {issuerError && <p className="text-sm text-red-600">{issuerError}</p>}
-                <button
-                  type="submit"
-                  className="w-full rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500"
-                >
-                  Create issuer
-                </button>
-              </form>
             </>
           )}
         </section>
