@@ -13,6 +13,14 @@ interface IssuerRecord {
   createdAt: string;
 }
 
+interface OrganizationRecord {
+  id: string;
+  name: string;
+  slug: string;
+  status: "active" | "disabled";
+  createdAt: string;
+}
+
 const initialForm = {
   name: "",
   slug: "",
@@ -20,32 +28,138 @@ const initialForm = {
   didUri: "",
 };
 
+const orgInitialForm = {
+  name: "",
+  slug: "",
+};
+
 export default function IssuerAdminPage() {
+  const [organization, setOrganization] = useState<OrganizationRecord | null>(null);
   const [issuers, setIssuers] = useState<IssuerRecord[]>([]);
   const [form, setForm] = useState(initialForm);
+  const [orgForm, setOrgForm] = useState(orgInitialForm);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        // Load organization first
+        const orgRes = await fetch(withBasePath("/api/organizations"));
+        let orgData: OrganizationRecord | null = null;
+        if (orgRes.ok) {
+          const orgPayload = (await orgRes.json()) as { organization?: OrganizationRecord | null };
+          orgData = orgPayload.organization ?? null;
+          setOrganization(orgData);
+        }
+
+        // Load issuers (only meaningful if an org exists)
+        if (orgData) {
+          const response = await fetch(withBasePath("/api/issuers"));
+          const payload = (await response.json()) as { issuers?: IssuerRecord[] };
+          setIssuers(payload.issuers ?? []);
+        } else {
+          setIssuers([]);
+        }
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to load data.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const loadIssuers = async () => {
     try {
       const response = await fetch(withBasePath("/api/issuers"));
+      if (!response.ok) throw new Error("Unable to load issuers.");
       const payload = (await response.json()) as { issuers?: IssuerRecord[] };
       setIssuers(payload.issuers ?? []);
-      setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load issuers.");
-    } finally {
-      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    void loadIssuers();
-  }, []);
+  const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}$/;
+
+  const formatSlug = (value: string): string =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+
+  const handleOrgFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setOrgForm({ ...orgForm, [e.target.name]: e.target.value });
+  };
+
+  const handleCreateOrganization = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    const name = orgForm.name.trim();
+    const slug = formatSlug(orgForm.slug);
+
+    if (!name) {
+      setError("Organization name is required.");
+      return;
+    }
+    if (!slug || !SLUG_PATTERN.test(slug)) {
+      setError(
+        "Organization slug must be 2–63 characters, using only lowercase letters, numbers, and hyphens (starting with a letter or number)."
+      );
+      return;
+    }
+
+    try {
+      const response = await fetch(withBasePath("/api/organizations"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, slug }),
+      });
+
+      const payload = (await response.json()) as {
+        error?: string;
+        organization?: OrganizationRecord;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to create organization.");
+      }
+
+      setOrganization(payload.organization ?? null);
+      setOrgForm(orgInitialForm);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+
+    const name = form.name.trim();
+    const slug = formatSlug(form.slug);
+    const contactEmail = form.contactEmail.trim();
+
+    if (!name) {
+      setError("Issuer name is required.");
+      return;
+    }
+    if (!slug || !SLUG_PATTERN.test(slug)) {
+      setError(
+        "Slug must be 2–63 characters, using only lowercase letters, numbers, and hyphens (starting with a letter or number)."
+      );
+      return;
+    }
+    if (!contactEmail) {
+      setError("Contact email is required.");
+      return;
+    }
+
+    // Update form with sanitized values before sending
+    setForm({ name, slug, contactEmail, didUri: form.didUri.trim() });
 
     try {
       const response = await fetch(withBasePath("/api/issuers"), {
@@ -53,7 +167,7 @@ export default function IssuerAdminPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ name, slug, contactEmail, didUri: form.didUri.trim() || undefined }),
       });
 
       const payload = (await response.json()) as { error?: string; issuer?: IssuerRecord };
@@ -101,6 +215,59 @@ export default function IssuerAdminPage() {
         </p>
       </div>
 
+      {/* Organization section */}
+      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-xl font-semibold text-slate-900">Organization</h2>
+        {organization ? (
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-slate-800">{organization.name}</h3>
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-emerald-700">
+                  {organization.status}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600">{organization.slug}</p>
+              <p className="mt-1 text-xs text-slate-500">Created: {new Date(organization.createdAt).toLocaleDateString()}</p>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleCreateOrganization} className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Organization name</label>
+              <input
+                required
+                className="w-full rounded-md border border-slate-300 px-3 py-2"
+                placeholder="e.g. My Organization"
+                name="name"
+                value={orgForm.name}
+                onChange={handleOrgFormChange}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Slug</label>
+              <input
+                required
+                className="w-full rounded-md border border-slate-300 px-3 py-2"
+                placeholder="e.g. my-org-name"
+                name="slug"
+                value={orgForm.slug}
+                onChange={handleOrgFormChange}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Lowercase letters, numbers, and hyphens only. Auto-formatted on submit.
+              </p>
+            </div>
+            <button
+              type="submit"
+              className="w-full rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500"
+            >
+              Create organization
+            </button>
+          </form>
+        )}
+      </section>
+
       <div className="grid gap-8 lg:grid-cols-[420px_1fr]">
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-xl font-semibold text-slate-900">Create issuer</h2>
@@ -117,10 +284,15 @@ export default function IssuerAdminPage() {
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Slug</label>
               <input
+                required
                 className="w-full rounded-md border border-slate-300 px-3 py-2"
+                placeholder="e.g. my-issuer-name"
                 value={form.slug}
                 onChange={(event) => setForm({ ...form, slug: event.target.value })}
               />
+              <p className="mt-1 text-xs text-slate-500">
+                Lowercase letters, numbers, and hyphens only. Auto-format: spaces become hyphens, uppercase is lowered.
+              </p>
             </div>
 
             <div>
