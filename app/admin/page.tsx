@@ -15,6 +15,20 @@ interface OrganizationsResponse {
   organizations?: OrganizationRecord[];
 }
 
+interface IssuerRecord {
+  id: string;
+  organizationId: string;
+  name: string;
+  slug: string;
+  contactEmail: string;
+  status: "active" | "disabled" | "suspended";
+  createdAt: string;
+}
+
+interface IssuersResponse {
+  issuers?: IssuerRecord[];
+}
+
 const orgInitialForm = {
   name: "",
   slug: "",
@@ -25,6 +39,11 @@ export default function AdminPage() {
   const [orgForm, setOrgForm] = useState(orgInitialForm);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedOrg, setSelectedOrg] = useState<OrganizationRecord | null>(null);
+  const [issuers, setIssuers] = useState<IssuerRecord[]>([]);
+  const [issuerLoading, setIssuerLoading] = useState(false);
+  const [issuerForm, setIssuerForm] = useState({ name: "", slug: "", contactEmail: "" });
+  const [issuerError, setIssuerError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -134,6 +153,88 @@ export default function AdminPage() {
     }
   };
 
+  const handleSelectOrg = async (org: OrganizationRecord) => {
+    if (selectedOrg?.id === org.id) {
+      setSelectedOrg(null);
+      setIssuers([]);
+      return;
+    }
+
+    setSelectedOrg(org);
+    setIssuers([]);
+    setIssuerLoading(true);
+    setIssuerError(null);
+
+    try {
+      const response = await fetch(withBasePath("/api/issuers"));
+      if (!response.ok) {
+        throw new Error("Failed to load issuers.");
+      }
+      const data = (await response.json()) as IssuersResponse;
+      setIssuers(Array.isArray(data.issuers) ? data.issuers : []);
+    } catch (err) {
+      setIssuerError(err instanceof Error ? err.message : "Unable to load issuers.");
+    } finally {
+      setIssuerLoading(false);
+    }
+  };
+
+  const handleCreateIssuer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIssuerError(null);
+
+    const name = issuerForm.name.trim();
+    const slug = formatSlug(issuerForm.slug);
+    const contactEmail = issuerForm.contactEmail.trim();
+
+    if (!name || !slug || !contactEmail) {
+      setIssuerError("Name, slug, and contact email are required.");
+      return;
+    }
+
+    try {
+      const response = await fetch(withBasePath("/api/issuers"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, slug, contactEmail }),
+      });
+
+      const data = (await response.json()) as { error?: string; issuer?: IssuerRecord };
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to create issuer.");
+      }
+
+      setIssuers((prev) => [...prev, data.issuer!]);
+      setIssuerForm({ name: "", slug: "", contactEmail: "" });
+    } catch (err) {
+      setIssuerError(err instanceof Error ? err.message : "An unexpected error occurred.");
+    }
+  };
+
+  const handleToggleIssuerStatus = async (issuer: IssuerRecord) => {
+    const nextStatus = issuer.status === "active" ? "disabled" : "active";
+    setIssuerError(null);
+
+    try {
+      const response = await fetch(withBasePath("/api/issuers"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: issuer.id, status: nextStatus }),
+      });
+
+      const data = (await response.json()) as { error?: string; issuer?: IssuerRecord };
+      if (!response.ok) {
+        throw new Error(data.error ?? "Unable to update issuer status.");
+      }
+
+      setIssuers((prev) =>
+        prev.map((i) => (i.id === issuer.id ? data.issuer! : i))
+      );
+    } catch (err) {
+      setIssuerError(err instanceof Error ? err.message : "Unable to update issuer status.");
+    }
+  };
+
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
       <div className="mb-8">
@@ -191,7 +292,10 @@ export default function AdminPage() {
             {organizations.map((org) => (
               <div
                 key={org.id}
-                className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 p-4"
+                onClick={() => handleSelectOrg(org)}
+                className={`flex cursor-pointer items-center justify-between gap-4 rounded-lg border p-4 transition-colors hover:bg-slate-50 ${
+                  selectedOrg?.id === org.id ? "border-blue-500 bg-blue-50/50" : "border-slate-200"
+                }`}
               >
                 <div>
                   <div className="flex items-center gap-2">
@@ -259,6 +363,148 @@ export default function AdminPage() {
           </div>
         )}
       </section>
+
+      {selectedOrg && (
+        <section className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-xl font-semibold text-slate-900">Issuers &ndash; {selectedOrg.name}</h2>
+          <p className="mb-5 text-sm text-slate-500">Manage issuers registered for this organization.</p>
+
+          {issuerLoading ? (
+            <p className="text-slate-500">Loading issuers…</p>
+          ) : issuers.length === 0 ? (
+            <>
+              <p className="mb-4 text-slate-500">No issuers configured for this organization yet.</p>
+              <form onSubmit={handleCreateIssuer} className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Issuer name</label>
+                  <input
+                    required
+                    className="w-full rounded-md border border-slate-300 px-3 py-2"
+                    placeholder="e.g. Root CA"
+                    name="name"
+                    value={issuerForm.name}
+                    onChange={(e) => setIssuerForm({ ...issuerForm, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Slug</label>
+                  <input
+                    required
+                    className="w-full rounded-md border border-slate-300 px-3 py-2"
+                    placeholder="e.g. root-ca"
+                    name="slug"
+                    value={issuerForm.slug}
+                    onChange={(e) => setIssuerForm({ ...issuerForm, slug: e.target.value })}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Lowercase letters, numbers, and hyphens only. Auto-formatted on submit.
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Contact email</label>
+                  <input
+                    required
+                    type="email"
+                    className="w-full rounded-md border border-slate-300 px-3 py-2"
+                    placeholder="e.g. ca-admin@example.com"
+                    name="contactEmail"
+                    value={issuerForm.contactEmail}
+                    onChange={(e) => setIssuerForm({ ...issuerForm, contactEmail: e.target.value })}
+                  />
+                </div>
+                {issuerError && <p className="text-sm text-red-600">{issuerError}</p>}
+                <button
+                  type="submit"
+                  className="w-full rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500"
+                >
+                  Create issuer
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {issuers.map((issuer) => (
+                  <div
+                    key={issuer.id}
+                    className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 p-4"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-slate-800">{issuer.name}</h3>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase tracking-wide ${
+                            issuer.status === "active"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {issuer.status}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-slate-600">{issuer.slug}</p>
+                      <p className="text-xs text-slate-500">Contact: {issuer.contactEmail}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleToggleIssuerStatus(issuer)}
+                      className={`rounded-md px-3 py-2 text-sm font-medium ${
+                        issuer.status === "active"
+                          ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                          : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                      }`}
+                    >
+                      {issuer.status === "active" ? "Disable" : "Activate"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <form onSubmit={handleCreateIssuer} className="mt-6 space-y-4 pt-6 border-t border-slate-200">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Create new issuer</label>
+                  <input
+                    required
+                    className="w-full rounded-md border border-slate-300 px-3 py-2"
+                    placeholder="e.g. Intermediate CA"
+                    name="name"
+                    value={issuerForm.name}
+                    onChange={(e) => setIssuerForm({ ...issuerForm, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <input
+                    required
+                    className="w-full rounded-md border border-slate-300 px-3 py-2"
+                    placeholder="e.g. intermediate-ca"
+                    name="slug"
+                    value={issuerForm.slug}
+                    onChange={(e) => setIssuerForm({ ...issuerForm, slug: e.target.value })}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Lowercase letters, numbers, and hyphens only.</p>
+                </div>
+                <div>
+                  <input
+                    required
+                    type="email"
+                    className="w-full rounded-md border border-slate-300 px-3 py-2"
+                    placeholder="e.g. ca-admin@example.com"
+                    name="contactEmail"
+                    value={issuerForm.contactEmail}
+                    onChange={(e) => setIssuerForm({ ...issuerForm, contactEmail: e.target.value })}
+                  />
+                </div>
+                {issuerError && <p className="text-sm text-red-600">{issuerError}</p>}
+                <button
+                  type="submit"
+                  className="w-full rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500"
+                >
+                  Create issuer
+                </button>
+              </form>
+            </>
+          )}
+        </section>
+      )}
     </main>
   );
 }
