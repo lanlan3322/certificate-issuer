@@ -1,24 +1,27 @@
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, Building2, FileCheck2, KeyRound, ShieldCheck, Sparkles } from "lucide-react";
 import { getPlatformStats } from "@/lib/platform";
-
-const issuerQueue = [
-  { name: "IMDA Academy", status: "Active", org: "Government", lead: "Alicia" },
-  { name: "OpenClaw Labs", status: "Pending", org: "Training", lead: "Marcus" },
-  { name: "Northstar Health", status: "Review", org: "Healthcare", lead: "Sofia" },
-];
-
-const didStages = [
-  "Generate DID",
-  "Publish DID document",
-  "Rotate keys",
-  "Verify revocation status",
-];
-
-const authProviders = ["Microsoft Entra ID", "Google Workspace", "GitHub", "Custom SSO"];
+import { getCurrentIssuerUser } from "@/lib/auth";
 
 export default async function PlatformPage() {
   const stats = await getPlatformStats();
+  const user = await getCurrentIssuerUser();
+  const hasIssuerAdminRole = user?.roles.includes("issuer-admin") ?? false;
+
+  const issuerQueue = [
+    { name: "IMDA Academy", status: "Active", org: "Government", lead: "Alicia" },
+    { name: "OpenClaw Labs", status: "Pending", org: "Training", lead: "Marcus" },
+    { name: "Northstar Health", status: "Review", org: "Healthcare", lead: "Sofia" },
+  ];
+
+  const didStages = [
+    "Generate DID",
+    "Publish DID document",
+    "Rotate keys",
+    "Verify revocation status",
+  ];
+
+  const authProviders = ["Microsoft Entra ID", "Google Workspace", "GitHub", "Custom SSO"];
 
   const metrics = [
     {
@@ -52,9 +55,11 @@ export default async function PlatformPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700 sm:text-sm">Platform</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">Multi-issuer operations dashboard</h1>
         </div>
-        <Link href="/admin" className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700 sm:w-auto">
-          Open issuer admin <ArrowRight className="h-4 w-4" />
-        </Link>
+        {hasIssuerAdminRole && (
+          <Link href="/admin" className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700 sm:w-auto">
+            Open issuer admin <ArrowRight className="h-4 w-4" />
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

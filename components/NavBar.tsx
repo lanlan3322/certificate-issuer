@@ -66,12 +66,12 @@ export default function NavBar() {
   const publicNavItems = [
     { href: "/", label: "Overview", icon: LayoutDashboard },
     { href: "/verify", label: "Verification", icon: CheckCircle },
-    { href: "/platform", label: "Platform", icon: KeyRound },
   ];
   const issuerNavItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/insurance", label: "Issue", icon: FilePlus2 },
     { href: "/branding", label: "Branding", icon: Palette },
+    { href: "/platform", label: "Platform", icon: KeyRound },
     { href: "/did", label: "DID lifecycle", icon: KeyRound },
     { href: "/wallet", label: "Wallet", icon: Wallet },
   ];
