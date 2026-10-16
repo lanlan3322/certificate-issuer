@@ -66,18 +66,46 @@ export const OrganizationService = {
     return mapRow(org);
   },
 
-  async list(): Promise<OrganizationRecord[]> {
+  async list(includeDisabled = false): Promise<OrganizationRecord[]> {
     const supabase = getSupabaseAdmin();
 
-    const { data: orgs, error } = await supabase
-      .from("organizations")
-      .select("*")
-      .eq("status", "active")
-      .order("created_at", { ascending: true });
+    let query = supabase.from("organizations").select("*");
+    if (!includeDisabled) {
+      query = query.eq("status", "active");
+    }
+    const { data: orgs, error } = await query.order("created_at", { ascending: true });
 
     if (error) throw new Error(`Failed to list organizations: ${error.message}`);
 
     return (orgs ?? []).map(mapRow);
+  },
+
+  async getById(id: string): Promise<OrganizationRecord | null> {
+    const supabase = await getSupabaseServerClient();
+    const { data: org, error } = await supabase
+      .from("organizations")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error || !org) return null;
+    return mapRow(org);
+  },
+
+  async updateStatus(id: string, status: OrganizationRecord["status"]): Promise<OrganizationRecord> {
+    const supabase = getSupabaseAdmin();
+
+    const { data: org, error } = await supabase
+      .from("organizations")
+      .update({ status })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to update organization status: ${error.message}`);
+    if (!org) throw new Error("Organization not found.");
+
+    return mapRow(org);
   },
 };
 

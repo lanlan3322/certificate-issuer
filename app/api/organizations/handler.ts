@@ -12,8 +12,8 @@ export async function GET() {
   const { user, response } = await authorize();
   if (response) return response;
   try {
-    // Return all organizations so the admin page can present a dropdown.
-    const orgs = await OrganizationService.list();
+    // Return all organizations (including disabled) so the admin page can manage them.
+    const orgs = await OrganizationService.list(true);
     return NextResponse.json({ organizations: orgs });
   } catch (error) {
     return errorResponse(error, "Unable to load organizations.", 500);

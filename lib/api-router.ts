@@ -1,5 +1,5 @@
 type ApiMethod = "GET" | "HEAD" | "OPTIONS" | "POST" | "PUT" | "PATCH" | "DELETE";
-type ApiHandler = (request: Request) => Response | Promise<Response>;
+type ApiHandler = (request: Request, params?: Record<string, string>) => Response | Promise<Response>;
 type ApiHandlers = Partial<Record<ApiMethod, ApiHandler>>;
 
 export async function dispatchApiRequest(
