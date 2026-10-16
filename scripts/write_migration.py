@@ -1,0 +1,86 @@
+content = """-- =============================================================================
+-- Migration 007: Issuers table RLS policies (defense-in-depth)
+-- Purpose: Allow issuer-admin users to create and disable issuers in their orgs.
+--          The server-side API uses the service-role client to bypass RLS.
+--          These policies exist as a safety net and for any direct client access.
+-- =============================================================================
+
+ALTER TABLE issuers ENABLE ROW LEVEL SECURITY;
+
+-- Helper UDF: check if user has issuer-admin role
+CREATE OR REPLACE FUNCTION public.has_issuer_admin_role(p_user_uuid uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.users
+     WHERE id = p_user_uuid
+       AND 'issuer-admin' = ANY(roles)
+  );
+$$;
+
+-- INSERT: issuer-admin can create issuers in any of their organizations
+CREATE POLICY issuers_insert_issuer_admin
+  ON issuers
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    public.has_issuer_admin_role(auth.uid())
+    AND organization_id IN (
+      SELECT organization_id FROM public.users
+       WHERE id = auth.uid()
+    )
+  );
+
+-- UPDATE: issuer-admin can update/disable issuers in their organizations (status, name, contactEmail, didUri)
+CREATE POLICY issuers_update_issuer_admin
+  ON issuers
+  FOR UPDATE
+  TO authenticated
+  USING (
+    public.has_issuer_admin_role(auth.uid())
+    AND organization_id IN (
+      SELECT organization_id FROM public.users
+       WHERE id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    public.has_issuer_admin_role(auth.uid())
+    AND organization_id IN (
+      SELECT organization_id FROM public.users
+       WHERE id = auth.uid()
+    )
+  );
+
+-- DELETE: issuer-admin can delete issuers in their organizations
+CREATE POLICY issuers_delete_issuer_admin
+  ON issuers
+  FOR DELETE
+  TO authenticated
+  USING (
+    public.has_issuer_admin_role(auth.uid())
+    AND organization_id IN (
+      SELECT organization_id FROM public.users
+       WHERE id = auth.uid()
+    )
+  );
+
+-- SELECT: issuer-admin can read issuers in their organizations
+CREATE POLICY issuers_select_issuer_admin
+  ON issuers
+  FOR SELECT
+  TO authenticated
+  USING (
+    public.has_issuer_admin_role(auth.uid())
+    AND organization_id IN (
+      SELECT organization_id FROM public.users
+       WHERE id = auth.uid()
+    )
+  );
+
+-- Allow service_role to bypass RLS completely
+GRANT ALL ON issuers TO service_role;
+"""
+
+target = "/Volumes/eSYSTEM-D/certificate-issuer/database/migrations/007_issuer_rls_policies.sql"
+with open(target, "w") as f:
+    f.write(content)
+print(f"Written {len(content)} bytes to {target}")

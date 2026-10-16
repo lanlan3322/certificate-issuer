@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "../lib/supabase/server";
+import { getSupabaseAdmin } from "../lib/supabase/server";
 
 export interface IssuerInput { organizationId: string; name: string; slug: string; contactEmail: string; didUri?: string; }
 export interface IssuerRecord extends IssuerInput { id: string; status: "active" | "disabled" | "suspended"; createdAt: string; }
@@ -16,7 +16,7 @@ const mapRow = (row: Record<string, unknown>): IssuerRecord => ({
 
 export const IssuerService = {
   async list(organizationId: string) {
-    const supabase = await getSupabaseServerClient();
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("issuers")
       .select("*")
@@ -27,7 +27,8 @@ export const IssuerService = {
   },
 
   async create(input: IssuerInput) {
-    const supabase = await getSupabaseServerClient();
+    // Use service-role client to bypass RLS — authorization is handled at the API handler level.
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("issuers")
       .insert({
@@ -44,7 +45,7 @@ export const IssuerService = {
   },
 
   async updateStatus(id: string, status: IssuerRecord["status"], organizationId: string) {
-    const supabase = await getSupabaseServerClient();
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("issuers")
       .update({ status })
@@ -58,7 +59,7 @@ export const IssuerService = {
   },
 
   async update(id: string, organizationId: string, input: { name?: string; contactEmail?: string; didUri?: string | null }) {
-    const supabase = await getSupabaseServerClient();
+    const supabase = getSupabaseAdmin();
     const updates: Record<string, unknown> = {};
     if (input.name !== undefined) updates.name = input.name;
     if (input.contactEmail !== undefined) updates.contact_email = input.contactEmail;
@@ -77,7 +78,7 @@ export const IssuerService = {
   },
 
   async transfer(id: string, targetOrganizationId: string) {
-    const supabase = await getSupabaseServerClient();
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("issuers")
       .update({ organization_id: targetOrganizationId })
