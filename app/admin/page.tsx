@@ -454,7 +454,7 @@ export default function AdminPage() {
 
             <form onSubmit={handleCreateOrganization} className="mt-6 space-y-4 pt-6 border-t border-slate-200">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Create new organization</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Create new organization with name</label>
                 <input
                   required
                   className="w-full rounded-md border border-slate-300 px-3 py-2"
@@ -465,7 +465,8 @@ export default function AdminPage() {
                 />
               </div>
               <div>
-                <input
+                 <label className="mb-1 block text-sm font-medium text-slate-700">Create new organization with slug</label>
+               <input
                   required
                   className="w-full rounded-md border border-slate-300 px-3 py-2"
                   placeholder="e.g. my-org-name"
