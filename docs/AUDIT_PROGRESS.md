@@ -2,6 +2,40 @@
 
 Last Updated: 2026-10-20
 
+## Downloaded credential validation and RPC correction — 2026-10-20
+
+- Inspected the latest two user-directed Downloads JSON files locally; no
+  credential contents were uploaded. The newest download (modified 09:00:47 UTC)
+  passes signature, published DID authorization and Document Store checks.
+  Its signed hash
+  `0x86f94a9128faa28a04dadb895aced32a448b7c19a2903c8e0f91ccff5511bf35`
+  is issued and not revoked. The earlier 08:48:46 UTC download's signed hash
+  `0x460e24f7ae6ab9646deb8c8f88531c73af2929eda747bf12e3a50c9234d7fbd3`
+  is not issued; its rejection remains correct.
+- `https://rpc.sepolia.org` failed with SERVER_ERROR from this environment.
+  The configured private RPC and `https://ethereum-sepolia-rpc.publicnode.com`
+  both read the newest hash successfully. Updated the shared default to the
+  working public endpoint and reused it in the registration service. Explicit
+  server RPC configuration still takes precedence. Hosted environment settings
+  and server logs were not inspected, so the precise production failure is not
+  claimed as proven.
+- The exact newest downloaded certificate verified with the application verifier
+  using its updated default endpoint, without a provider override. Status errors
+  now log only operation stage, validated ethers error code, chain name and public
+  contract address, never raw provider errors or credential-bearing RPC URLs.
+- Installed TrustVC W3C SDK derivation and signature verification pass on the
+  newest document. Executed the pinned upstream W3C status selector at
+  `25007968939db4c40231fcfea8b426e33892e6d9`: it rejects this
+  `OpenAttestationDocumentStore` status on both original and derived documents.
+  The selector accepts BitstringStatusListEntry / StatusList2021Entry only.
+  The installed aggregate `@trustvc/trustvc@0.0.0` exports no verifyDocument.
+- External compatibility remains a format/profile issue, separate from the RPC
+  fix. Do not remove signed status fields or mark external verification passed.
+  A future compatible export needs an approved supported W3C status-list profile
+  or a separate genuine OpenAttestation artifact, rather than relabeling this JSON.
+- Validation: exact latest download passes with the updated default RPC; 29
+  focused regression tests pass; webpack production build and TypeScript pass.
+
 ## Application verification of signed Document Store status — 2026-10-20
 
 - The ECDSA verifier previously accepted Bitstring status lists only, producing

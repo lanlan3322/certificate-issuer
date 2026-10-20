@@ -1152,12 +1152,15 @@ async function verifyEcdsaCredential(
         network.chainId
       );
       const provider = documentStoreProvider ?? ownProvider!;
+      let stage = "network";
       try {
         if ((await provider.getNetwork()).chainId !== BigInt(network.chainId)) {
           throw new Error("Document Store provider network mismatch.");
         }
         const contract = new Contract(store.address, DOCUMENT_STORE_ABI, provider);
+        stage = "isIssued";
         const issued = Boolean(await contract.isIssued(targetHash));
+        stage = "isRevoked";
         const revoked = issued ? Boolean(await contract.isRevoked(targetHash)) : false;
         return {
           valid: issued && !revoked,
@@ -1168,8 +1171,12 @@ async function verifyEcdsaCredential(
             blockchainVerification: issued && !revoked ? "passed" : "failed",
             documentStoreAddress: store.address, documentStoreNetwork: store.network, targetHash, revoked },
         };
-      } catch {
-        console.error("[verification] Document Store status lookup failed.");
+      } catch (error) {
+        const code = isRecord(error) && typeof error.code === "string" &&
+          /^[A-Z_]{1,40}$/.test(error.code) ? error.code : "UNKNOWN_ERROR";
+        console.error("[verification] Document Store status lookup failed.", {
+          stage, code, network: store.network, address: store.address,
+        });
         return { valid: false, message: "Unable to check credential Document Store status.",
           details: { ...details, credentialStatus: "unavailable" } };
       } finally {

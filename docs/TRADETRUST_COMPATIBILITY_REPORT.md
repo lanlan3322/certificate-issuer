@@ -1,8 +1,37 @@
 # TradeTrust compatibility report
 
 Updated: 2026-10-20
-Overall: **Fresh W3C artifact blocked by tested upstream status decoder;
-historical artifacts FAIL; hosted portal execution not performed**
+Overall: **Latest dual-issuance download passes local application verification;
+external W3C status selector rejects its application-specific status;
+hosted portal execution not performed**
+
+## Exact latest download checked locally — 2026-10-20
+
+The user-directed newest Downloads certificate (09:00:47 UTC) has a valid
+ecdsa-sd-2023 signature, authorized published issuer method, registered signed
+targetHash and no on-chain revocation. Exact unmodified document verification
+passes after replacing the failing default Sepolia RPC with
+`https://ethereum-sepolia-rpc.publicnode.com`. The private configured endpoint
+also confirms its store state. The earlier 08:48:46 UTC download has an
+unregistered signed hash and correctly remains invalid. No recipient JSON was
+uploaded or modified.
+
+Installed TrustVC W3C SDK derivation and cryptographic verification pass.
+Executed the upstream status fragment pinned at
+`25007968939db4c40231fcfea8b426e33892e6d9` on both original and derived newest
+documents after crypto initialization: selection returns false and skip reports
+`DOCUMENT_STATUS / SKIPPED / Document does not have a valid credentialStatus or type.`
+That fragment accepts only `BitstringStatusListEntry` and `StatusList2021Entry`,
+not this document's `OpenAttestationDocumentStore`. Thus application verification
+does not establish external format acceptance. The user's hosted TrustVC failure
+is consistent with an unsupported profile, but its exact upload gate/version and
+aggregate output were not independently observed. Installed aggregate
+`@trustvc/trustvc@0.0.0` is empty and cannot supply that missing aggregate test.
+
+Recommended next compatibility work: choose a supported W3C status-list export
+or a genuine OpenAttestation export. Either must preserve signature/status
+integrity and be regression-tested as a separate issuance profile. Do not strip
+or rename status fields on already signed certificates.
 
 ## Application Document Store verifier update — 2026-10-20
 

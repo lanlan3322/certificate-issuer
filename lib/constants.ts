@@ -6,7 +6,7 @@ export const NETWORKS = {
   sepolia: {
     name: "sepolia",
     chainId: 11155111,
-    rpcUrl: "https://rpc.sepolia.org",
+    rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
     blockExplorer: "https://sepolia.etherscan.io",
     currency: "ETH",
   },

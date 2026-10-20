@@ -43,7 +43,7 @@ const DOCUMENT_STORE_ADDRESS = process.env.DOCUMENT_STORE_ADDRESS
   ? `0x${process.env.DOCUMENT_STORE_ADDRESS.replace(/^0x/, "")}`
   : DEFAULT_DOCUMENT_STORE_ADDRESS;
 
-const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL ?? "https://rpc.sepolia.org";
+const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL ?? NETWORKS.sepolia.rpcUrl;
 const DEFAULT_DOCUMENT_STORE_NETWORK = "sepolia";
 const ENABLE_DOC_STORE_REGISTRATION =
   process.env.ENABLE_DOCUMENT_STORE_REGISTRATION === "true" ||
