@@ -10,6 +10,7 @@ import { CertificateTemplateData, Theme } from "./types";
 interface RendererProps {
   certificate: CertificateTemplateData;
   theme?: Theme;
+  footerIssuerName?: string;
 }
 
 const DEFAULT_THEME: Theme = "light";
@@ -59,7 +60,11 @@ function resolveIssuerDisplayName(cert: CertificateTemplateData): string | undef
   return undefined;
 }
 
-export default function CertificateTemplateRenderer({ certificate, theme }: RendererProps) {
+export default function CertificateTemplateRenderer({
+  certificate,
+  theme,
+  footerIssuerName: footerIssuerNameOverride,
+}: RendererProps) {
   const templateId = resolveTemplateId(certificate.templateId);
   const t = theme ?? DEFAULT_THEME;
 
@@ -78,7 +83,8 @@ export default function CertificateTemplateRenderer({ certificate, theme }: Rend
   // ---- Footer issuer name resolution (presentation only) ----
   const rawCredential = certificate as unknown as Record<string, unknown>;
   const subjectRecord = firstRecord(rawCredential.credentialSubject);
-  const footerIssuerName = resolveIssuerDisplayName(certificate) ??
+  const footerIssuerName = footerIssuerNameOverride ??
+    resolveIssuerDisplayName(certificate) ??
     resolveTemplateIssuer(certificate.templateId);
 
   return (

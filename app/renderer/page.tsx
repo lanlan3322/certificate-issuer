@@ -4,6 +4,7 @@ import { connectToParent } from "penpal";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import CertificateTemplateRenderer from "../templates/CertificateTemplateRenderer";
+import { resolveTemplateIssuer } from "../templates/registry";
 import { buildVerificationUrl, withBasePath } from "../../lib/site";
 import { getRendererTemplates, toCertificateTemplateData } from "./certificateView";
 
@@ -88,7 +89,10 @@ export default function EmbeddedRendererPage() {
       {certificate ? (
         <div className="mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm]">
           <div className="flex-1">
-            <CertificateTemplateRenderer certificate={certificate} />
+            <CertificateTemplateRenderer
+              certificate={certificate}
+              footerIssuerName={resolveTemplateIssuer(certificate.templateId)}
+            />
           </div>
           {certificate.templateId !== "fta" && (
             <div className="mt-8 flex items-end gap-6 border-t border-gray-200 pt-5">
