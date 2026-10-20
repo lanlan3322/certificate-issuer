@@ -1,8 +1,83 @@
 # TradeTrust compatibility report
 
-Updated: 2026-10-14  
+Updated: 2026-10-20
 Overall: **Fresh W3C artifact blocked by tested upstream status decoder;
 historical artifacts FAIL; hosted portal execution not performed**
+
+## Dedicated store integration and live service smoke — 2026-10-20
+
+Local issuance now selects `DOCUMENT_STORE_ADDRESS` for unmapped templates while
+preserving mapped issuer-profile stores. The signed targetHash is saved in the
+credential row. Registration runs via Next.js `after()` without delaying/failing
+the issuance response. Submitted txHash and final registration outcome are
+recorded through the existing audit log; no schema migration was introduced.
+The existing AuditService logs write errors, so database availability is still a
+separate acceptance gate. Lifecycle-managed work has a bounded confirmation wait,
+not a durable retry worker.
+
+Using the real service and restored authorized signer, a synthetic hash
+`0xf38bd46595f00e668ccd324a3857ba9cad0a0e4ba0a9c0712f25cbfd7f52b130`
+was registered in the dedicated store by transaction
+`0xa8560857d4a47784aa9c53b587ba72d4f6cfca11ab86a5dd6fed8c23cdf5f87a`
+(block 11953781, successful receipt). Read-back confirmed `isIssued=true` and a
+repeat skipped broadcasting. This proves the configured service can register a
+hash; it does **not** prove that a fresh credential verifies in TradeTrust.
+No credential or database audit row was created by this smoke.
+
+The local environment lacks Supabase configuration, and the browser is at issuer
+login, so fresh authenticated issuance/download, real txHash persistence, viewing,
+verification and `ref.tradetrust.io` upload remain **not performed**. Hosted runtime
+configuration and application deployment are also pending. Standard legacy
+`OpenAttestationDocumentStore` status entries remain application-specific: adding
+an on-chain registration does not convert them into supported TrustVC W3C status
+entries or an OpenAttestation wrapper. Bitstring issuances without a targetHash
+remain on their existing status-list path.
+
+Production build/TypeScript and 18 focused tests pass. Full Node discovery:
+119/121 pass after restoring existing SDK patches; unrelated failures remain in
+the overview card-count test and direct execution of the OpenCerts TypeScript
+script's extensionless import. Final build used `npm run build -- --webpack`;
+secret-value scanning of its output and the tracked diff passed. No auth or DID
+implementation changes were made.
+
+## Dedicated Document Store deployed — 2026-10-20
+
+The dedicated Sepolia store is now deployed at
+`0x814D9c222D3b5A8282e0467Fa12b24C057731dD6` by transaction
+`0xbcdab3e41b4c31a943e7586f911e6b49daa115863d39164dcd8cc752da034fbb`.
+Receipt status 1, block 11953698; deployed clone code and contract name were
+verified. The requested admin has admin, issuer and revoker roles. Deployment
+used the standard factory-clone flow with an in-memory signer after simulation,
+an exact implementation bytecode comparison, and 44 passing contract tests.
+
+This supersedes the deployment-access blocker recorded below, not the historical
+viewer/status results. Subsequent local configuration and synthetic registration
+are documented above; fresh credential and portal acceptance remain pending.
+
+## Dedicated Document Store deployment gate — 2026-10-20
+
+Historical pre-deployment gate, superseded by the deployment and integration
+updates above.
+
+Deployment source was audited at `TrustVC/Document-Store`
+`51f408f45400dd6c124214ffd7f19d5bb7c6c887`. The configured Sepolia factory and
+implementations have code; factory address-computation and DS interface probes
+respond. Script construction requires both distinct salt entropies and a deployer
+address, while the npm wrapper expects Infura configuration and an interactive
+signing key rather than the requested named secrets.
+
+No deployment was broadcast: OpenClaw confirms both secret names exist but its
+supported store CLI makes secret-kind entries write-only. An approved runtime
+secret-injection/signing mechanism is required. No dedicated address or deployment
+txHash is available, so fresh certificate issuance, registration, download and
+`ref.tradetrust.io` testing have **not been performed for this change**.
+Existing DID/CORS observations and earlier status-decoder results below are
+historical evidence, not a validation of a new Document Store.
+
+Application inspection also found that registration is fire-and-forget and its
+txHash is discarded. Durable completion/transaction persistence and permission
+checks for the runtime issuer signer remain integration blockers. See
+`AUDIT_PROGRESS.md` for the deployment audit and required next gates.
 
 ## Embedded renderer opt-in — 2026-10-14
 

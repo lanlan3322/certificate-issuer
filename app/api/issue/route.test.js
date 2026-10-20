@@ -20,8 +20,13 @@ function load(mocks) {
   return instance.exports;
 }
 
-function createRoute({ statusProfile = "legacy", profileMapped = true } = {}) {
+function createRoute({ statusProfile = "legacy", profileMapped = true, registrationError = false } = {}) {
   const calls = [];
+  const pending = [];
+  const defaultStore = {
+    address: "0x814D9c222D3b5A8282e0467Fa12b24C057731dD6",
+    network: "sepolia",
+  };
   const profile = {
     id: "profile-id",
     ownerIssuerId: "issuer-id",
@@ -41,6 +46,7 @@ function createRoute({ statusProfile = "legacy", profileMapped = true } = {}) {
     secretKeyMultibase: "zSecret",
   };
   const mocks = {
+    "next/server": { NextResponse, after: (callback) => pending.push(callback) },
     "../../../lib/apiAuth": {
       authorize: async () => ({
         user: { id: "user-id", issuerId: "issuer-id", organizationId: "org-id" },
@@ -103,8 +109,15 @@ function createRoute({ statusProfile = "legacy", profileMapped = true } = {}) {
       } },
     },
     "../../../lib/document-store": {
+      getDefaultDocumentStoreConfig: () => defaultStore,
       isRegistered: () => true,
-      registerHash: async (...args) => calls.push(["register-store", ...args]),
+      registerHash: async (...args) => {
+        calls.push(["register-store", ...args]);
+        if (!registrationError) await args[3]("0xregistration");
+        return registrationError
+          ? { hashExists: false, registered: false, error: "Registration failed" }
+          : { hashExists: true, registered: true, txHash: "0xregistration" };
+      },
     },
     "../../../lib/constants": { NETWORKS: { sepolia: {}, mainnet: {} } },
     "../../../services/StatusListService": {
@@ -141,11 +154,13 @@ function createRoute({ statusProfile = "legacy", profileMapped = true } = {}) {
       ...overrides,
     }),
   }));
-  return { post, calls, profile };
+  return { post, calls, profile, defaultStore, finish: async () => {
+    for (const callback of pending) await callback();
+  } };
 }
 
 test("issue route signs and persists using the selected template issuer profile", async () => {
-  const { post, calls, profile } = createRoute();
+  const { post, calls, profile, finish } = createRoute();
   const response = await post();
   assert.equal(response.status, 200);
   const result = await response.json();
@@ -174,6 +189,9 @@ test("issue route signs and persists using the selected template issuer profile"
   assert.equal(stored.verificationMethod, profile.verificationMethod);
   assert.equal(stored.documentStoreAddress, profile.documentStoreAddress);
   assert.equal(stored.documentStoreNetwork, profile.documentStoreNetwork);
+  assert.equal(stored.documentHash, `0x${"a".repeat(64)}`);
+  assert.equal(calls.some(([name]) => name === "register-store"), false);
+  await finish();
   const registration = calls.find(([name]) => name === "register-store");
   assert.equal(registration[3].address, profile.documentStoreAddress);
   assert.equal(registration[3].network, profile.documentStoreNetwork);
@@ -198,17 +216,41 @@ test("profile-specific Bitstring status is allocated against the selected issuer
 });
 
 test("unmapped templates ignore client-supplied DID, display name, and Document Store", async () => {
-  const { post, calls } = createRoute({ profileMapped: false });
+  const { post, calls, defaultStore, finish } = createRoute({ profileMapped: false });
   const response = await post();
   assert.equal(response.status, 200);
   const payload = calls.find(([name]) => name === "payload")[1];
   assert.equal(payload.issuerDid, undefined);
   assert.equal(payload.issuerDisplayName, undefined);
-  assert.equal(payload.documentStoreAddress, undefined);
-  assert.equal(payload.documentStoreNetwork, undefined);
+  assert.equal(payload.documentStoreAddress, defaultStore.address);
+  assert.equal(payload.documentStoreNetwork, defaultStore.network);
   assert.equal(calls.some(([name]) => name === "profile-key"), false);
   assert.equal(calls.find(([name]) => name === "sign")[3], undefined);
-  assert.equal(calls.find(([name]) => name === "register-store")[3], undefined);
+  await finish();
+  assert.deepEqual(calls.find(([name]) => name === "register-store")[3], defaultStore);
+});
+
+test("post-response registration persists txHash and selected store in the existing audit log", async () => {
+  const { post, calls, finish, profile } = createRoute();
+  assert.equal((await post()).status, 200);
+  await finish();
+  const submitted = calls.find(([name, event]) => name === "audit" && event.action === "credential.registration_submitted")[1];
+  assert.equal(submitted.metadata.txHash, "0xregistration");
+  const event = calls.find(([name, event]) => name === "audit" && event.action === "credential.registered")[1];
+  assert.equal(event.entityId, "credential-row-id");
+  assert.equal(event.metadata.txHash, "0xregistration");
+  assert.equal(event.metadata.targetHash, `0x${"a".repeat(64)}`);
+  assert.equal(event.metadata.documentStoreAddress, profile.documentStoreAddress);
+});
+
+test("failed registration does not fail issuance and is recorded explicitly", async () => {
+  const { post, calls, finish } = createRoute({ registrationError: true });
+  const response = await post();
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).signed, true);
+  await finish();
+  const event = calls.find(([name, event]) => name === "audit" && event.action === "credential.registration_failed")[1];
+  assert.equal(event.metadata.error, "Registration failed");
 });
 
 test("issuer-profile issuance cannot skip persistence of its identity snapshots", async () => {

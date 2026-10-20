@@ -236,7 +236,12 @@ test("issuance route preserves default status and requires persisted DID-only op
       DuplicateCredentialError: class extends Error {},
       CredentialService: { create: async () => { calls.persist++; return { id: "stored" }; } },
     },
-    "../../../lib/document-store": { isRegistered: () => false },
+    "../../../lib/document-store": {
+      isRegistered: () => false,
+      getDefaultDocumentStoreConfig: () => ({
+        address: "0x814D9c222D3b5A8282e0467Fa12b24C057731dD6", network: "sepolia",
+      }),
+    },
     "../../../services/StatusListService": {
       requireStatusListConfiguration: () => {
         calls.configuration++;

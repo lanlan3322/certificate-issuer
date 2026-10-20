@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { authorize, errorResponse } from "../../../lib/apiAuth";
 import {
   buildVCPayload,
@@ -10,7 +10,7 @@ import {
 import { resolveTemplateId } from "../../templates/registry";
 import { AuditService } from "../../../services/AuditService";
 import { CredentialService, DuplicateCredentialError } from "../../../services/CredentialService";
-import { registerHash, isRegistered } from "../../../lib/document-store";
+import { getDefaultDocumentStoreConfig, registerHash, isRegistered } from "../../../lib/document-store";
 import type { CertificateData } from "../../../lib/trustvc";
 import { StatusListService, requireStatusListConfiguration } from "../../../services/StatusListService";
 import { IssuerProfileService } from "../../../services/IssuerProfileService";
@@ -19,6 +19,7 @@ import { NETWORKS } from "../../../lib/constants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 const MAX_FIELD = 512;
 
@@ -204,13 +205,17 @@ export async function POST(request: Request) {
       );
     }
 
+    const documentStore = issuerProfile ? {
+      address: issuerProfile.documentStoreAddress!,
+      network: issuerProfile.documentStoreNetwork!,
+    } : getDefaultDocumentStoreConfig();
     data = {
       ...data,
       issuerDid: issuerProfile?.did,
       issuerDisplayName: issuerProfile?.displayName,
       issuerName: issuerProfile?.displayName ?? data.issuerName,
-      documentStoreAddress: issuerProfile?.documentStoreAddress ?? undefined,
-      documentStoreNetwork: issuerProfile?.documentStoreNetwork ?? undefined,
+      documentStoreAddress: documentStore.address,
+      documentStoreNetwork: documentStore.network,
     };
 
     const payload = buildVCPayload(data, body.certificateFormat);
@@ -239,6 +244,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const targetHash = extractTargetHash(result.credential);
     let stored: { id: string } | null = null;
     if (body.persist !== false) {
       try {
@@ -247,13 +253,14 @@ export async function POST(request: Request) {
           templateId: template?.id,
           issuerProfileId: issuerProfile?.id,
           issuerDid: issuerProfile?.did,
-          documentStoreAddress: issuerProfile?.documentStoreAddress,
-          documentStoreNetwork: issuerProfile?.documentStoreNetwork,
+          documentStoreAddress: documentStore.address,
+          documentStoreNetwork: documentStore.network,
           verificationMethod: issuerProfile?.verificationMethod,
           externalId: data.id,
           recipientName: data.recipientName,
           recipientEmail: data.recipientEmail,
           credential: result.credential,
+          documentHash: targetHash ?? undefined,
           issuingMethods: data.issuingMethods,
           validFrom: data.validFrom,
           validUntil: data.validUntil,
@@ -276,24 +283,51 @@ export async function POST(request: Request) {
       }
     }
 
-    // ─── On-chain document-store registration (non-blocking) ──────────────
-    if (isRegistered()) {
-      const targetHash = extractTargetHash(result.credential);
-      if (targetHash) {
-        registerHash(targetHash, {
-          credentialId: data.id,
-          externalId: data.id,
-          recipientEmail: data.recipientEmail,
-          issuerId: user.issuerId,
-        }, issuerProfile
-          ? {
-              address: issuerProfile.documentStoreAddress!,
-              network: issuerProfile.documentStoreNetwork!,
-            }
-          : undefined).catch((err) => {
-          console.error("[issue/registration] background registration failed:", err);
-        });
-      }
+    if (isRegistered() && targetHash) {
+      const entityId = stored?.id;
+      after(async () => {
+        try {
+          const registration = await registerHash(targetHash, {
+            credentialId: data.id,
+            externalId: data.id,
+            recipientEmail: data.recipientEmail,
+            issuerId: user.issuerId,
+          }, documentStore, async (txHash) => {
+            await AuditService.record({
+              organizationId: user.organizationId,
+              issuerId: user.issuerId,
+              userId: user.id,
+              action: "credential.registration_submitted",
+              entityType: "credential",
+              entityId,
+              metadata: {
+                externalId: data.id,
+                targetHash,
+                documentStoreAddress: documentStore.address,
+                documentStoreNetwork: documentStore.network,
+                txHash,
+              },
+            });
+          });
+          await AuditService.record({
+            organizationId: user.organizationId,
+            issuerId: user.issuerId,
+            userId: user.id,
+            action: registration.error ? "credential.registration_failed" : "credential.registered",
+            entityType: "credential",
+            entityId,
+            metadata: {
+              externalId: data.id,
+              targetHash,
+              documentStoreAddress: documentStore.address,
+              documentStoreNetwork: documentStore.network,
+              ...registration,
+            },
+          });
+        } catch {
+          console.error("[issue/registration] post-response registration failed.");
+        }
+      });
     }
 
     return NextResponse.json({ signed: true, credential: result.credential, stored });

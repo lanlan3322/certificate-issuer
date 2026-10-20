@@ -1,6 +1,136 @@
 # AUDIT_PROGRESS.md
 
-Last Updated: 2026-10-14
+Last Updated: 2026-10-20
+
+## Dedicated Document Store integration — 2026-10-20
+
+- Local `DOCUMENT_STORE_ADDRESS` now selects the dedicated Sepolia store and
+  `ENABLE_DOCUMENT_STORE_REGISTRATION=true` enables post-response registration.
+  Deployments must set these server environment values separately; this change
+  does not update hosted environment settings.
+- Unmapped templates use the service's default store in both the signed payload
+  and saved credential snapshot. Mapped issuer profiles retain their own store
+  address/network. Historical signed certificates and snapshots are unchanged.
+  The no-environment fallback now reuses the existing shared constant, replacing
+  a malformed duplicated service address.
+- Issuance now persists the signed `targetHash` in `credentials.document_hash`.
+  Next.js `after()` replaces the untracked promise, with a 120-second route
+  duration and 60-second confirmation wait. Registration failures do not turn a
+  successfully issued credential into an API failure.
+- The existing `audit_logs` records `credential.registration_submitted` with
+  txHash immediately after broadcast, followed by `credential.registered` or
+  `credential.registration_failed`. Metadata includes the external ID, targetHash,
+  store address/network and result. No migration is needed. These writes use the
+  existing request-scoped AuditService/RLS path and its explicit error logging;
+  they are not an atomic transaction with the blockchain. Hosted database
+  persistence has not yet been exercised.
+- `DOCUMENT_STORE_PRIVATE_KEY` remains the preferred runtime signer. On Sepolia,
+  `SEPOLIA_DEPLOYER_PRIVATE_KEY` is also accepted; it is never used as a fallback
+  on other networks. The restored signer matches the requested admin, is funded,
+  and has issuer/revoker roles. A dedicated least-privilege runtime signer can be
+  configured later after role grants.
+- Live service smoke: synthetic targetHash
+  `0xf38bd46595f00e668ccd324a3857ba9cad0a0e4ba0a9c0712f25cbfd7f52b130`
+  registered by transaction
+  `0xa8560857d4a47784aa9c53b587ba72d4f6cfca11ab86a5dd6fed8c23cdf5f87a`,
+  block 11953781. Receipt status 1; subsequent `isIssued` returned true, and a
+  repeated registration skipped broadcasting. Estimated fee was checked below
+  0.001 Sepolia ETH. This was a service-only smoke, not an issued certificate,
+  and it did not write a credential or database audit event.
+- Validation: 18 focused issuance/registration/revocation/status-list tests pass; production
+  build and TypeScript pass. After restoring the existing dependency patches,
+  full `node --test` discovery reports 119/121 passing. Remaining unrelated
+  failures: `app/overview.test.js` expects three action cards, and
+  `scripts/test-opencerts.ts` has an extensionless import unsupported by direct
+  Node execution. The status-list issuance mock was updated for the new helper.
+- Remaining gates: local Supabase configuration is absent and the browser has no
+  signed-in issuer session. Authenticated issuance, actual audit-row read-back,
+  fresh download/view/verify and TradeTrust portal acceptance remain unperformed.
+  `after()` is lifecycle-managed but not a durable retry queue: host termination,
+  route timeouts or audit write failures still require reconciliation using the
+  saved targetHash and submitted transaction metadata. No auth or DID code changed.
+- Secret-safety check: tracked diffs contained no configured secret values.
+  Turbopack had cached local environment contents in three generated binary files;
+  the identified versioned cache directory was removed with user approval.
+  Final verification used `npm run build -- --webpack`; build/TypeScript and all
+  18 focused tests passed. The final tracked diff and webpack output scan found
+  no configured secret values. Future builds with local secrets must repeat this
+  check or disable filesystem build caching.
+
+## Dedicated Document Store deployed — 2026-10-20
+
+- Sepolia contract: `0x814D9c222D3b5A8282e0467Fa12b24C057731dD6`.
+- Transaction:
+  `0xbcdab3e41b4c31a943e7586f911e6b49daa115863d39164dcd8cc752da034fbb`.
+  Receipt status 1, block 11953698, gas used 850749; three confirmations
+  observed during verification.
+- Name: `Verifiable Document Store`. Requested admin
+  `0x6A3473F78a727cbaC41c438bDB08F8189F00dBc2` has DEFAULT_ADMIN_ROLE,
+  ISSUER_ROLE and REVOKER_ROLE, all independently read from the deployed contract.
+- Method: factory `deployCreate2Clone(address,bytes)`, the same atomic clone and
+  initialization flow as upstream `deploy:ds`. Broadcast used an in-memory
+  ethers signer, not the interactive npm wrapper or private-key CLI arguments.
+  Secrets were loaded from the local environment file without printing them.
+- Audited implementation runtime bytecode exactly matched the compiled
+  `DocumentStoreInitializable` artifact. The new contract has 45 bytes of clone
+  code referencing that implementation. All 44 upstream Document Store tests
+  passed before broadcasting.
+- The simulated address differed from the mined clone address. The final address
+  above was obtained from the successful receipt's factory/initialization logs,
+  then verified through code, name and role reads. No second deployment was sent.
+- Prior secret-access blocker below is resolved for this deployment by the user's
+  locally supplied environment. The integration update above records subsequent
+  local configuration/service validation; hosted acceptance remains pending.
+
+## Dedicated Document Store deployment audit — 2026-10-20
+
+Historical pre-deployment findings; deployment and local integration updates above
+supersede the access and deployment blockers recorded in this section.
+
+- The supplied `/private/tmp/document-store` contained empty source, Git and
+  broadcast directories. No original failing command or receipt was available.
+  Audited a separate checkout of `TrustVC/Document-Store` at
+  `51f408f45400dd6c124214ffd7f19d5bb7c6c887`.
+- `DeployBase.s.sol` calls both salt getters in its constructor. Consequently,
+  `SALT_DOCUMENT_STORE`, `SALT_TRANSFERABLE_DOCUMENT_STORE` and
+  `DEPLOYER_ADDRESS` are required even for ordinary and upgradeable store
+  deployment. Missing/zero entropy, missing deployer or identical salts prevent
+  script construction before broadcasting. Without the original error output,
+  these are confirmed prerequisites, not a proven historical failure diagnosis.
+- `foundry.toml` resolves Sepolia through `API_KEY_INFURA`.
+  `bin/deploy.sh` sources `.env`, uses `DEPLOYER_ADDRESS`, and prompts with
+  `-i 1` unless Ledger is configured. It does not automatically consume
+  `SEPOLIA_RPC_URL` or `SEPOLIA_DEPLOYER_PRIVATE_KEY`.
+- Read-only Sepolia checks (chain ID 11155111) found bytecode at factory
+  `0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed` (11,838 bytes),
+  DS implementation `0xdF6514554ffE0ccD1BeA3470e9F06B377101A3da`
+  (7,429 bytes), and TDS implementation
+  `0xF8b2A0C86A945C618a771917Ea8B967464f461f5` (11,235 bytes).
+  Factory `computeCreate3Address` and DS `name()`/ERC-165 calls succeeded.
+  Bytecode presence/API probes do not prove byte-for-byte implementation identity.
+- Recommended ordinary flow: `deploy:ds` clones the existing DS implementation
+  through the factory and initializes the requested name/admin atomically.
+  `deploy:ds:upgradeable` instead deploys a UUPS implementation and ERC1967 proxy;
+  it adds upgrade authority and is not required for the stated objective.
+  If factory identity cannot be established, a direct constructor deployment
+  avoids the shared script constructor/factory but must first be simulated.
+- Requested admin: `0x6A3473F78a727cbaC41c438bDB08F8189F00dBc2`.
+  The contract uses DEFAULT_ADMIN_ROLE, ISSUER_ROLE and REVOKER_ROLE, not
+  Ownable. Initialization grants all three to the admin. A distinct runtime
+  signer needs explicit issuer/revoker grants before app registration can work.
+- OpenClaw metadata confirms both requested names exist as `secret` entries.
+  Its supported CLI states secret-kind values are write-only; no supported
+  signing/runtime injection interface was supplied. No secret values were
+  extracted and no deployment or role-grant transaction was sent.
+- Integration is blocked on deployment. Current issuance invokes `registerHash`
+  without awaiting a durable worker and discards its transaction hash.
+  This can lose work on serverless shutdown; success/failure and txHash need
+  durable recording before this meets the requested registration contract.
+  Authentication, DID handling and application integration were not changed.
+- No new contract address, transaction hash, fresh issued certificate or
+  TradeTrust acceptance result is claimed. Next gate: approved OpenClaw
+  execution/injection mechanism, deployment simulation and cost check, broadcast,
+  receipt/code/admin verification, then scoped integration and end-to-end tests.
 
 ## Step 26: certificate QR codes open the verifiable.sg verifier
 
