@@ -219,6 +219,18 @@ async function loadTrustVCContext(): Promise<TrustVCContextModule> {
   return loadCommonJSModule<TrustVCContextModule>("@trustvc/w3c-context");
 }
 
+export async function getTrustVCContextUrls(): Promise<ReadonlySet<string>> {
+  const contextModule = await loadTrustVCContext();
+  const urls = new Set<string>();
+  for (const value of Object.values(contextModule)) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    for (const key of Object.keys(value)) {
+      if (key.startsWith("https://")) urls.add(key);
+    }
+  }
+  return urls;
+}
+
 async function signCredentialWithEcdsaSd2023(
   credential: Record<string, unknown>,
   keyPair: PrivateKeyPair,

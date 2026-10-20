@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   createTrustVCDocumentLoader,
+  getTrustVCContextUrls,
   verifyCredential,
   type VerificationResult,
 } from "../../../lib/trustvc";
@@ -57,14 +58,7 @@ async function readJsonBody(request: Request): Promise<unknown> {
 
 async function createVerificationDocumentLoader() {
   const baseLoader = await createTrustVCDocumentLoader();
-  const contextModule = await import("@trustvc/w3c-context");
-  const localContextUrls = new Set<string>();
-  for (const value of Object.values(contextModule)) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
-    for (const key of Object.keys(value)) {
-      if (key.startsWith("https://")) localContextUrls.add(key);
-    }
-  }
+  const localContextUrls = await getTrustVCContextUrls();
   const localDidUrls = new Set([
     TRUSTVC_CONFIG.didUrl,
     process.env.DID_KEY_ID,

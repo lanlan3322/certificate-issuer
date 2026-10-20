@@ -251,6 +251,7 @@ test("public verification is rate-limited and rejects oversized payloads before 
     },
     "../../../lib/trustvc": {
       createTrustVCDocumentLoader: async () => async () => ({}),
+      getTrustVCContextUrls: async () => new Set(),
       verifyCredential: async () => ({ valid: false, message: "Invalid" }),
     },
     "../../../lib/safe-document-loader": { createSafeDocumentLoader: () => async () => ({}) },
