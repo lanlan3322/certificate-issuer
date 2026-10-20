@@ -3,6 +3,7 @@ import { authorize, errorResponse } from "../../../lib/apiAuth";
 import {
   buildVCPayload,
   getDIDKeyPairFromEnv,
+  getDIDKeyPairFromIssuerProfile,
   signDocumentWithDID,
   withEmbeddedRenderMethod,
 } from "../../../lib/trustvc";
@@ -12,6 +13,9 @@ import { CredentialService, DuplicateCredentialError } from "../../../services/C
 import { registerHash, isRegistered } from "../../../lib/document-store";
 import type { CertificateData } from "../../../lib/trustvc";
 import { StatusListService, requireStatusListConfiguration } from "../../../services/StatusListService";
+import { IssuerProfileService } from "../../../services/IssuerProfileService";
+import { TemplateService } from "../../../services/TemplateService";
+import { NETWORKS } from "../../../lib/constants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -98,7 +102,7 @@ export async function POST(request: Request) {
 
     const validated = validate(body.data);
     if (!validated.ok) return NextResponse.json({ error: validated.error }, { status: 400 });
-    const data = validated.value;
+    let data = validated.value;
     if (body.statusProfile !== undefined && body.statusProfile !== "legacy" && body.statusProfile !== "bitstring") {
       return NextResponse.json({ error: "Unsupported status profile." }, { status: 400 });
     }
@@ -114,7 +118,6 @@ export async function POST(request: Request) {
           { error: "Bitstring status requires persisted DID-only issuance." }, { status: 400 }
         );
       }
-      requireStatusListConfiguration();
     }
 
     if ((body.type ?? "did") !== "did") {
@@ -124,7 +127,72 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!getDIDKeyPairFromEnv()) {
+    const templateReference = body.templateId?.trim() || data.templateId?.trim();
+    const template = templateReference
+      ? await TemplateService.getForIssuance(templateReference, user.issuerId)
+      : null;
+    const isUuidTemplateReference = Boolean(templateReference &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(templateReference));
+    if (isUuidTemplateReference && !template) {
+      return NextResponse.json({ error: "Template not found for this issuer." }, { status: 404 });
+    }
+    if (template && !template.isActive) {
+      return NextResponse.json({ error: "Template is inactive and cannot issue credentials." }, { status: 409 });
+    }
+
+    const issuerProfile = template?.issuerProfileId
+      ? await IssuerProfileService.get(template.issuerProfileId, user.issuerId)
+      : null;
+    if (template?.issuerProfileId && (!issuerProfile || !issuerProfile.active)) {
+      return NextResponse.json(
+        { error: "Template issuer profile is missing or inactive." },
+        { status: 409 }
+      );
+    }
+    if (issuerProfile && body.persist === false) {
+      return NextResponse.json(
+        { error: "Issuer-profile credentials must be persisted to preserve issuance and revocation records." },
+        { status: 400 }
+      );
+    }
+
+    if (issuerProfile &&
+        (!issuerProfile.documentStoreAddress ||
+          !/^0x[0-9a-f]{40}$/i.test(issuerProfile.documentStoreAddress) ||
+          !issuerProfile.documentStoreNetwork ||
+          !Object.hasOwn(NETWORKS, issuerProfile.documentStoreNetwork))) {
+      return NextResponse.json(
+        { error: "Issuer profile requires a valid Document Store address and supported network before issuance." },
+        { status: 409 }
+      );
+    }
+
+    const statusListIssuer = issuerProfile ? {
+      id: issuerProfile.id,
+      did: issuerProfile.did,
+      verificationMethod: issuerProfile.verificationMethod,
+      keyReference: issuerProfile.keyReference,
+    } : undefined;
+    if (body.statusProfile === "bitstring") requireStatusListConfiguration(statusListIssuer);
+
+    let profileKeyPair = null;
+    if (issuerProfile) {
+      try {
+        profileKeyPair = getDIDKeyPairFromIssuerProfile(issuerProfile);
+      } catch (error) {
+        return errorResponse(error, "Issuer profile signing key configuration is invalid.", 503);
+      }
+    }
+    if (issuerProfile && !profileKeyPair) {
+      return NextResponse.json(
+        {
+          error: `Signing key for issuer profile is not configured. Set ${issuerProfile.keyReference} and ${issuerProfile.keyReference}_PUBLIC_KEY_MULTIBASE in the server secret store.`,
+        },
+        { status: 503 }
+      );
+    }
+    const legacyKeyPair = issuerProfile ? null : getDIDKeyPairFromEnv();
+    if (!issuerProfile && !legacyKeyPair) {
       return NextResponse.json(
         {
           signed: false,
@@ -136,14 +204,34 @@ export async function POST(request: Request) {
       );
     }
 
+    data = {
+      ...data,
+      issuerDid: issuerProfile?.did,
+      issuerDisplayName: issuerProfile?.displayName,
+      issuerName: issuerProfile?.displayName ?? data.issuerName,
+      documentStoreAddress: issuerProfile?.documentStoreAddress ?? undefined,
+      documentStoreNetwork: issuerProfile?.documentStoreNetwork ?? undefined,
+    };
+
     const payload = buildVCPayload(data, body.certificateFormat);
     const statusCredential: Record<string, unknown> = body.statusProfile === "bitstring"
-      ? { ...payload, credentialStatus: await StatusListService.reserve(user.issuerId, data.id) }
+      ? { ...payload, credentialStatus: await StatusListService.reserve(user.issuerId, data.id, statusListIssuer) }
       : payload;
     const credential = body.renderMethod === "embedded"
       ? withEmbeddedRenderMethod(statusCredential, resolveTemplateId(data.templateId ?? body.templateId))
       : statusCredential;
-    const result = await signDocumentWithDID(credential);
+    const result = await signDocumentWithDID(
+      credential,
+      undefined,
+      profileKeyPair
+        ? {
+            did: profileKeyPair.controller,
+            verificationMethod: profileKeyPair.id,
+            publicKeyMultibase: profileKeyPair.publicKeyMultibase,
+            secretKeyMultibase: profileKeyPair.secretKeyMultibase,
+          }
+        : undefined
+    );
     if (!result.signed) {
       return NextResponse.json(
         { signed: false, credential: result.credential, error: result.error ?? "Signing failed." },
@@ -156,7 +244,12 @@ export async function POST(request: Request) {
       try {
         const record = await CredentialService.create({
           issuerId: user.issuerId,
-          templateId: body.templateId,
+          templateId: template?.id,
+          issuerProfileId: issuerProfile?.id,
+          issuerDid: issuerProfile?.did,
+          documentStoreAddress: issuerProfile?.documentStoreAddress,
+          documentStoreNetwork: issuerProfile?.documentStoreNetwork,
+          verificationMethod: issuerProfile?.verificationMethod,
           externalId: data.id,
           recipientName: data.recipientName,
           recipientEmail: data.recipientEmail,
@@ -192,7 +285,12 @@ export async function POST(request: Request) {
           externalId: data.id,
           recipientEmail: data.recipientEmail,
           issuerId: user.issuerId,
-        }).catch((err) => {
+        }, issuerProfile
+          ? {
+              address: issuerProfile.documentStoreAddress!,
+              network: issuerProfile.documentStoreNetwork!,
+            }
+          : undefined).catch((err) => {
           console.error("[issue/registration] background registration failed:", err);
         });
       }

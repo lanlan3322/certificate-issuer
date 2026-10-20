@@ -1,4 +1,5 @@
 import { getSupabaseAdmin, getSupabaseServerClient } from "../lib/supabase/server";
+import { revokeHash } from "../lib/document-store";
 
 export type RevocationAction = "revoke" | "suspend" | "reinstate";
 
@@ -14,6 +15,7 @@ export interface RevocationRecord {
 
 export class RevocationStateError extends Error {}
 export class CredentialNotFoundError extends Error {}
+export class DocumentStoreRevocationError extends Error {}
 
 const STATUS_FOR_ACTION: Record<RevocationAction, string> = {
   revoke: "revoked",
@@ -63,10 +65,14 @@ export const RevocationService = {
 
     let lookup: { data: any; error: Error | null };
     if (isUuid) {
-      lookup = await supabase.from("credentials").select("id, status, external_id, credential")
+      lookup = await supabase.from("credentials").select(
+        "id, status, external_id, credential, issuer_profile_id, document_store_address, document_store_network"
+      )
         .eq("issuer_id", input.issuerId).eq("id", input.credentialRef).maybeSingle();
     } else {
-      lookup = await supabase.from("credentials").select("id, status, external_id, credential")
+      lookup = await supabase.from("credentials").select(
+        "id, status, external_id, credential, issuer_profile_id, document_store_address, document_store_network"
+      )
         .eq("issuer_id", input.issuerId).eq("external_id", input.credentialRef).maybeSingle();
     }
 
@@ -90,12 +96,16 @@ export const RevocationService = {
     const statuses = document?.credentialStatus;
     if (Array.isArray(statuses) && statuses.some((entry: { type?: string }) =>
       entry?.type === "BitstringStatusListEntry")) {
+      let transactionHash = input.transactionHash ?? null;
+      if (input.action === "revoke" && credential.issuer_profile_id) {
+        transactionHash = await revokeProfileDocumentStore(credential, document);
+      }
       const { data, error } = await getSupabaseAdmin().rpc("apply_bitstring_revocation", {
         p_credential: credential.id,
         p_issuer: input.issuerId,
         p_action: input.action,
         p_reason: input.reason,
-        p_transaction: input.transactionHash ?? null,
+        p_transaction: transactionHash,
       });
       if (error?.message === "Invalid credential status transition") {
         throw new RevocationStateError(error.message);
@@ -109,12 +119,17 @@ export const RevocationService = {
       };
     }
 
+    let transactionHash = input.transactionHash ?? null;
+    if (input.action === "revoke" && credential.issuer_profile_id) {
+      transactionHash = await revokeProfileDocumentStore(credential, document);
+    }
+
     const insertResult = await supabase.from("revocations").insert({
       credential_id: credential.id,
       issuer_id: input.issuerId,
       action: input.action,
       reason: input.reason,
-      transaction_hash: input.transactionHash ?? null,
+      transaction_hash: transactionHash,
     }).select().single();
 
     if (insertResult.error) throw insertResult.error;
@@ -122,9 +137,67 @@ export const RevocationService = {
 
     const updateResult = await supabase.from("credentials")
       .update({ status: nextStatus })
-      .eq("id", credential.id);
+      .eq("id", credential.id)
+      .eq("issuer_id", input.issuerId);
     if (updateResult.error) throw updateResult.error;
 
     return { ...log, externalId: credential.external_id, credentialStatus: nextStatus };
   },
 };
+
+async function revokeProfileDocumentStore(
+  credential: Record<string, unknown>,
+  document: Record<string, unknown>
+): Promise<string | null> {
+  if (!credential.document_store_address || !credential.document_store_network) {
+    throw new DocumentStoreRevocationError(
+      "Credential is missing its issuance-time Document Store configuration."
+    );
+  }
+  try {
+    const result = await revokeHash(
+      extractCredentialTargetHash(document),
+      {
+        address: String(credential.document_store_address),
+        network: String(credential.document_store_network),
+      }
+    );
+    return result.txHash ?? null;
+  } catch (error) {
+    console.error("[revocation] profile Document Store revocation failed", error);
+    throw new DocumentStoreRevocationError(
+      error instanceof Error ? error.message : "Document Store revocation failed."
+    );
+  }
+}
+
+function extractCredentialTargetHash(credential: Record<string, unknown>): string {
+  const signature = credential.signature;
+  if (signature && typeof signature === "object") {
+    const targetHash = (signature as Record<string, unknown>).targetHash;
+    if (typeof targetHash === "string" && /^0x[\da-f]{64}$/i.test(targetHash)) {
+      return targetHash;
+    }
+  }
+
+  const statuses = credential.credentialStatus;
+  if (Array.isArray(statuses)) {
+    for (const status of statuses) {
+      if (status && typeof status === "object") {
+        const targetHash = (status as Record<string, unknown>).targetHash;
+        if (typeof targetHash === "string" && /^0x[\da-f]{64}$/i.test(targetHash)) {
+          return targetHash;
+        }
+      }
+    }
+  }
+  if (statuses && typeof statuses === "object") {
+    const targetHash = (statuses as Record<string, unknown>).targetHash;
+    if (typeof targetHash === "string" && /^0x[\da-f]{64}$/i.test(targetHash)) {
+      return targetHash;
+    }
+  }
+  throw new DocumentStoreRevocationError(
+    "Credential does not contain a registered Document Store hash."
+  );
+}

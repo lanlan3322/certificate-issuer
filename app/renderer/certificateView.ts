@@ -32,7 +32,8 @@ export function getRendererTemplates(document: unknown) {
 export function toCertificateTemplateData(document: unknown, origin: string): CertificateTemplateData {
   const doc = asObject(document);
   const subject = firstObject(doc.credentialSubject);
-  const issuer = asObject(doc.issuer);
+  const issuerValue = doc.issuer;
+  const issuer = asObject(issuerValue);
   const text = (value: unknown, fallback = "") =>
     typeof value === "string" || typeof value === "number" ? String(value) : fallback;
 
@@ -42,7 +43,11 @@ export function toCertificateTemplateData(document: unknown, origin: string): Ce
     recipientName: text(subject.name, "Certificate recipient"),
     recipientEmail: text(subject.email),
     certificateType: text(subject.certificateType ?? subject.type, "Certificate"),
-    issuerName: text(issuer.name ?? issuer.id, "Certificate Issuer"),
+    issuerName: text(
+      subject.issuerDisplayName ?? issuer.name ?? issuer.id ??
+        (typeof issuerValue === "string" ? issuerValue : undefined),
+      "Certificate Issuer"
+    ),
     issueDate: text(doc.issuanceDate ?? doc.validFrom),
     description: text(subject.description),
     validFrom: text(doc.validFrom ?? doc.issuanceDate),

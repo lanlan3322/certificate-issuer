@@ -110,7 +110,9 @@ No rewrites or frontend URL changes are needed.
 8. `app/api/verify/route.ts`
 
 `app/auth/callback/route.ts` and `app/auth/recovery/route.ts` remain unchanged.
-Public static `/.well-known/did.json` and `/.well-known/jwks.json` remain unchanged.
+The legacy public DID document remains static. Non-legacy `did:web` hostnames
+are rewritten to the public DID API, which resolves issuer-profile DID
+documents by host. The public JWKS path remains unchanged.
 Issue/verify endpoints, certificate viewing pages/templates and the signed
 status-list handler remain separate and unchanged. Login/reset handlers retain
 their rate limits, audit logging, session handling and reset-link origin logic.

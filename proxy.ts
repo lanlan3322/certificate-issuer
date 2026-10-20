@@ -14,6 +14,23 @@ const protectedApiPrefixes = [
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  if (pathname === "/.well-known/did.json") {
+    const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0].trim();
+    const host = forwardedHost || request.headers.get("host") || request.nextUrl.host;
+    let hostname: string;
+    try {
+      hostname = new URL(`https://${host}`).hostname.toLowerCase();
+    } catch {
+      return NextResponse.json({ error: "Invalid DID request hostname." }, {
+        status: 400, headers: { "Cache-Control": "no-store" },
+      });
+    }
+    if (hostname !== "verifiable.sg") {
+      const response = NextResponse.rewrite(new URL("/api/.well-known/did", request.url));
+      response.headers.set("Access-Control-Allow-Origin", "*");
+      return response;
+    }
+  }
   // Browser verifiers (TradeTrust, OpenCerts) fetch these cross-origin at their
   // signed URLs, so they must not redirect and must allow any origin.
   if (pathname.startsWith("/api/status-list/") || pathname.startsWith("/api/.well-known/")) {

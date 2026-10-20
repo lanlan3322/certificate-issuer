@@ -2,6 +2,7 @@ import { dispatchApiRequest } from "../../../lib/api-router";
 import * as credentials from "../credentials/handler";
 import * as issuers from "../issuers/handler";
 import * as issuersId from "../issuers/[id]/handler";
+import * as issuerProfiles from "../issuer-profiles/handler";
 import * as templates from "../templates/handler";
 import * as audit from "../audit/handler";
 import * as revocation from "../revocation/handler";
@@ -16,6 +17,7 @@ const routes: Record<string, any> = {
   credentials,
   issuers,
   "issuers/[id]": issuersId,
+  "issuer-profiles": issuerProfiles,
   templates,
   audit,
   revocation,

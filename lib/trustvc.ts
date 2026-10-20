@@ -102,7 +102,10 @@ type EcdsaSigningResult = {
 };
 
 type EcdsaMultikeyModule = {
-  from(keyPair: Record<string, unknown>): Promise<{ signer(): unknown }>;
+  from(keyPair: Record<string, unknown>): Promise<{
+    signer(): unknown;
+    export(options: { publicKey: true }): Promise<{ publicKeyMultibase: string }>;
+  }>;
 };
 
 type EcdsaSd2023CryptosuiteModule = {
@@ -177,6 +180,7 @@ const CERTIFICATE_SUBJECT_CONTEXT = {
   certificateId: "https://schemas.tradetrust.io/credentials#certificateId",
   certificateType: "https://schemas.tradetrust.io/credentials#certificateType",
   templateId: "https://schemas.tradetrust.io/credentials#templateId",
+  issuerDisplayName: "https://verifiable.sg/credentials#issuerDisplayName",
 } as const;
 
 const LOCAL_DID_VERIFICATION_METHOD_ID = `${TRUSTVC_CONFIG.didUrl}#key-1`;
@@ -262,7 +266,19 @@ async function signCredentialWithEcdsaSd2023(
       signingCredential,
       options?.mandatoryPointers ?? []
     );
-    const keyPairInstance = await ecdsaMultikey.from({ ...keyPair });
+    let keyPairInstance: Awaited<ReturnType<EcdsaMultikeyModule["from"]>>;
+    try {
+      keyPairInstance = await ecdsaMultikey.from({ ...keyPair });
+    } catch (error) {
+      if (error instanceof Error && error.message === "Invalid keyData") {
+        throw new Error("DID private key does not match its configured public key.");
+      }
+      throw error;
+    }
+    const derivedPublicKey = await keyPairInstance.export({ publicKey: true });
+    if (derivedPublicKey.publicKeyMultibase !== keyPair.publicKeyMultibase) {
+      throw new Error("DID private key does not match its configured public key.");
+    }
     const cryptosuite = ecdsaSd2023Cryptosuite.createSignCryptosuite({
       mandatoryPointers,
     });
@@ -317,6 +333,10 @@ export interface CertificateData {
   certificateType: string;
   templateId?: string;
   issuerName: string;
+  issuerDid?: string;
+  issuerDisplayName?: string;
+  documentStoreAddress?: string;
+  documentStoreNetwork?: string;
   issueDate: string;
   description: string;
   validFrom: string;
@@ -359,6 +379,7 @@ export function toOpenCertsCredentialSubject(
   if (data.certificateType) result[OPEN_CERTS_SUBJECT_FIELD_MAP.certificateType] = data.certificateType;
   if (data.templateId) result[OPEN_CERTS_SUBJECT_FIELD_MAP.templateId] = data.templateId;
   if (data.description) result[OPEN_CERTS_SUBJECT_FIELD_MAP.description] = data.description;
+  if (data.issuerDisplayName) result.issuerDisplayName = data.issuerDisplayName;
 
   return result;
 }
@@ -384,7 +405,7 @@ export function buildVCPayload(data: CertificateData, mode?: string) {
   // Plain DID string — TrustVC's w3cIssuerIdentity verifier expects this
   // format and resolves the DID directly.  Wrapping it as an object with
   // type/name fields breaks DID resolution in the verification pipeline.
-  const issuer = TRUSTVC_CONFIG.didUrl;
+  const issuer = data.issuerDid ?? TRUSTVC_CONFIG.didUrl;
 
   // Build credential subject using canonical OpenCerts field mapping
   let subject: Record<string, unknown> = toOpenCertsCredentialSubject(data);
@@ -432,7 +453,7 @@ export function buildVCPayload(data: CertificateData, mode?: string) {
     // status-list entry or an OpenAttestation wrapper. See the compatibility reports.
     credentialStatus: [
       {
-        id: `did:ethr:${DOCUMENT_STORE_CONFIG.address}#${data.id}`,
+        id: `did:ethr:${data.documentStoreAddress ?? DOCUMENT_STORE_CONFIG.address}#${data.id}`,
         type: "OpenAttestationDocumentStore",
         documentId: data.id,
         revocation: TRUSTVC_CONFIG.revocation,
@@ -1346,6 +1367,42 @@ export function getDIDKeyPairFromEnv(): PrivateKeyPair | null {
   } as PrivateKeyPair;
 }
 
+export interface DIDSigningContext {
+  did: string;
+  verificationMethod: string;
+  publicKeyMultibase: string;
+  secretKeyMultibase: string;
+}
+
+export function getDIDKeyPairFromIssuerProfile(profile: {
+  did: string;
+  verificationMethod: string;
+  keyReference: string;
+}): PrivateKeyPair | null {
+  if (!/^[A-Z][A-Z0-9_]{2,127}$/.test(profile.keyReference)) {
+    throw new Error("Issuer profile key reference is invalid.");
+  }
+  const secretKeyMultibase = process.env[profile.keyReference];
+  const publicKeyMultibase = process.env[`${profile.keyReference}_PUBLIC_KEY_MULTIBASE`];
+  if (!secretKeyMultibase || !publicKeyMultibase) return null;
+  if (!secretKeyMultibase.startsWith("z") || !publicKeyMultibase.startsWith("z")) {
+    throw new Error("Issuer profile signing keys must use base58btc multibase encoding.");
+  }
+  if (!profile.did.startsWith("did:") ||
+      !profile.verificationMethod.startsWith(`${profile.did}#`)) {
+    throw new Error("Issuer profile DID and verification method do not match.");
+  }
+
+  return {
+    "@context": "https://w3id.org/security/multikey/v1",
+    id: profile.verificationMethod,
+    type: "Multikey",
+    controller: profile.did,
+    publicKeyMultibase,
+    secretKeyMultibase,
+  };
+}
+
 export interface DIDIssuanceResult {
   /** The credential JSON (signed when `signed` is true, otherwise unsigned draft) */
   credential: Record<string, unknown>;
@@ -1374,13 +1431,16 @@ export interface DIDIssuanceResult {
  */
 export async function signDocumentWithDID(
   credential: Record<string, unknown>,
-  secretKeyOverride?: string
+  secretKeyOverride?: string,
+  signingContext?: DIDSigningContext
 ): Promise<DIDIssuanceResult> {
-  const id = process.env.DID_KEY_ID || process.env.NEXT_PUBLIC_DID_KEY_ID;
-  const controller = process.env.DID_CONTROLLER || process.env.NEXT_PUBLIC_DID_CONTROLLER;
-  const publicKeyMultibase = resolvePublicKeyMultibase();
-  const secretKeyMultibase =
-    secretKeyOverride?.trim() || process.env.DID_PRIVATE_KEY_MULTIBASE;
+  const id = signingContext?.verificationMethod ??
+    (process.env.DID_KEY_ID || process.env.NEXT_PUBLIC_DID_KEY_ID);
+  const controller = signingContext?.did ??
+    (process.env.DID_CONTROLLER || process.env.NEXT_PUBLIC_DID_CONTROLLER);
+  const publicKeyMultibase = signingContext?.publicKeyMultibase ?? resolvePublicKeyMultibase();
+  const secretKeyMultibase = signingContext?.secretKeyMultibase ??
+    (secretKeyOverride?.trim() || process.env.DID_PRIVATE_KEY_MULTIBASE);
 
   const missing: string[] = [];
   if (!id) missing.push("DID_KEY_ID");

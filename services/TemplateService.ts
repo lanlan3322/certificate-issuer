@@ -6,11 +6,13 @@ export interface TemplateInput {
   name: string;
   description?: string;
   definition?: Record<string, unknown>;
+  issuerProfileId?: string | null;
 }
 
 export interface TemplateRecord {
   id: string;
   issuerId: string | null;
+  issuerProfileId: string | null;
   slug: string;
   name: string;
   description: string;
@@ -22,6 +24,7 @@ export interface TemplateRecord {
 const mapRow = (row: Record<string, unknown>): TemplateRecord => ({
   id: String(row.id),
   issuerId: row.issuer_id ? String(row.issuer_id) : null,
+  issuerProfileId: row.issuer_profile_id ? String(row.issuer_profile_id) : null,
   slug: String(row.slug),
   name: String(row.name),
   description: row.description ? String(row.description) : "",
@@ -31,6 +34,19 @@ const mapRow = (row: Record<string, unknown>): TemplateRecord => ({
 });
 
 export const TemplateService = {
+  async getForIssuance(reference: string, issuerId: string) {
+    const supabase = await getSupabaseServerClient();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reference);
+    const { data, error } = await supabase
+      .from("templates")
+      .select("*")
+      .eq("issuer_id", issuerId)
+      .eq(isUuid ? "id" : "slug", reference)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapRow(data) : null;
+  },
+
   async list(issuerId: string, options: { includeInactive?: boolean } = {}) {
     const supabase = await getSupabaseServerClient();
 
@@ -63,10 +79,12 @@ export const TemplateService = {
 
   async create(input: TemplateInput) {
     const supabase = await getSupabaseServerClient();
+    await assertIssuerProfile(input.issuerProfileId, input.issuerId);
     const { data, error } = await supabase
       .from("templates")
       .insert({
         issuer_id: input.issuerId,
+        issuer_profile_id: input.issuerProfileId ?? null,
         slug: input.slug,
         name: input.name,
         description: input.description ?? "",
@@ -80,11 +98,26 @@ export const TemplateService = {
 
   async upsert(input: TemplateInput) {
     const supabase = await getSupabaseServerClient();
+    let issuerProfileId = input.issuerProfileId;
+    if (issuerProfileId === undefined) {
+      const { data: existing, error: lookupError } = await supabase
+        .from("templates")
+        .select("issuer_profile_id")
+        .eq("issuer_id", input.issuerId)
+        .eq("slug", input.slug)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+      issuerProfileId = existing?.issuer_profile_id
+        ? String(existing.issuer_profile_id)
+        : null;
+    }
+    await assertIssuerProfile(issuerProfileId, input.issuerId);
     const { data, error } = await supabase
       .from("templates")
       .upsert(
         {
           issuer_id: input.issuerId,
+          issuer_profile_id: issuerProfileId ?? null,
           slug: input.slug,
           name: input.name,
           description: input.description ?? "",
@@ -113,3 +146,16 @@ export const TemplateService = {
     return mapRow(data);
   },
 };
+
+async function assertIssuerProfile(issuerProfileId: string | null | undefined, issuerId: string) {
+  if (!issuerProfileId) return;
+  const { data, error } = await (await getSupabaseServerClient())
+    .from("issuer_profiles")
+    .select("id")
+    .eq("id", issuerProfileId)
+    .eq("owner_issuer_id", issuerId)
+    .eq("active", true)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Active issuer profile not found for this issuer.");
+}

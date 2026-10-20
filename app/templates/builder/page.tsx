@@ -16,6 +16,13 @@ interface SavedTemplate {
   name: string;
   description: string;
   definition: Record<string, unknown>;
+  issuerProfileId: string | null;
+}
+
+interface IssuerProfileOption {
+  id: string;
+  displayName: string;
+  did: string;
 }
 
 function slugify(value: string) {
@@ -68,6 +75,9 @@ export default function TemplateBuilderPage() {
   const [accentColor, setAccentColor] = useState("#0f172a");
   const [fields, setFields] = useState<FieldDraft[]>(initialFields);
   const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([]);
+  const [issuerProfiles, setIssuerProfiles] = useState<IssuerProfileOption[]>([]);
+  const [issuerProfileId, setIssuerProfileId] = useState("");
+  const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -88,9 +98,27 @@ export default function TemplateBuilderPage() {
     }
   }, []);
 
+  const loadIssuerProfiles = useCallback(async () => {
+    try {
+      const response = await fetch(withBasePath("/api/issuer-profiles"));
+      const payload = (await response.json()) as {
+        issuerProfiles?: IssuerProfileOption[];
+        error?: string;
+      };
+      if (!response.ok) throw new Error(payload.error ?? "Unable to load issuer profiles.");
+      setIssuerProfiles(payload.issuerProfiles ?? []);
+      setProfileLoadError(null);
+    } catch (profileError) {
+      setProfileLoadError(
+        profileError instanceof Error ? profileError.message : "Unable to load issuer profiles."
+      );
+    }
+  }, []);
+
   useEffect(() => {
     void loadTemplates();
-  }, [loadTemplates]);
+    void loadIssuerProfiles();
+  }, [loadIssuerProfiles, loadTemplates]);
 
   const template = useMemo(
     () =>
@@ -155,6 +183,7 @@ export default function TemplateBuilderPage() {
           description,
           // The full definition is persisted so the template can be reloaded.
           definition: template,
+          issuerProfileId: issuerProfileId || null,
         }),
       });
       const payload = (await response.json()) as { error?: string };
@@ -178,6 +207,7 @@ export default function TemplateBuilderPage() {
       fields?: TemplateFieldDefinition[];
     };
     setName(definition.name ?? saved.name);
+    setIssuerProfileId(saved.issuerProfileId ?? "");
     setTitle(definition.title ?? "");
     setSubtitle(definition.subtitle ?? "");
     setDescription(definition.description ?? saved.description);
@@ -211,6 +241,27 @@ export default function TemplateBuilderPage() {
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">Phase 3</p>
             <h1 className="mt-2 text-3xl font-bold text-slate-900">Template Builder</h1>
           </div>
+          <label className="mb-6 block max-w-xl text-sm font-medium text-slate-700">
+            Issuer profile
+            <select
+              value={issuerProfileId}
+              onChange={(event) => setIssuerProfileId(event.target.value)}
+              className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+            >
+              <option value="">Use legacy platform issuer</option>
+              {issuerProfiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.displayName} ({profile.did})
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs font-normal text-slate-500">
+              Issuer profiles are managed by an issuer administrator. Existing templates keep their current issuer unless changed here.
+            </span>
+          </label>
+          {profileLoadError && (
+            <p role="alert" className="mb-4 text-sm text-rose-700">{profileLoadError}</p>
+          )}
           <button
             type="button"
             onClick={saveTemplate}

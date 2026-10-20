@@ -100,6 +100,62 @@ Copy `.env.example` to `.env.local` and fill in the values.
 
 All four DID variables must be set together. If any one is missing, signing attempts will return a clear error message listing the missing variables.
 
+### Multi-issuer profiles (incremental rollout)
+
+Issuer profiles are platform-managed signing identities that can be assigned to
+saved certificate templates. Apply
+[`008_multi_issuer_profiles.sql`](./database/migrations/008_multi_issuer_profiles.sql)
+and, in order, [`009_profile_status_lists.sql`](./database/migrations/009_profile_status_lists.sql)
+and [`010_issuer_profile_identity_lock.sql`](./database/migrations/010_issuer_profile_identity_lock.sql)
+before using profile APIs, assigning profiles, or enabling profile Bitstring
+Status Lists. Existing templates without a profile continue using the legacy
+`did:web:verifiable.sg` signing configuration.
+
+For a profile with key reference `FTA_SIGNING_KEY`, configure these server-only
+environment variables in the deployment secret store:
+
+| Variable | Value |
+|----------|-------|
+| `FTA_SIGNING_KEY` | Private-key multibase (`z`-prefixed); never store in Supabase or expose with `NEXT_PUBLIC_` |
+| `FTA_SIGNING_KEY_PUBLIC_KEY_MULTIBASE` | Matching public-key multibase published by the profile DID document |
+
+Issuer profile DIDs must use a root `did:web:<hostname>` identifier (for
+example, `did:web:fta.verifiable.sg`). Route that hostname to this application
+in DNS and add it as a deployment domain. The app serves its DID document at
+`https://<hostname>/.well-known/did.json`, publishing the matching profile
+verification method from the server-only public-key environment variable.
+Private signing keys are never included in the DID document. This dynamic
+endpoint also serves the legacy `did:web:verifiable.sg` document, preserving
+its existing public DID identity.
+Profile Document Store registration uses its configured address/network when
+`ENABLE_DOCUMENT_STORE_REGISTRATION=true`; the platform registration signer
+(`DOCUMENT_STORE_PRIVATE_KEY`) must be authorized by that store. Profile
+credential revocation also submits to the credential's saved Document Store
+using this server-side signer and records the returned transaction hash. The
+signer must have revoke permission on every configured profile store; if it is
+missing or the saved store is unavailable, profile revocation fails without
+changing the application credential status. Legacy credentials retain their
+existing application-status revocation behavior. The supported network names
+currently follow `lib/constants.ts` (`sepolia` and `mainnet`).
+Profile-mapped issuance is always persisted so the issuer, DID, verification
+method, and Document Store configuration remain available for later verification
+and revocation. Revoking a profile Bitstring credential updates both its saved
+Document Store and its status-list state.
+After a profile has issued a credential or reserved a status-list index, its
+DID, verification method, and key reference are immutable so prior credentials
+and status-list signatures keep their original identity. To rotate the signing
+identity, create a new issuer profile with a new DID/key reference; changing
+the display name or other non-cryptographic metadata remains supported. Keep
+the private key behind a key reference stable as well; replacing the secret
+value in place is not detectable by the application and can invalidate prior
+verification.
+When `ENABLE_BITSTRING_STATUS_LIST=true`, profile-issued credentials can opt
+into profile-scoped Bitstring Status Lists. Their list URLs use the issuer
+profile hostname, allocations are isolated by profile, and published status
+credentials are signed with that profile's key. The profile DID domain must
+therefore route to this deployment and resolve publicly. Legacy templates
+continue using `STATUS_LIST_BASE_URL` and the legacy DID signer.
+
 By default, DID-issued credentials include an `OCSP_RESPONDER` revocation block that points to the Open Attestation OCSP Responder sandbox at `https://ocsp-sandbox.openattestation.com`. Set `NEXT_PUBLIC_DID_REVOCATION_LOCATION` if you are running your own responder instance.
 
 ### Generating a DID Key Pair
@@ -120,11 +176,12 @@ Replace `YOUR-USERNAME` with your GitHub username. Copy the output values into t
 
 ### Updating the DID Document
 
-After generating the key pair, update `public/.well-known/did.json`:
+After generating the key pair, update the legacy DID snapshot at
+`public/.well-known/did.json`:
 
 1. Replace `"REPLACE_WITH_NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE"` with the value of `NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE`.
 2. If you changed `NEXT_PUBLIC_DID_KEY_ID` or `NEXT_PUBLIC_DID_CONTROLLER`, update the `id`, `controller`, and `verificationMethod[0].id` fields accordingly.
-3. Commit and push so the updated DID document is served at `https://YOUR-USERNAME.github.io/certificate-issuer/.well-known/did.json`.
+3. Commit and deploy so the updated document is served at the legacy DID URL.
 
 External verifiers resolve the issuer's `did:web` document from this URL to obtain the public key and check the `ecdsa-sd-2023` signature. If this file contains a placeholder or wrong key, verification will fail.
 
@@ -226,7 +283,7 @@ certificate-issuer/
 │   ├── batchParse.ts       # Excel/CSV batch parsing
 │   └── stubs/empty.js      # Webpack stub for Node.js-only native modules
 ├── public/
-│   └── .well-known/did.json  # DID document for did:web resolution
+│   └── .well-known/           # Static legacy DID and JWKS documents
 ├── .env.example            # Environment variable documentation
 ├── .github/workflows/
 │   └── deploy.yml          # GitHub Actions deployment
@@ -288,7 +345,7 @@ NEXT_PUBLIC_DOCUMENT_STORE_ADDRESS=0xYourContractAddress
 
 2. **Demo document store:** The default document store contract (`0x4B30674...`) was deployed for demonstration purposes and the owner wallet is not publicly known. Ethereum issuance from outside wallets will fail the pre-check. Deploy your own store for real issuance.
 
-3. **DID document must be published:** Verifiers using `did:web` resolution will fetch `https://lanlan3322.github.io/certificate-issuer/.well-known/did.json`. This file **must** contain the correct `publicKeyMultibase` matching `NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE` for cryptographic verification to succeed. Replace the placeholder value before deploying.
+3. **DID document must be published:** Verifiers fetch `/.well-known/did.json` from the issuer DID hostname. Dynamic profile DID publication requires a server deployment and the issuer hostname mapped to that deployment. The legacy static DID remains available for static hosting.
 
 4. **Verification requires DID resolution:** The `/verify` page calls the TrustVC SDK to cryptographically verify the `ecdsa-sd-2023` proof. The SDK fetches the issuer's DID document to retrieve the public key. This means the issuer's `did:web` URL must be publicly accessible at verification time. Verification will fail (with a network error message) if the DID document is unreachable.
 

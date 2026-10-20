@@ -5,9 +5,10 @@ import { QRCodeSVG } from "qrcode.react";
 import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, X } from "lucide-react";
 import CertificateTemplateRenderer from "../templates/CertificateTemplateRenderer";
 import CertificatePdfDownload from "../../components/CertificatePdfDownload";
+import { toCertificateTemplateData } from "../renderer/certificateView";
 import { CertificateTemplateData } from "../templates/types";
 import { DOCUMENT_STORE_CONFIG, TRUSTVC_CONFIG } from "../../lib/constants";
-import { buildVerificationUrl, withBasePath } from "../../lib/site";
+import { withBasePath } from "../../lib/site";
 import {
   VerificationResult,
 } from "../../lib/trustvc";
@@ -102,41 +103,10 @@ export default function VerifyPage() {
     }
   };
 
-  const certificateSubject =
-    verifiedDocument?.["credentialSubject"] &&
-    typeof verifiedDocument["credentialSubject"] === "object"
-      ? (verifiedDocument["credentialSubject"] as Record<string, unknown>)
-      : {};
-  const certificateIssuer =
-    verifiedDocument?.["issuer"] && typeof verifiedDocument["issuer"] === "object"
-      ? (verifiedDocument["issuer"] as Record<string, unknown>)
-      : {};
-  const verificationUrl = buildVerificationUrl(
-    typeof window === "undefined" ? "" : window.location.origin,
-    String(certificateSubject.certificateId ?? verifiedDocument?.id ?? "")
-  );
-
   const certificateForView: CertificateTemplateData | null = verifiedDocument
-    ? {
-        id: String(certificateSubject.certificateId ?? verifiedDocument.id ?? ""),
-        recipientName: String(certificateSubject.name ?? "Certificate recipient"),
-        recipientEmail: String(certificateSubject.email ?? ""),
-        certificateType: String(certificateSubject.certificateType ?? "Certificate"),
-        issuerName: String(
-          typeof certificateIssuer === "object"
-            ? (certificateIssuer as Record<string, unknown>).name ??
-              (certificateIssuer as Record<string, unknown>).id ??
-              "Certificate Issuer"
-            : certificateIssuer
-        ),
-        issueDate: String(verifiedDocument.issuanceDate ?? verifiedDocument.validFrom ?? ""),
-        description: String(certificateSubject.description ?? ""),
-        validFrom: String(verifiedDocument.validFrom ?? verifiedDocument.issuanceDate ?? ""),
-        validUntil: typeof verifiedDocument.validUntil === "string" ? verifiedDocument.validUntil : undefined,
-        templateId: typeof certificateSubject.templateId === "string" ? certificateSubject.templateId : undefined,
-        verificationUrl,
-      }
+    ? toCertificateTemplateData(verifiedDocument, typeof window === "undefined" ? "" : window.location.origin)
     : null;
+  const verificationUrl = certificateForView?.verificationUrl ?? "";
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

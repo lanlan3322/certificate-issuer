@@ -36,6 +36,8 @@ test("status service is disabled by default, validates configuration and propaga
       rpc: async (...args) => { calls.push(args); return result; },
     }) },
     "../lib/did-utils": { resolveDIDController: () => "did:web:verifiable.sg" },
+    "../lib/did-publication": { isRootDidWeb: (did) => /^did:web:[a-z0-9.-]+$/.test(did) },
+    "./IssuerProfileService": { IssuerProfileService: { getForPublicDID: async () => null } },
     "../lib/bitstring-status": {
       statusListURL: (base) => {
         if (!base.startsWith("https://")) throw new Error("Invalid HTTPS origin");
@@ -44,9 +46,12 @@ test("status service is disabled by default, validates configuration and propaga
       createBitstringEntries: (_, index) => [{ type: "BitstringStatusListEntry", index }],
       createStatusListDocument: async (_, issuer, purpose, entries) => ({ issuer, purpose, entries }),
     },
-    "../lib/trustvc": { signDocumentWithDID: async (document) => ({
-      signed, credential: document, error: signed ? undefined : "test signing failure",
-    }) },
+    "../lib/trustvc": {
+      getDIDKeyPairFromIssuerProfile: () => null,
+      signDocumentWithDID: async (document) => ({
+        signed, credential: document, error: signed ? undefined : "test signing failure",
+      }),
+    },
   });
   delete process.env.ENABLE_BITSTRING_STATUS_LIST;
   await assert.rejects(service.reserve("issuer", "external"), /not enabled/);
@@ -79,18 +84,103 @@ test("status service is disabled by default, validates configuration and propaga
   await assert.rejects(service.publish(0, "revocation"), /snapshot entry/);
 });
 
+test("profile status lists allocate, publish and sign with the selected issuer DID and key", async (t) => {
+  const previousEnabled = process.env.ENABLE_BITSTRING_STATUS_LIST;
+  t.after(() => {
+    if (previousEnabled === undefined) delete process.env.ENABLE_BITSTRING_STATUS_LIST;
+    else process.env.ENABLE_BITSTRING_STATUS_LIST = previousEnabled;
+  });
+  process.env.ENABLE_BITSTRING_STATUS_LIST = "true";
+  const calls = [];
+  const profile = {
+    id: "profile-id",
+    did: "did:web:fta.verifiable.sg",
+    verificationMethod: "did:web:fta.verifiable.sg#key-fta",
+    keyReference: "FTA_SIGNING_KEY",
+  };
+  const keyPair = {
+    controller: profile.did,
+    id: profile.verificationMethod,
+    publicKeyMultibase: "zPublic",
+    secretKeyMultibase: "zSecret",
+  };
+  const { StatusListService: service } = load("StatusListService.ts", {
+    "./CredentialService": { DuplicateCredentialError: class extends Error {} },
+    "../lib/supabase/server": { getSupabaseAdmin: () => ({
+      rpc: async (name, input) => {
+        calls.push(["rpc", name, input]);
+        return { data: name.startsWith("reserve_") ? 5 : [{ index: 5, status: "issued" }], error: null };
+      },
+    }) },
+    "../lib/did-utils": { resolveDIDController: () => "did:web:verifiable.sg" },
+    "../lib/did-publication": { isRootDidWeb: (did) => /^did:web:[a-z0-9.-]+$/.test(did) },
+    "./IssuerProfileService": {
+      IssuerProfileService: { getForPublicDID: async (did) => {
+        calls.push(["lookup-profile", did]);
+        return did === profile.did ? profile : null;
+      } },
+    },
+    "../lib/bitstring-status": {
+      statusListURL: (base, page, purpose) => `${base}/api/status-list/${page}/${purpose}`,
+      createBitstringEntries: (base, index) => {
+        calls.push(["entries", base, index]);
+        return [{ statusListCredential: `${base}/api/status-list/0/revocation` }];
+      },
+      createStatusListDocument: async (url, issuer, purpose, entries) => ({
+        id: url, issuer, purpose, credentialSubject: { entries },
+      }),
+    },
+    "../lib/trustvc": {
+      getDIDKeyPairFromIssuerProfile: (input) => {
+        calls.push(["load-key", input]);
+        return keyPair;
+      },
+      signDocumentWithDID: async (document, secret, context) => {
+        calls.push(["sign", document, secret, context]);
+        return { signed: true, credential: { ...document, proof: {} } };
+      },
+    },
+  });
+
+  const allocated = await service.reserve("issuer-id", "cert-id", profile);
+  assert.deepEqual(allocated, [{
+    statusListCredential: "https://fta.verifiable.sg/api/status-list/0/revocation",
+  }]);
+  assert.deepEqual(calls[0], ["rpc", "reserve_profile_bitstring_status", {
+    p_issuer: "issuer-id", p_profile: "profile-id", p_external: "cert-id",
+  }]);
+  assert.deepEqual(calls[1], ["entries", "https://fta.verifiable.sg", 5]);
+
+  const published = await service.publish(0, "revocation", profile.did);
+  assert.equal(published.issuer, profile.did);
+  assert.equal(published.id, "https://fta.verifiable.sg/api/status-list/0/revocation");
+  assert.deepEqual(calls.find((call) => call[0] === "rpc" && call[1] === "read_profile_bitstring_status"), [
+    "rpc", "read_profile_bitstring_status", { p_page: 0, p_profile: "profile-id" },
+  ]);
+  assert.deepEqual(calls.find((call) => call[0] === "sign")[3], {
+    did: profile.did,
+    verificationMethod: profile.verificationMethod,
+    publicKeyMultibase: "zPublic",
+    secretKeyMultibase: "zSecret",
+  });
+});
+
 test("public list route validates identifiers and returns signed credentials or explicit no-store errors", async (t) => {
   const errors = t.mock.method(console, "error", () => {});
   let value = { id: "https://verifiable.sg/api/status-list/0/revocation", proof: { type: "DataIntegrityProof" } };
   let fail = false;
-  let calls = 0;
+  const calls = [];
   const route = load("../app/api/status-list/[page]/[purpose]/route.ts", {
     "../../../../../services/StatusListService": { StatusListService: {
-      publish: async () => { calls++; if (fail) throw new Error("test unavailable"); return value; },
+      publish: async (...args) => {
+        calls.push(args);
+        if (fail) throw new Error("test unavailable");
+        return value;
+      },
     } },
   });
-  const get = (page = "0", purpose = "revocation") => route.GET(
-    new Request("https://verifiable.sg/api/status-list"),
+  const get = (page = "0", purpose = "revocation", host = "verifiable.sg") => route.GET(
+    new Request(`https://${host}/api/status-list`),
     { params: Promise.resolve({ page, purpose }) }
   );
   for (const [page, purpose] of [["-1", "revocation"], ["01", "revocation"],
@@ -99,11 +189,17 @@ test("public list route validates identifiers and returns signed credentials or 
     assert.equal(response.status, 400);
     assert.equal(response.headers.get("cache-control"), "no-store");
   }
-  assert.equal(calls, 0);
+  assert.equal(calls.length, 0);
   const active = await get();
   assert.equal(active.status, 200);
   assert.equal(active.headers.get("content-type"), "application/vc+ld+json");
   assert.deepEqual(await active.json(), value);
+  const profileList = await get("0", "suspension", "fta.verifiable.sg");
+  assert.equal(profileList.status, 200);
+  assert.deepEqual(calls, [
+    [0, "revocation", "did:web:verifiable.sg"],
+    [0, "suspension", "did:web:fta.verifiable.sg"],
+  ]);
   value = null;
   assert.equal((await get()).status, 404);
   fail = true;
@@ -126,12 +222,16 @@ test("issuance route preserves default status and requires persisted DID-only op
     "../../../lib/trustvc": {
       buildVCPayload: () => ({ credentialStatus: legacy }),
       getDIDKeyPairFromEnv: () => ({}),
+      getDIDKeyPairFromIssuerProfile: () => null,
       signDocumentWithDID: async (document) => ({ signed: true, credential: { ...document, proof: {} } }),
       withEmbeddedRenderMethod: (document, templateName) => ({ ...document,
         renderMethod: [{ type: "EMBEDDED_RENDERER", templateName }] }),
     },
     "../../templates/registry": { resolveTemplateId: (id) => id ?? "classic" },
+    "../../../lib/constants": { NETWORKS: { sepolia: {}, mainnet: {} } },
     "../../../services/AuditService": { AuditService: { record: async () => { calls.audit++; } } },
+    "../../../services/IssuerProfileService": { IssuerProfileService: { get: async () => null } },
+    "../../../services/TemplateService": { TemplateService: { getForIssuance: async () => null } },
     "../../../services/CredentialService": {
       DuplicateCredentialError: class extends Error {},
       CredentialService: { create: async () => { calls.persist++; return { id: "stored" }; } },
@@ -189,7 +289,7 @@ test("revocation service uses atomic RPC only for opt-in credentials and preserv
         external_id: "external", credential: storedDocument }, error: null }),
       insert: () => chain,
       single: async () => ({ data: { id: "log" }, error: null }),
-      update: () => ({ eq: async () => ({ error: null }) }),
+      update: () => ({ eq: () => ({ eq: async () => ({ error: null }) }) }),
     };
     return chain;
   } };
@@ -201,6 +301,9 @@ test("revocation service uses atomic RPC only for opt-in credentials and preserv
         return { data: { id: "log", credential_id: "db-id", issuer_id: "issuer",
           action: "revoke", external_id: "external", credential_status: "revoked" }, error: null };
       } }),
+    },
+    "../lib/document-store": {
+      revokeHash: async () => ({ txHash: "0xprofile-store-tx", alreadyRevoked: false }),
     },
   });
   const input = { credentialRef: "external", issuerId: "issuer", action: "revoke", reason: "test" };

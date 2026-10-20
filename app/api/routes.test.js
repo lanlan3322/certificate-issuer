@@ -51,6 +51,7 @@ const groups = [
     endpoints: [
       ["credentials", "../credentials/handler", ["GET", "POST", "PATCH"]],
       ["issuers", "../issuers/handler", ["GET", "POST", "PATCH"]],
+      ["issuer-profiles", "../issuer-profiles/handler", ["GET", "POST", "PATCH"]],
       ["templates", "../templates/handler", ["GET", "POST", "DELETE"]],
       ["audit", "../audit/handler", ["GET"]],
       ["revocation", "../revocation/handler", ["GET", "POST"]],
@@ -75,6 +76,11 @@ for (const group of groups) {
         }])),
       },
     ]));
+    Object.assign(mocks, {
+      "../issuers/[id]/handler": {},
+      "../organizations/handler": {},
+      "../organizations/[id]/handler": {},
+    });
     const router = load(group.route, mocks);
     for (const [endpoint, , supported] of group.endpoints) {
       const context = { params: Promise.resolve(group.params(endpoint ? endpoint.split("/") : [])) };
@@ -167,13 +173,24 @@ test("business consolidation retains handler-level authorization and issuer-admi
     "../../../services/AuditService": { AuditService: {} },
     "../../../services/CredentialService": { CredentialService: {}, DuplicateCredentialError: class extends Error {} },
     "../../../services/IssuerService": { IssuerService: {} },
+    "../../../services/IssuerProfileService": { IssuerProfileService: {} },
     "../../../services/TemplateService": { TemplateService: {} },
     "../../../services/RevocationService": { RevocationService: {} },
+    "../../../lib/supabase/server": { getSupabaseServerClient: async () => ({}) },
+    "../../../lib/did-publication": {
+      isRootDidWeb: (did) => /^did:web:[a-z0-9.-]+$/.test(did),
+      LEGACY_DID_ID: "did:web:verifiable.sg",
+    },
   };
   const modules = Object.fromEntries(groups[2].endpoints.map(([endpoint, moduleName]) => [
     moduleName, endpoint === "platform/stats" ? { GET: async () => Response.json({ public: true }) }
       : load(`${endpoint}/handler.ts`, mocks),
   ]));
+  Object.assign(modules, {
+    "../issuers/[id]/handler": {},
+    "../organizations/handler": {},
+    "../organizations/[id]/handler": {},
+  });
   const router = load(groups[2].route, modules);
   for (const [endpoint, , supported] of groups[2].endpoints.filter(([endpoint]) => endpoint !== "platform/stats")) {
     for (const method of supported) {
@@ -181,7 +198,12 @@ test("business consolidation retains handler-level authorization and issuer-admi
         params: Promise.resolve({ resource: [endpoint] }),
       });
       assert.strictEqual(response, denied);
-      assert.equal(roles.at(-1), endpoint === "issuers" && method !== "GET" ? "issuer-admin" : undefined);
+      assert.equal(
+        roles.at(-1),
+        ["issuers", "issuer-profiles"].includes(endpoint) && method !== "GET"
+          ? "issuer-admin"
+          : undefined
+      );
     }
   }
 });

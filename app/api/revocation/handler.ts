@@ -3,6 +3,7 @@ import { authorize, errorResponse } from "../../../lib/apiAuth";
 import { AuditService } from "../../../services/AuditService";
 import {
   CredentialNotFoundError,
+  DocumentStoreRevocationError,
   RevocationService,
   RevocationStateError,
   type RevocationAction,
@@ -70,6 +71,9 @@ export async function POST(request: Request) {
     }
     if (error instanceof RevocationStateError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error instanceof DocumentStoreRevocationError) {
+      return NextResponse.json({ error: error.message }, { status: 502 });
     }
     return errorResponse(error, "Unable to update revocation status.");
   }

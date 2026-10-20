@@ -133,28 +133,26 @@ function resolveIssuerName(
   vc: Record<string, unknown>,
   issuers?: Array<{ id: number; name: string }>,
 ): string {
+  const subject =
+    (vc.credentialSubject as unknown as Record<string, unknown>) ??
+    (vc.subject as unknown as Record<string, unknown>);
+  const profileDisplayName = subject && String(subject.issuerDisplayName ?? "").trim();
+  if (profileDisplayName) return profileDisplayName;
+
   // Priority 1: provided issuers lookup (numeric FK resolution)
   if (issuers && typeof vc.issuer === "number") {
     const found = issuers.find((i) => i.id === vc.issuer);
     if (found) return found.name;
   }
 
-  // Priority 2: issuer is already a string
-  if (typeof vc.issuer === "string" && vc.issuer.trim()) {
-    return vc.issuer.trim();
-  }
-
-  // Priority 3: issuer is an object with name/did fields
+  // Priority 2: issuer is an object with name/did fields
   if (vc.issuer && typeof vc.issuer === "object") {
     const i = vc.issuer as Record<string, unknown>;
     const nameCandidate = String(i.name || "");
     if (nameCandidate) return nameCandidate;
   }
 
-  // Priority 4: check credentialSubject for academy-related issuer metadata (FTA format)
-  const subject =
-    (vc.credentialSubject as unknown as Record<string, unknown>) ??
-    (vc.subject as unknown as Record<string, unknown>);
+  // Priority 3: check credentialSubject for academy-related issuer metadata (FTA format)
   if (subject) {
     const metaIssuer =
       (subject.academy_name as unknown as Record<string, unknown>) ||
@@ -166,7 +164,9 @@ function resolveIssuerName(
     }
   }
 
-  // Fallback
+  // Priority 4: preserve the issuer DID as the legacy display fallback.
+  if (typeof vc.issuer === "string" && vc.issuer.trim()) return vc.issuer.trim();
+
   return "Unknown Issuer";
 }
 
@@ -265,9 +265,12 @@ export function mapVcToCertEntry(
 
     // Try to resolve issuer from the FTA credentialSubject metadata if available
     let issuerResolvedFromSubject: string | undefined;
+    if (typeof s.issuerDisplayName === "string" && s.issuerDisplayName.trim()) {
+      issuerResolvedFromSubject = s.issuerDisplayName.trim();
+    }
     if (ftaDetected) {
       const metaIssuer = s.academy_name || s.cert_authority || s.awarding_body;
-      if (metaIssuer && typeof metaIssuer === "object") {
+      if (!issuerResolvedFromSubject && metaIssuer && typeof metaIssuer === "object") {
         const nameCandidate = String(
           (metaIssuer as Record<string, unknown>).name ?? "",
         );

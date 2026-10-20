@@ -8,6 +8,7 @@ const RETIRED_DID_KEYS = [
   { id: "did:web:verifiable.sg#ecdsa-2026-01",
     publicKeyMultibase: "zDnaep3QMCrSnAjtZmzZYbHGZyMttTq6FfjYXsC7fpE3EEzwo" },
 ];
+export const LEGACY_DID_ID = String(historicalDID.id);
 
 interface PublicJWK {
   kty: string;
@@ -130,9 +131,72 @@ export function buildPublicDID() {
   };
 }
 
+export interface ProfileDIDPublicationConfig {
+  did: string;
+  verificationMethod: string;
+  keyReference: string;
+}
+
+export function isRootDidWeb(did: string): boolean {
+  if (!/^did:web:[a-z0-9.-]+$/.test(did)) return false;
+  const hostname = did.slice("did:web:".length);
+  const labels = hostname.split(".");
+  if (labels.length < 2 || labels.some((label) =>
+    label.length === 0 || label.length > 63 ||
+    !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))) {
+    return false;
+  }
+  try {
+    const url = new URL(`https://${hostname}`);
+    return url.hostname === hostname && !url.port && url.pathname === "/";
+  } catch {
+    return false;
+  }
+}
+
+export function buildIssuerProfileDID(profile: ProfileDIDPublicationConfig) {
+  if (!isRootDidWeb(profile.did)) {
+    throw new Error("Issuer profile DID publication requires a root did:web hostname.");
+  }
+  if (!profile.verificationMethod.startsWith(`${profile.did}#`) ||
+      !/^[A-Za-z0-9._-]+$/.test(profile.verificationMethod.slice(profile.did.length + 1))) {
+    throw new Error("Issuer profile verification method must be a fragment of its DID.");
+  }
+
+  const publicKeyMultibase =
+    process.env[`${profile.keyReference}_PUBLIC_KEY_MULTIBASE`];
+  if (!publicKeyMultibase?.startsWith("z")) {
+    throw new Error(`Public key for issuer profile ${profile.did} is not configured.`);
+  }
+  if (RETIRED_DID_KEYS.some((key) => key.publicKeyMultibase === publicKeyMultibase)) {
+    throw new Error("Issuer profile DID key is retired and must not be published.");
+  }
+
+  parsePublicKey(publicKeyMultibase, profile.verificationMethod.slice(profile.did.length + 1));
+  return {
+    document: {
+      "@context": [
+        "https://www.w3.org/ns/did/v1",
+        "https://w3id.org/security/multikey/v1",
+      ],
+      id: profile.did,
+      verificationMethod: [{
+        "@context": "https://w3id.org/security/multikey/v1",
+        id: profile.verificationMethod,
+        type: "Multikey",
+        controller: profile.did,
+        publicKeyMultibase,
+      }],
+      authentication: [profile.verificationMethod],
+      assertionMethod: [profile.verificationMethod],
+    },
+  };
+}
+
 export function publicDocumentHeaders(document: unknown, contentType: string) {
   return {
     "Content-Type": contentType,
+    "Access-Control-Allow-Origin": "*",
     ETag: `"${createHash("sha256").update(JSON.stringify(document)).digest("hex")}"`,
     "Cache-Control": "public, max-age=300, stale-while-revalidate=60",
   };

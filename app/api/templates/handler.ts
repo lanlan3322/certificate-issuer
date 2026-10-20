@@ -27,6 +27,7 @@ export async function POST(request: Request) {
       name?: string;
       description?: string;
       definition?: Record<string, unknown>;
+      issuerProfileId?: string | null;
     };
 
     const slug = body.slug?.trim().toLowerCase();
@@ -37,6 +38,11 @@ export async function POST(request: Request) {
     if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug)) {
       return NextResponse.json({ error: "Slug must be 2-63 lowercase letters, numbers, or hyphens." }, { status: 400 });
     }
+    if (body.issuerProfileId !== undefined &&
+        body.issuerProfileId !== null &&
+        (typeof body.issuerProfileId !== "string" || !body.issuerProfileId.trim())) {
+      return NextResponse.json({ error: "issuerProfileId must be a non-empty string or null." }, { status: 400 });
+    }
 
     const template = await TemplateService.upsert({
       issuerId: user.issuerId,
@@ -44,6 +50,7 @@ export async function POST(request: Request) {
       name,
       description: body.description?.trim(),
       definition: body.definition,
+      issuerProfileId: body.issuerProfileId?.trim() || body.issuerProfileId,
     });
 
     await AuditService.record({
@@ -53,7 +60,7 @@ export async function POST(request: Request) {
       action: "template.saved",
       entityType: "template",
       entityId: template.id,
-      metadata: { slug, name },
+      metadata: { slug, name, issuerProfileId: template.issuerProfileId },
     });
 
     return NextResponse.json({ template }, { status: 201 });

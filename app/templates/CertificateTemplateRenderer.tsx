@@ -14,62 +14,49 @@ interface RendererProps {
 
 const DEFAULT_THEME: Theme = "light";
 
+function firstRecord(value: unknown): Record<string, unknown> | undefined {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return candidate && typeof candidate === "object"
+    ? candidate as Record<string, unknown>
+    : undefined;
+}
+
 /** Attempt to resolve a human-readable issuer display name from the certificate payload. */
-function resolveIssuerDisplayName(cert: CertificateTemplateData): string {
+function resolveIssuerDisplayName(cert: CertificateTemplateData): string | undefined {
   // A — direct issuerName on the mapped cert entry (most common path)
   if (cert.issuerName && cert.issuerName.trim()) {
     const n = cert.issuerName.trim();
-    if (!n.startsWith("did:") && n !== "Unknown Issuer") return n;
+    if (!n.startsWith("did:") && n !== "Unknown Issuer" && n !== "Certificate Issuer") return n;
   }
 
-  // B — credentialSubject-level issuerName / academy_name
-  const cs = (cert as unknown as Record<string, unknown>).credentialSubject;
-  if (cs && typeof cs === "object") {
-    const obj = cs as Record<string, unknown>;
-    for (const key of ["issuerName", "issuer_name", "academy_name"]) {
-      const val = String(obj[key] ?? "");
-      if (val && val !== "Unknown Issuer") return val;
+  // B — credentialSubject-level display identity and legacy issuer labels
+  const rawCredential = cert as unknown as Record<string, unknown>;
+  const subject = firstRecord(rawCredential.credentialSubject);
+  if (subject) {
+    for (const key of ["issuerDisplayName", "issuerName", "issuer_name", "academy_name"]) {
+      const val = String(subject[key] ?? "");
+      if (val.trim() && val !== "Unknown Issuer") return val.trim();
     }
   }
 
   // C — issuer object on the cert entry (if raw payload survived through)
-  const issuerObj = (cert as unknown as Record<string, unknown>).issuer;
-  if (issuerObj && typeof issuerObj === "object") {
-    const i = issuerObj as Record<string, unknown>;
-    for (const key of ["displayName", "name", "displayName"]) {
-      const val = String((i as Record<string, unknown>)[key] ?? "");
-      if (val && val !== "Unknown Issuer") return val;
+  const issuer = firstRecord(rawCredential.issuer);
+  if (issuer) {
+    for (const key of ["displayName", "name"]) {
+      const val = String(issuer[key] ?? "");
+      if (val.trim() && val !== "Unknown Issuer") return val.trim();
     }
+    const issuerId = issuer.id;
+    if (typeof issuerId === "string" && issuerId.startsWith("did:")) return issuerId;
   }
 
-  // D — organization name fallback
-  const orgCerts = cert as unknown as Record<string, unknown>;
-  const org = orgCerts.organization as Record<string, unknown> | undefined;
-  const orgName = String(org?.name ?? "");
-  if (orgName && orgName !== "Unknown Issuer") return orgName;
-
-  // E — resolve DID metadata display name (best-effort)
+  // D — preserve the issuer identifier when no human-readable name is available.
   if (cert.issuerName) {
     const didStr = cert.issuerName.trim();
-    if (didStr.startsWith("did:")) {
-      try {
-        const parts = didStr.replace("did:", "").split(":");
-        if (parts.length >= 2 && parts[1] === "web") {
-          const hostParts = parts.slice(2).join(":").split("/");
-          const hostname = hostParts[0]?.replace(/\.$/, "");
-          if (hostname) {
-            const display = hostname.replace(/[-.]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-            return display;
-          }
-        }
-      } catch {
-        // ignore malformed DIDs
-      }
-    }
+    if (didStr.startsWith("did:")) return didStr;
   }
 
-  // F — final fallback
-  return "Verifiable.sg";
+  return undefined;
 }
 
 export default function CertificateTemplateRenderer({ certificate, theme }: RendererProps) {
@@ -89,13 +76,16 @@ export default function CertificateTemplateRenderer({ certificate, theme }: Rend
   }
 
   // ---- Footer issuer name resolution (presentation only) ----
-  const footerIssuerName = resolveTemplateIssuer(certificate.templateId);
+  const rawCredential = certificate as unknown as Record<string, unknown>;
+  const subjectRecord = firstRecord(rawCredential.credentialSubject);
+  const footerIssuerName = resolveIssuerDisplayName(certificate) ??
+    resolveTemplateIssuer(certificate.templateId);
 
   return (
     <div className="flex min-h-[297mm] w-full flex-col">
       <div className="flex-1">{content}</div>
       <div className="mt-8 flex items-end gap-6 border-t border-gray-200 pt-5 sm:gap-8">
-        <div className="ml-auto text-xs text-gray-400">Certificate Issuer: {footerIssuerName}</div>
+        <div className="ml-auto text-xs text-gray-400">Certificate Owner: {footerIssuerName}</div>
       </div>
     </div>
   );

@@ -4,6 +4,11 @@ import { parseStoredCredential } from "../lib/stored-credential";
 export interface CredentialInput {
   issuerId: string;
   templateId?: string;
+  issuerProfileId?: string;
+  issuerDid?: string;
+  documentStoreAddress?: string | null;
+  documentStoreNetwork?: string | null;
+  verificationMethod?: string;
   externalId: string;
   recipientName: string;
   recipientEmail: string;
@@ -18,6 +23,11 @@ export interface CredentialRecord {
   id: string;
   issuerId: string;
   templateId: string | null;
+  issuerProfileId: string | null;
+  issuerDid: string | null;
+  documentStoreAddress: string | null;
+  documentStoreNetwork: string | null;
+  verificationMethod: string | null;
   externalId: string;
   recipientName: string;
   recipientEmail: string;
@@ -36,6 +46,11 @@ const mapRow = (row: Record<string, unknown>): CredentialRecord => ({
   id: String(row.id),
   issuerId: String(row.issuer_id),
   templateId: row.template_id ? String(row.template_id) : null,
+  issuerProfileId: row.issuer_profile_id ? String(row.issuer_profile_id) : null,
+  issuerDid: row.issuer_did ? String(row.issuer_did) : null,
+  documentStoreAddress: row.document_store_address ? String(row.document_store_address) : null,
+  documentStoreNetwork: row.document_store_network ? String(row.document_store_network) : null,
+  verificationMethod: row.verification_method ? String(row.verification_method) : null,
   externalId: String(row.external_id),
   recipientName: String(row.recipient_name),
   recipientEmail: String(row.recipient_email),
@@ -112,6 +127,11 @@ export const CredentialService = {
     const payload = {
       issuer_id: input.issuerId,
       template_id: input.templateId ?? null,
+      issuer_profile_id: input.issuerProfileId ?? null,
+      issuer_did: input.issuerDid ?? null,
+      document_store_address: input.documentStoreAddress ?? null,
+      document_store_network: input.documentStoreNetwork ?? null,
+      verification_method: input.verificationMethod ?? null,
       external_id: input.externalId,
       recipient_name: input.recipientName,
       recipient_email: input.recipientEmail,
