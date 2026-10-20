@@ -18,6 +18,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import PageLoadingIndicator from "./PageLoadingIndicator";
 
 function normalizePath(path: string | null | undefined): string {
   const normalized = path?.replace(/\/+$/, "") ?? "";
@@ -107,16 +108,7 @@ export default function NavBar() {
 
   return (
     <nav className="sticky top-3 z-50 px-4 pb-3 pt-3 sm:px-6 lg:px-8">
-      {isNavigating && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed inset-x-0 top-0 z-[100] flex h-1 items-center justify-center bg-indigo-100 dark:bg-slate-800"
-        >
-          <span className="sr-only">Loading page</span>
-          <span className="absolute inset-y-0 left-0 w-1/3 animate-pulse bg-indigo-600 dark:bg-indigo-400" />
-        </div>
-      )}
+      {isNavigating && <PageLoadingIndicator />}
       <div className="mx-auto max-w-7xl rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/85 dark:shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
         <div className="flex h-16 items-center justify-between px-4 sm:px-6">
           <Link href="/" onNavigate={() => startNavigation("/")} className="flex min-w-0 items-center gap-2 sm:gap-3">
