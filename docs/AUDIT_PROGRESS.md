@@ -2,6 +2,18 @@
 
 Last Updated: 2026-10-20
 
+## Explicit Ethereum selection requests registration — 2026-10-20
+
+- Ethereum selection now schedules registration with the selected issuer's
+  Document Store even when the automatic-registration flag is off. The service
+  honors the explicit request instead of silently skipping it.
+- Preserved non-blocking issuance, existing-hash checks, transaction auditing,
+  and failure reporting. The signed W3C status-list profile remains unchanged.
+- A configured funded server signer with issuer permission and a working RPC
+  are still necessary. No hosted configuration was changed or transaction sent.
+- Production build and TypeScript pass; regression coverage exercises disabled
+  automatic registration, explicit submission, signer failure and issuer routing.
+
 ## Vercel disabled-registration warning — 2026-10-20
 
 - User confirmed the disabled-registration response came from hosted Vercel.

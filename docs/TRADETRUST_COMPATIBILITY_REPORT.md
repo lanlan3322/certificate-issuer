@@ -9,6 +9,18 @@ remains unverified**
 
 ### Vercel registration configuration
 
+**Updated behavior:** selecting Ethereum explicitly requests Document Store
+registration, regardless of `ENABLE_DOCUMENT_STORE_REGISTRATION`. That flag
+controls automatic registration only; it cannot suppress an explicit Ethereum
+selection. The request is handled after the issuance response, with submitted
+transaction hash and final outcome in the existing audit log. A funded server
+signer with issuer permission and a working RPC are still required. Missing
+configuration produces a registration failure, never a successful registration.
+The certificate remains issued if the blockchain attempt fails.
+
+The disabled response described below applies to deployments predating this
+change. Deploy the updated code to activate selection-driven registration.
+
 If issuance returns `blockchainRegistration: "disabled"`, the active server has
 not enabled optional registration. Local environment settings do not configure
 Vercel. In the Vercel project's environment settings, select Production (and

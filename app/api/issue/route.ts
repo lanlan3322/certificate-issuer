@@ -292,7 +292,8 @@ export async function POST(request: Request) {
       }
     }
 
-    if (isRegistered() && targetHash) {
+    const ethereumSelected = data.issuingMethods?.includes("ethereum") === true;
+    if ((ethereumSelected || isRegistered()) && targetHash) {
       const entityId = stored?.id;
       after(async () => {
         try {
@@ -317,7 +318,7 @@ export async function POST(request: Request) {
                 txHash,
               },
             });
-          });
+          }, { required: ethereumSelected });
           await AuditService.record({
             organizationId: user.organizationId,
             issuerId: user.issuerId,
@@ -341,7 +342,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ signed: true, credential: result.credential, stored,
       ...(trustvcProfile && data.issuingMethods?.includes("ethereum")
-        ? { blockchainRegistration: isRegistered() ? "scheduled" : "disabled" } : {}) });
+        ? { blockchainRegistration: "scheduled" } : {}) });
   } catch (error) {
     if (error instanceof DuplicateCredentialError) {
       return NextResponse.json({ signed: false, error: error.message }, { status: 409 });

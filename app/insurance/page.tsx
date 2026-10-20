@@ -827,7 +827,7 @@ export default function InsurancePage() {
 
                     {ethereumResult?.registrationScheduled && (
                       <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                        Certificate issued. Optional blockchain registration is pending on the platform;
+                        Certificate issued. Requested blockchain registration is pending on the platform;
                         its transaction and outcome are recorded in the audit log. TrustVC verification uses the signed status lists.
                       </p>
                     )}

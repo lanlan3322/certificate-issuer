@@ -134,9 +134,10 @@ export async function registerHash(
   targetHash: string,
   metadata?: RegistrationTxMetadata,
   config?: DocumentStoreConfig,
-  onSubmitted?: (txHash: string) => Promise<void>
+  onSubmitted?: (txHash: string) => Promise<void>,
+  options?: { required: boolean }
 ): Promise<DocumentStoreRegistrationResult> {
-  if (!ENABLE_DOC_STORE_REGISTRATION) {
+  if (!ENABLE_DOC_STORE_REGISTRATION && !options?.required) {
     return { hashExists: false, registered: false };
   }
 

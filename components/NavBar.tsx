@@ -25,7 +25,7 @@ function normalizePath(path: string | null | undefined): string {
   return normalized || "/";
 }
 
-export default function NavBar() {
+export default function NavBar({ agentAvailable = false }: { agentAvailable?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
@@ -159,6 +159,21 @@ export default function NavBar() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Open Issuer Success Agent"
+              onClick={() => {
+                if (agentAvailable) {
+                  window.dispatchEvent(new Event("trustvc-agent-open"));
+                } else {
+                  startNavigation("/issuer/");
+                  router.push("/issuer/");
+                }
+              }}
+              className="shrink-0 whitespace-nowrap rounded-lg bg-primary px-2 py-2 text-xs font-medium text-white transition-colors hover:bg-primary/90 sm:px-3 sm:text-sm"
+            >
+              Agent
+            </button>
             <button
               type="button"
               onClick={toggleTheme}

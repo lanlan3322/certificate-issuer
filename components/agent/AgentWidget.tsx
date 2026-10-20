@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bot, Sparkles } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import AgentWindow from "./AgentWindow";
 import { AgentAnalyticsService } from "../../lib/agent/analytics";
@@ -23,6 +22,15 @@ export default function AgentWidget() {
   const [workflowState, setWorkflowState] = useState<Record<string, string>>({});
   const [databaseSessionId, setDatabaseSessionId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const openAgent = () => {
+      setOpen(true);
+      AgentAnalyticsService.track("widget-toggle", pathname);
+    };
+    window.addEventListener("trustvc-agent-open", openAgent);
+    return () => window.removeEventListener("trustvc-agent-open", openAgent);
+  }, [pathname]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -110,20 +118,6 @@ export default function AgentWidget() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          setOpen((value) => !value);
-          AgentAnalyticsService.track("widget-toggle", pathname);
-        }}
-        className="fixed bottom-5 right-4 z-[60] inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_35px_rgba(15,23,42,0.35)] transition hover:-translate-y-0.5 hover:bg-slate-700 dark:bg-cyan-600 dark:hover:bg-cyan-500 sm:right-6"
-        aria-expanded={open}
-        aria-label="Open Issuer Success Agent"
-      >
-        <Bot className="h-5 w-5" />
-        <span className="hidden sm:inline">Issuer Success Agent</span>
-        <Sparkles className="h-4 w-4 text-cyan-300" />
-      </button>
       {open && (
         <AgentWindow
           page={pathname}
