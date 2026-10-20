@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound, LogOut, ShieldCheck } from "lucide-react";
 import { withBasePath } from "../../lib/site";
+import { safeInternalPath } from "../../lib/safe-internal-path";
 import { resolveTemplateId, TEMPLATE_OPTIONS } from "../templates/registry";
 
 type Mode = "login" | "reset";
@@ -68,7 +69,7 @@ export default function IssuerPortalPage() {
         await loadSession();
         window.dispatchEvent(new Event("trustvc-auth-changed"));
         const nextPath = new URLSearchParams(window.location.search).get("next");
-        router.push(nextPath?.startsWith("/") ? nextPath : "/issuer/");
+        router.push(safeInternalPath(nextPath));
       }
       else { setMessage(payload.message ?? "If the email is registered, reset instructions have been created."); }
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Request failed."); }

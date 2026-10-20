@@ -200,7 +200,7 @@ test("business consolidation retains handler-level authorization and issuer-admi
       assert.strictEqual(response, denied);
       assert.equal(
         roles.at(-1),
-        ["issuers", "issuer-profiles"].includes(endpoint) && method !== "GET"
+        endpoint === "issuer-profiles" && method !== "GET"
           ? "issuer-admin"
           : undefined
       );

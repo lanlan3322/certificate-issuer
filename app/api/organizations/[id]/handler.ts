@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const { user, response } = await authorize();
+  const { user, response } = await authorize("platform-admin");
   if (response) return response;
 
   try {
@@ -39,7 +39,7 @@ export async function PATCH(request: NextRequest) {
 
     const body = (await request.json()) as { status?: "active" | "disabled" };
 
-    if (!body.status) {
+    if (body.status !== "active" && body.status !== "disabled") {
       return NextResponse.json({ error: "status is required and must be 'active' or 'disabled'." }, { status: 400 });
     }
 

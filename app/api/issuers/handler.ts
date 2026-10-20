@@ -15,10 +15,15 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const organizationId = searchParams.get("organization_id");
-    // When an org is explicitly requested, list issuers from that org.
-    // When no filter or "all" is passed, list all issuers across all organizations (admin mode).
+    const isPlatformAdmin = user.roles.includes("platform-admin");
     if (organizationId && organizationId !== "all") {
+      if (organizationId !== user.organizationId && !isPlatformAdmin) {
+        return NextResponse.json({ error: "Requires access to the requested organization." }, { status: 403 });
+      }
       return NextResponse.json({ issuers: await IssuerService.list(organizationId) });
+    }
+    if (!isPlatformAdmin) {
+      return NextResponse.json({ issuers: await IssuerService.list(user.organizationId) });
     }
     const { data, error } = await (await getSupabaseServerClient())
       .from("issuers")
@@ -43,9 +48,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { user, response } = await authorize("issuer-admin");
+  const { user, response } = await authorize();
   if (response) return response;
   try {
+    const isPlatformAdmin = user.roles.includes("platform-admin");
+    if (!isPlatformAdmin && !user.roles.includes("issuer-admin")) {
+      return NextResponse.json({ error: "Requires the issuer-admin role." }, { status: 403 });
+    }
+
     const body = (await request.json()) as {
       name?: string;
       slug?: string;
@@ -65,8 +75,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Slug must be 2-63 lowercase letters, numbers, or hyphens." }, { status: 400 });
     }
 
-    // organizationId comes from the session (or is explicitly set for admin cross-org creation).
-    const targetOrgId = body.organizationId?.trim() || user.organizationId;
+    const requestedOrgId = body.organizationId?.trim();
+    if (requestedOrgId && requestedOrgId !== user.organizationId && !isPlatformAdmin) {
+      return NextResponse.json({ error: "Requires the platform-admin role to create issuers in another organization." }, { status: 403 });
+    }
+    const targetOrgId = requestedOrgId || user.organizationId;
 
     const issuer = await IssuerService.create({
       organizationId: targetOrgId,
@@ -93,7 +106,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const { user, response } = await authorize("issuer-admin");
+  const { user, response } = await authorize();
   if (response) return response;
   try {
     const body = (await request.json()) as {
@@ -110,6 +123,9 @@ export async function PATCH(request: Request) {
 
     // --- Transfer ---
     if (body.organizationId) {
+      if (!user.roles.includes("platform-admin")) {
+        return NextResponse.json({ error: "Requires the platform-admin role to transfer issuers." }, { status: 403 });
+      }
       const newOrgId = body.organizationId.trim();
       if (!STATUSES.includes(body.status ?? "active")) {
         return NextResponse.json({ error: `transfer requires a valid status (${STATUSES.join(", ")}).` }, { status: 400 });
@@ -125,6 +141,10 @@ export async function PATCH(request: Request) {
         metadata: { fromOrganizationId: user.organizationId, toOrganizationId: newOrgId },
       });
       return NextResponse.json({ issuer });
+    }
+
+    if (!user.roles.includes("issuer-admin")) {
+      return NextResponse.json({ error: "Requires the issuer-admin role." }, { status: 403 });
     }
 
     if (body.status) {

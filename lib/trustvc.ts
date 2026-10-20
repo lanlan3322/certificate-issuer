@@ -631,8 +631,7 @@ export async function verifyCredential(
     }
 
     if (proof["type"] === "DataIntegrityProof" && proof["cryptosuite"] === "ecdsa-sd-2023") {
-      const documentLoader = options.documentLoader ??
-        await (await loadTrustVCContext()).getDocumentLoader();
+      const documentLoader = options.documentLoader ?? await createTrustVCDocumentLoader();
       return await verifyEcdsaCredential(document, proof, documentLoader);
     }
 
@@ -645,7 +644,7 @@ export async function verifyCredential(
     
     // Build a document loader that serves our local DID document (for did:web DIDs
     // that are not publicly resolvable) so w3cIssuerIdentity can resolve the issuer.
-    const documentLoader = await createTrustVCDocumentLoader();
+    const documentLoader = options.documentLoader ?? await createTrustVCDocumentLoader();
 
     const verificationFragments = await verifyDocument(
       verificationInput as Parameters<typeof verifyDocument>[0],
@@ -1300,7 +1299,7 @@ function normalizeDid(value: string): string {
   return value.trim().replace(/\/+$/, "").toLowerCase();
 }
 
-async function createTrustVCDocumentLoader() {
+export async function createTrustVCDocumentLoader() {
   const { getDocumentLoader, MULTIKEY_V1_URL } = await loadTrustVCContext();
 
   const didDocument = {
@@ -1320,13 +1319,14 @@ async function createTrustVCDocumentLoader() {
     capabilityDelegation: [LOCAL_DID_VERIFICATION_METHOD_ID],
   };
 
-  return getDocumentLoader({
+  const additionalContexts = {
     [TRUSTVC_CONFIG.didUrl]: didDocument,
     [LOCAL_DID_VERIFICATION_METHOD_ID]: {
       "@context": didDocument["@context"],
       ...(didDocument.verificationMethod[0] as Record<string, unknown>),
     },
-  });
+  };
+  return getDocumentLoader(additionalContexts);
 }
 
 // ---------------------------------------------------------------------------

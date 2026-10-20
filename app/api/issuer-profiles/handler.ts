@@ -67,7 +67,10 @@ function validateProfile(body: Partial<ProfileBody>, partial = false): string | 
     const value = body[field];
     if (typeof value === "string" && value.trim()) {
       try {
-        new URL(value);
+        const url = new URL(value);
+        if (url.protocol !== "https:" && url.protocol !== "http:") {
+          return `${field} must use HTTP or HTTPS.`;
+        }
       } catch {
         return `${field} must be an absolute URL.`;
       }
@@ -103,6 +106,7 @@ export async function GET(request: Request) {
   try {
     const includeInactive = new URL(request.url).searchParams.get("includeInactive") === "true";
     return NextResponse.json({
+      canManage: user.roles.includes("issuer-admin"),
       issuerProfiles: (await IssuerProfileService.list(user.issuerId, { includeInactive }))
         .map(({ id, issuerName, displayName, did, verificationMethod, documentStoreAddress,
           documentStoreNetwork, logoUrl, website, active, createdAt, updatedAt }) => ({

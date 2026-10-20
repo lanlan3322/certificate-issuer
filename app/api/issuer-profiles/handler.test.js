@@ -28,6 +28,7 @@ function load(mocks) {
 
 test("issuer profile API scopes callers, redacts key references, and accepts references rather than keys", async () => {
   const roles = [];
+  let userRoles = ["issuer-admin"];
   const records = [{
     id: "profile", ownerIssuerId: "issuer", issuerName: "FTA Academy",
     displayName: "FTA Academy", did: "did:web:fta.verifiable.sg",
@@ -53,7 +54,7 @@ test("issuer profile API scopes callers, redacts key references, and accepts ref
     "../../../lib/apiAuth": {
       authorize: async (role) => {
         roles.push(role);
-        return { user: { id: "user", issuerId: "issuer", organizationId: "org" } };
+        return { user: { id: "user", issuerId: "issuer", organizationId: "org", roles: userRoles } };
       },
       errorResponse: (error, fallback) => NextResponse.json({ error: error?.message ?? fallback }, { status: 500 }),
     },
@@ -72,8 +73,14 @@ test("issuer profile API scopes callers, redacts key references, and accepts ref
   assert.equal(listed.status, 200);
   const listPayload = await listed.json();
   assert.equal(listPayload.issuerProfiles[0].displayName, "FTA Academy");
+  assert.equal(listPayload.canManage, true);
   assert.equal("keyReference" in listPayload.issuerProfiles[0], false);
   assert.deepEqual(calls[0], ["list", "issuer", { includeInactive: false }]);
+
+  userRoles = [];
+  const readOnly = await route.GET(new Request("https://verifiable.sg/api/issuer-profiles"));
+  assert.equal((await readOnly.json()).canManage, false);
+  userRoles = ["issuer-admin"];
 
   const body = {
     issuerName: "FTA Academy",
@@ -87,13 +94,20 @@ test("issuer profile API scopes callers, redacts key references, and accepts ref
   }));
   assert.equal(created.status, 201);
   assert.equal(roles.at(-1), "issuer-admin");
-  assert.equal(calls[1][1].keyReference, "FTA_SIGNING_KEY");
-  assert.equal("privateKey" in calls[1][1], false);
+  const createCall = calls.find(([method]) => method === "create");
+  assert.equal(createCall[1].keyReference, "FTA_SIGNING_KEY");
+  assert.equal("privateKey" in createCall[1], false);
 
   const unsafe = await route.POST(new Request("https://verifiable.sg/api/issuer-profiles", {
     method: "POST", body: JSON.stringify({ ...body, keyReference: "0x123456789abcdef" }),
   }));
   assert.equal(unsafe.status, 400);
+  assert.equal(calls.filter(([method]) => method === "create").length, 1);
+
+  const unsafeWebsite = await route.POST(new Request("https://verifiable.sg/api/issuer-profiles", {
+    method: "POST", body: JSON.stringify({ ...body, website: "javascript:alert(1)" }),
+  }));
+  assert.equal(unsafeWebsite.status, 400);
   assert.equal(calls.filter(([method]) => method === "create").length, 1);
 
   const mismatched = await route.POST(new Request("https://verifiable.sg/api/issuer-profiles", {

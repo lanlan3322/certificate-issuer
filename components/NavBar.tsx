@@ -19,14 +19,24 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+function normalizePath(path: string | null | undefined): string {
+  const normalized = path?.replace(/\/+$/, "") ?? "";
+  return normalized || "/";
+}
+
 export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [isNavigating, setIsNavigating] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [issuerAuthenticated, setIssuerAuthenticated] = useState(false);
   const [issuerMenuOpen, setIssuerMenuOpen] = useState(false);
   const issuerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsNavigating(false);
+  }, [pathname]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -63,6 +73,12 @@ export default function NavBar() {
     setDarkMode(nextMode);
   };
 
+  const startNavigation = (href: string) => {
+    if (normalizePath(pathname) !== normalizePath(href)) {
+      setIsNavigating(true);
+    }
+  };
+
   const publicNavItems = [
     { href: "/", label: "Overview", icon: LayoutDashboard },
     { href: "/verify", label: "Verification", icon: CheckCircle },
@@ -71,12 +87,13 @@ export default function NavBar() {
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/insurance", label: "Issue", icon: FilePlus2 },
     { href: "/branding", label: "Branding", icon: Palette },
-    { href: "/platform", label: "Platform", icon: KeyRound },
-    { href: "/did", label: "DID lifecycle", icon: KeyRound },
+    { href: "/platform", label: "Organization", icon: KeyRound },
+    { href: "/did", label: "Issuer", icon: KeyRound },
     { href: "/wallet", label: "Wallet", icon: Wallet },
   ];
 
   const logout = async () => {
+    startNavigation("/issuer/");
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     setIssuerAuthenticated(false);
     setIssuerMenuOpen(false);
@@ -90,9 +107,19 @@ export default function NavBar() {
 
   return (
     <nav className="sticky top-3 z-50 px-4 pb-3 pt-3 sm:px-6 lg:px-8">
+      {isNavigating && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-x-0 top-0 z-[100] flex h-1 items-center justify-center bg-indigo-100 dark:bg-slate-800"
+        >
+          <span className="sr-only">Loading page</span>
+          <span className="absolute inset-y-0 left-0 w-1/3 animate-pulse bg-indigo-600 dark:bg-indigo-400" />
+        </div>
+      )}
       <div className="mx-auto max-w-7xl rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/85 dark:shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
         <div className="flex h-16 items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <Link href="/" onNavigate={() => startNavigation("/")} className="flex min-w-0 items-center gap-2 sm:gap-3">
             <img src="/verifiable-logo.svg" alt="Verifiable" className="h-8 w-auto max-w-[170px] sm:h-9 sm:max-w-[205px]" />
           </Link>
 
@@ -104,6 +131,7 @@ export default function NavBar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onNavigate={() => startNavigation(item.href)}
                   aria-current={isActive ? "page" : undefined}
                   className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 ${
                     isActive
@@ -130,7 +158,7 @@ export default function NavBar() {
                 <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
                   {issuerMenuItems.map((item) => {
                     const Icon = item.icon;
-                    return <Link key={item.href} href={item.href} onClick={() => setIssuerMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><Icon className="h-4 w-4" />{item.label}</Link>;
+                    return <Link key={item.href} href={item.href} onNavigate={() => startNavigation(item.href)} onClick={() => setIssuerMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><Icon className="h-4 w-4" />{item.label}</Link>;
                   })}
                   {issuerAuthenticated && <button type="button" onClick={() => void logout()} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40"><LogOut className="h-4 w-4" />Logout</button>}
                 </div>
@@ -166,6 +194,7 @@ export default function NavBar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onNavigate={() => startNavigation(item.href)}
                   aria-current={isActive ? "page" : undefined}
                   className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
                     isActive
@@ -183,7 +212,7 @@ export default function NavBar() {
               <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Issuer access</p>
               {issuerMenuItems.map((item) => {
                 const Icon = item.icon;
-                return <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon className="h-4 w-4" />{item.label}</Link>;
+                return <Link key={item.href} href={item.href} onNavigate={() => startNavigation(item.href)} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon className="h-4 w-4" />{item.label}</Link>;
               })}
               {issuerAuthenticated && <button type="button" onClick={() => { setMobileMenuOpen(false); void logout(); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40"><LogOut className="h-4 w-4" />Logout</button>}
             </div>

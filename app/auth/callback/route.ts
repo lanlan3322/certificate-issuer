@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "../../../lib/supabase/server";
+import { safeInternalPath } from "../../../lib/safe-internal-path";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const flowId = url.searchParams.get("sb_flow_id");
-  const next = url.searchParams.get("next") ?? "/issuer/";
+  const next = safeInternalPath(url.searchParams.get("next"));
 
   authCallbackLog("arrival", {
     origin: url.origin,
@@ -53,5 +54,5 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/issuer/?error=invalid_link", url.origin));
   }
 
-  return NextResponse.redirect(new URL(next.startsWith("/") ? next : "/issuer/", url.origin));
+  return NextResponse.redirect(new URL(next, url.origin));
 }

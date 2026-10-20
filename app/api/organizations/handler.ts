@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}$/;
 
 export async function GET() {
-  const { user, response } = await authorize();
+  const { user, response } = await authorize("platform-admin");
   if (response) return response;
   try {
     // Return all organizations (including disabled) so the admin page can manage them.
@@ -21,10 +21,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  // Allow any authenticated user to create their first org; callers without a role
-  // that can perform the write will hit RLS errors. For admin/tenant creation we
-  // explicitly resolve via `authorize()` (no role gate).
-  const { user, response } = await authorize();
+  const { user, response } = await authorize("platform-admin");
   if (response) return response;
   try {
     const body = (await request.json()) as { name?: string; slug?: string };

@@ -33,11 +33,14 @@ jobs:
         run: npm ci
 
       - name: Create .env.production
+        env:
+          DID_KEY_ID: ${{ secrets.NEXT_PUBLIC_DID_KEY_ID }}
+          DID_CONTROLLER: ${{ secrets.NEXT_PUBLIC_DID_CONTROLLER }}
+          DID_PUBLIC_KEY_MULTIBASE: ${{ secrets.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE }}
         run: |
-          echo "NEXT_PUBLIC_DID_KEY_ID=${{ secrets.NEXT_PUBLIC_DID_KEY_ID }}" >> .env.production
-          echo "NEXT_PUBLIC_DID_CONTROLLER=${{ secrets.NEXT_PUBLIC_DID_CONTROLLER }}" >> .env.production
-          echo "NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE=${{ secrets.NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE }}" >> .env.production
-          echo "NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE=${{ secrets.NEXT_PUBLIC_DID_PRIVATE_KEY_MULTIBASE }}" >> .env.production
+          printf '%s\n' "NEXT_PUBLIC_DID_KEY_ID=$DID_KEY_ID" >> .env.production
+          printf '%s\n' "NEXT_PUBLIC_DID_CONTROLLER=$DID_CONTROLLER" >> .env.production
+          printf '%s\n' "NEXT_PUBLIC_DID_PUBLIC_KEY_MULTIBASE=$DID_PUBLIC_KEY_MULTIBASE" >> .env.production
 
       - name: Build
         run: npm run build:github-pages
