@@ -36,3 +36,17 @@ export function resolveTemplateId(templateId?: string): CertificateTemplateId {
   }
   return DEFAULT_TEMPLATE_ID;
 }
+
+/** Fixed mapping from each template to its issuing organization. */
+export const TEMPLATE_ORGANIZERS: Record<CertificateTemplateId, string> = {
+  classic: "VerifiableSG",
+  modern: "VerifiableSG",
+  minimal: "VerifiableSG",
+  fta: "Fintech Academy",
+};
+
+/** Resolve the human-readable organization name for a template. */
+export function resolveTemplateIssuer(templateId?: string): string {
+  const id = resolveTemplateId(templateId);
+  return TEMPLATE_ORGANIZERS[id];
+}
