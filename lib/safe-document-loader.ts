@@ -10,6 +10,11 @@ interface LoaderResult {
 
 type BaseDocumentLoader = (url: string) => Promise<LoaderResult>;
 type Address = { address: string; family: 4 | 6 };
+type PinnedLookupCallback = (
+  error: NodeJS.ErrnoException | null,
+  address: string | Address[],
+  family?: number
+) => void;
 type SafeLoaderOptions = {
   lookupAll?: (hostname: string) => Promise<Address[]>;
   fetchJson?: (url: URL, address: Address) => Promise<{ document: unknown; redirect?: string }>;
@@ -18,6 +23,20 @@ type SafeLoaderOptions = {
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 5_000;
 const MAX_REDIRECTS = 3;
+
+export function createPinnedLookup(address: Address) {
+  return (
+    _hostname: string,
+    options: { all?: boolean },
+    callback: PinnedLookupCallback
+  ) => {
+    if (options.all) {
+      callback(null, [address]);
+    } else {
+      callback(null, address.address, address.family);
+    }
+  };
+}
 
 function ipv4ToNumber(address: string): number | null {
   const parts = address.split(".");
@@ -123,9 +142,7 @@ function requestJson(url: URL, pinnedAddress: Address): Promise<{ document: unkn
     const req = httpsRequest(url, {
       method: "GET",
       headers: { Accept: "application/did+json, application/json" },
-      lookup: (_hostname, _options, callback) => {
-        callback(null, pinnedAddress.address, pinnedAddress.family);
-      },
+      lookup: createPinnedLookup(pinnedAddress),
     }, (response) => {
       const status = response.statusCode ?? 0;
       if (status >= 300 && status < 400 && response.headers.location) {
