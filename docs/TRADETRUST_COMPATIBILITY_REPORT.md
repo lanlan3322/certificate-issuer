@@ -4,6 +4,22 @@ Updated: 2026-10-20
 Overall: **Fresh W3C artifact blocked by tested upstream status decoder;
 historical artifacts FAIL; hosted portal execution not performed**
 
+## Application Document Store verifier update — 2026-10-20
+
+The application now verifies its signed `OpenAttestationDocumentStore` status
+entry after successful ECDSA signature/issuer authorization checks. It queries
+the signed targetHash/address on the selected supported network and fails closed
+for missing registration, revocation, invalid references and RPC failure.
+Unqualified historical references retain their original Sepolia semantics.
+
+Dual DID/Ethereum issuance now anchors the same signed credential returned for
+download, instead of generating an unrelated wallet credential for registration.
+This fixes an application hash mismatch; it does not retrofit historical
+registrations or create an OpenAttestation wrapper. External TrustVC support for
+this application-specific status type and hosted TradeTrust acceptance remain
+unverified. Bitstring and existing cryptographic/wallet regression paths remain
+covered separately.
+
 ## Dedicated store integration and live service smoke — 2026-10-20
 
 Local issuance now selects `DOCUMENT_STORE_ADDRESS` for unmapped templates while

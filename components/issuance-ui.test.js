@@ -46,6 +46,48 @@ test("wallet action appears next to Issuing Methods only when Ethereum is select
   }
 });
 
+test("dual issuance anchors the same DID credential returned for download", async () => {
+  for (const relativePath of ["app/insurance/page.tsx", "app/page.tsx"]) {
+    const source = sourceFile(relativePath);
+    const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
+      node.name.getText(source) === "handleIssue");
+    const javascript = ts.transpileModule(`const run = ${handler.initializer.getText(source)};`, {
+      compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+    }).outputText;
+    const signed = { proof: { proofValue: "did-proof" }, credentialStatus: [] };
+    let anchored;
+    let error;
+    const store = { address: "0x1111111111111111111111111111111111111111", network: "sepolia" };
+    const dependencies = {
+      issuingMethods: ["did", "ethereum"], connected: true, network: "sepolia",
+      formData: { recipientName: "Test", recipientEmail: "test@example.com",
+        certificateType: "Course", templateId: "fta", description: "", hasValidity: false },
+      validateCertificateData: () => ({ valid: true, errors: [] }),
+      validateIssuingMethods: () => ({ valid: true, errors: [] }),
+      setErrors: (value) => { error = value; }, setIssuing() {}, setIssuedCert() {},
+      setIssuedTxHash() {}, setDIDResult() {}, setEthereumResult(value) {
+        if (value) assert.equal(value.error, undefined);
+      },
+      getISODateString: () => "2026-10-20T00:00:00Z", generateCertificateId: () => "test",
+      dateInputToISO: () => null, buildVCPayload: () => { throw new Error("Must reuse DID credential"); },
+      getSigner: async () => ({}), switchToSepolia: async () => {},
+      signCredentialWithEthereum: async () => { throw new Error("Must not replace DID proof"); },
+      getCredentialDocumentStore: (credential) => { assert.strictEqual(credential, signed); return store; },
+      issueCertificateToEthereum: async (credential, address) => {
+        assert.equal(address, store.address);
+        anchored = credential;
+        return { credential };
+      },
+      fetch: async () => ({ ok: true, status: 200, json: async () => ({ signed: true, credential: signed }) }),
+    };
+    const run = new Function(...Object.keys(dependencies), `${javascript}\nreturn run;`)(
+      ...Object.values(dependencies));
+    await run();
+    assert.deepEqual(error, []);
+    assert.strictEqual(anchored, signed);
+  }
+});
+
 test("FTA certificate displays date-only values in both date positions", () => {
   const certificateUtils = load("lib/certificate.ts", {
     "./trustvc": {},

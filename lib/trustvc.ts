@@ -6,6 +6,7 @@ import bs58 from "bs58";
 import {
   Contract,
   formatEther,
+  isAddress,
   JsonRpcProvider,
   keccak256,
   Provider,
@@ -465,7 +466,7 @@ export function buildVCPayload(data: CertificateData, mode?: string) {
     // status-list entry or an OpenAttestation wrapper. See the compatibility reports.
     credentialStatus: [
       {
-        id: `did:ethr:${data.documentStoreAddress ?? DOCUMENT_STORE_CONFIG.address}#${data.id}`,
+        id: `did:ethr:${data.documentStoreNetwork === "mainnet" ? "mainnet:" : ""}${data.documentStoreAddress ?? DOCUMENT_STORE_CONFIG.address}#${data.id}`,
         type: "OpenAttestationDocumentStore",
         documentId: data.id,
         revocation: TRUSTVC_CONFIG.revocation,
@@ -529,7 +530,7 @@ export interface VerificationResult {
  */
 export async function verifyCredential(
   document: Record<string, unknown>,
-  options: { documentLoader?: DocumentLoader } = {}
+  options: { documentLoader?: DocumentLoader; documentStoreProvider?: Provider } = {}
 ): Promise<VerificationResult> {
   try {
     // Fast structural pre-checks so we can return friendly messages before
@@ -644,7 +645,7 @@ export async function verifyCredential(
 
     if (proof["type"] === "DataIntegrityProof" && proof["cryptosuite"] === "ecdsa-sd-2023") {
       const documentLoader = options.documentLoader ?? await createTrustVCDocumentLoader();
-      return await verifyEcdsaCredential(document, proof, documentLoader);
+      return await verifyEcdsaCredential(document, proof, documentLoader, options.documentStoreProvider);
     }
 
     // Remove credentialStatus that points to unverifiable tradetrust.io status
@@ -1037,7 +1038,8 @@ function resolveProvider(
 async function verifyEcdsaCredential(
   document: Record<string, unknown>,
   proof: Record<string, unknown>,
-  documentLoader: DocumentLoader
+  documentLoader: DocumentLoader,
+  documentStoreProvider?: Provider
 ): Promise<VerificationResult> {
   const issuer = typeof document.issuer === "string" ? document.issuer :
     isRecord(document.issuer) ? document.issuer.id : undefined;
@@ -1130,6 +1132,50 @@ async function verifyEcdsaCredential(
         details: { ...details, credentialStatus: "verified", blockchainVerification: "not required" },
       };
     }
+    if (statuses.length === 1 && isRecord(statuses[0]) &&
+        statuses[0].type === "OpenAttestationDocumentStore") {
+      const targetHash = statuses[0].targetHash;
+      if (typeof targetHash !== "string" || !/^0x[\da-f]{64}$/i.test(targetHash)) {
+        return { valid: false, message: "Document Store status requires a signed bytes32 targetHash.",
+          details: { ...details, credentialStatus: "invalid" } };
+      }
+      let store: ReturnType<typeof getCredentialDocumentStore>;
+      try {
+        store = getCredentialDocumentStore(document);
+      } catch {
+        return { valid: false, message: "Credential contains an invalid or unsupported Document Store reference.",
+          details: { ...details, credentialStatus: "invalid" } };
+      }
+      const network = NETWORKS[store.network];
+      const ownProvider = documentStoreProvider ? null : new JsonRpcProvider(
+        process.env[`${store.network.toUpperCase()}_RPC_URL`] ?? network.rpcUrl,
+        network.chainId
+      );
+      const provider = documentStoreProvider ?? ownProvider!;
+      try {
+        if ((await provider.getNetwork()).chainId !== BigInt(network.chainId)) {
+          throw new Error("Document Store provider network mismatch.");
+        }
+        const contract = new Contract(store.address, DOCUMENT_STORE_ABI, provider);
+        const issued = Boolean(await contract.isIssued(targetHash));
+        const revoked = issued ? Boolean(await contract.isRevoked(targetHash)) : false;
+        return {
+          valid: issued && !revoked,
+          message: !issued ? "Credential hash is not registered in its Document Store." :
+            revoked ? "Credential has been revoked on blockchain." :
+              "Credential verified successfully (signature, issuer and Document Store status).",
+          details: { ...details, credentialStatus: !issued ? "not issued" : revoked ? "revoked" : "verified",
+            blockchainVerification: issued && !revoked ? "passed" : "failed",
+            documentStoreAddress: store.address, documentStoreNetwork: store.network, targetHash, revoked },
+        };
+      } catch {
+        console.error("[verification] Document Store status lookup failed.");
+        return { valid: false, message: "Unable to check credential Document Store status.",
+          details: { ...details, credentialStatus: "unavailable" } };
+      } finally {
+        ownProvider?.destroy();
+      }
+    }
     return {
       valid: false,
       message: "Credential signature and issuer are verified, but credentialStatus verification is unsupported.",
@@ -1154,6 +1200,22 @@ async function verifyEcdsaCredential(
     message: "Credential verified successfully (cryptographic signature and issuer authorization).",
     details: { ...details, credentialStatus: "not present", blockchainVerification: "not required" },
   };
+}
+
+export function getCredentialDocumentStore(credential: Record<string, unknown>): {
+  address: string;
+  network: keyof typeof NETWORKS;
+} {
+  const raw = credential.credentialStatus;
+  const statuses = Array.isArray(raw) ? raw : [raw];
+  if (statuses.length !== 1 || !isRecord(statuses[0]) ||
+      statuses[0].type !== "OpenAttestationDocumentStore" || typeof statuses[0].id !== "string") {
+    throw new Error("Credential requires a single Document Store status reference.");
+  }
+  const match = /^did:ethr:(?:(sepolia|mainnet):)?(0x[\da-fA-F]{40})#[^\s]+$/.exec(statuses[0].id);
+  if (!match || !isAddress(match[2])) throw new Error("Invalid Document Store status reference.");
+  // Unqualified references were historically issued against Sepolia.
+  return { address: match[2], network: match[1] === "mainnet" ? "mainnet" : "sepolia" };
 }
 
 async function verifyBitstringStatuses(
@@ -1578,6 +1640,7 @@ function stripExistingProof(
 
 export interface EthereumIssuanceResult {
   txHash?: string;
+  alreadyRegistered?: boolean;
   documentHash?: string;
   credential?: Record<string, unknown>;
   walletAddress?: string;
@@ -1684,6 +1747,13 @@ export async function issueCertificateToEthereum(
       DOCUMENT_STORE_ABI,
       signer
     );
+
+    if (await contract.isIssued(documentHash)) {
+      if (await contract.isRevoked(documentHash)) {
+        return { error: "This document has been revoked.", documentHash };
+      }
+      return { documentHash, credential, alreadyRegistered: true };
+    }
 
     // Simulate before asking the wallet to send a potentially reverting transaction.
     try {

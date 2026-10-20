@@ -31,6 +31,7 @@ import {
   CertificateData,
   generateCertificateId,
   buildVCPayload,
+  getCredentialDocumentStore,
   issueCertificateToEthereum,
   signCredentialWithEthereum,
   type DIDIssuanceResult,
@@ -310,6 +311,7 @@ export default function InsurancePage() {
         issuingMethods,
       };
 
+      let didCredential: Record<string, unknown> | undefined;
       if (issuingMethods.includes("did")) {
         // Signing and persistence both happen server-side; there is no browser
         // fallback because the signing key is never sent to the client.
@@ -346,6 +348,7 @@ export default function InsurancePage() {
           return;
         }
 
+        didCredential = resultPayload.credential;
         setDIDResult({
           credential: resultPayload.credential,
           signed: true,
@@ -358,14 +361,19 @@ export default function InsurancePage() {
             await switchToSepolia();
           }
           const signer = await getSigner();
-          const unsignedCredential = buildVCPayload(certData, "v1") as Record<string, unknown>;
-          const walletSigned = await signCredentialWithEthereum(unsignedCredential, signer);
+          const credential = didCredential ?? (await signCredentialWithEthereum(
+            buildVCPayload(certData, "v1"), signer
+          )).credential;
+          const store = getCredentialDocumentStore(credential);
+          if (store.network !== "sepolia") {
+            throw new Error("Wallet issuance currently supports Sepolia Document Stores only.");
+          }
           const result = await issueCertificateToEthereum(
-            walletSigned.credential,
-            DOCUMENT_STORE_CONFIG.address,
+            credential,
+            store.address,
             signer
           );
-          setEthereumResult({ ...result, ...walletSigned });
+          setEthereumResult(result);
           if (result.txHash) {
             setIssuedTxHash(result.txHash);
           }
@@ -814,29 +822,31 @@ export default function InsurancePage() {
                     {ethereumResult && (
                       <div
                         className={`p-3 rounded-lg border ${
-                          ethereumResult.txHash
+                          ethereumResult.txHash || ethereumResult.alreadyRegistered
                             ? "bg-green-50 border-green-200"
                             : "bg-red-50 border-red-200"
                         }`}
                       >
                         <div className="flex items-start space-x-2">
-                          {ethereumResult.txHash ? (
+                          {ethereumResult.txHash || ethereumResult.alreadyRegistered ? (
                             <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                           ) : (
                             <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                           )}
                           <div className="flex-1 min-w-0">
-                            {ethereumResult.txHash ? (
+                            {ethereumResult.txHash || ethereumResult.alreadyRegistered ? (
                               <>
                                 <p className="font-medium text-green-800 text-sm">
-                                  Issued on Ethereum (Sepolia)
+                                  {ethereumResult.alreadyRegistered
+                                    ? "Already registered on Ethereum (Sepolia)"
+                                    : "Issued on Ethereum (Sepolia)"}
                                 </p>
                                 {ethereumResult.walletAddress && (
                                   <p className="mt-1 text-xs text-green-700 break-all">
                                     Signed by MetaMask: {ethereumResult.walletAddress}
                                   </p>
                                 )}
-                                <p className="text-xs text-green-700 mt-1 font-mono break-all">
+                                {ethereumResult.txHash && <p className="text-xs text-green-700 mt-1 font-mono break-all">
                                   Tx:{" "}
                                   <a
                                     href={`https://sepolia.etherscan.io/tx/${ethereumResult.txHash}`}
@@ -849,7 +859,7 @@ export default function InsurancePage() {
                                     </span>
                                     <ExternalLink className="w-3 h-3 flex-shrink-0" />
                                   </a>
-                                </p>
+                                </p>}
                                 <p className="text-xs text-green-600 mt-0.5">
                                   Store:{" "}
                                   <a

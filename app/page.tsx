@@ -32,6 +32,7 @@ import {
   CertificateData,
   generateCertificateId,
   buildVCPayload,
+  getCredentialDocumentStore,
   issueCertificateToEthereum,
   signCredentialWithEthereum,
   type DIDIssuanceResult,
@@ -506,6 +507,7 @@ export default function HomePage() {
         issuingMethods,
       };
 
+      let didCredential: Record<string, unknown> | undefined;
       // --- DID issuance ---
       if (issuingMethods.includes("did")) {
         // Signing and persistence both happen server-side; there is no browser
@@ -538,9 +540,14 @@ export default function HomePage() {
           return;
         }
 
+        if (!resultPayload.signed || !resultPayload.credential?.proof) {
+          setErrors(["DID signing did not return a signed credential."]);
+          return;
+        }
+        didCredential = resultPayload.credential;
         setDIDResult({
-          credential: (resultPayload.credential ?? buildVCPayload(certData)) as Record<string, unknown>,
-          signed: Boolean(resultPayload.signed),
+          credential: resultPayload.credential,
+          signed: true,
         });
       }
 
@@ -552,17 +559,19 @@ export default function HomePage() {
             await switchToSepolia();
           }
           const signer = await getSigner();
-          const unsignedCredential = buildVCPayload(certData) as Record<
-            string,
-            unknown
-          >;
-          const walletSigned = await signCredentialWithEthereum(unsignedCredential, signer);
+          const credential = didCredential ?? (await signCredentialWithEthereum(
+            buildVCPayload(certData), signer
+          )).credential;
+          const store = getCredentialDocumentStore(credential);
+          if (store.network !== "sepolia") {
+            throw new Error("Wallet issuance currently supports Sepolia Document Stores only.");
+          }
           const result = await issueCertificateToEthereum(
-            walletSigned.credential,
-            DOCUMENT_STORE_CONFIG.address,
+            credential,
+            store.address,
             signer
           );
-          setEthereumResult({ ...result, ...walletSigned });
+          setEthereumResult(result);
           if (result.txHash) {
             setIssuedTxHash(result.txHash);
           }

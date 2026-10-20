@@ -2,6 +2,59 @@
 
 Last Updated: 2026-10-20
 
+## Application verification of signed Document Store status — 2026-10-20
+
+- The ECDSA verifier previously accepted Bitstring status lists only, producing
+  `credentialStatus: unsupported` even after successful signature/issuer checks
+  for the application's `OpenAttestationDocumentStore` entries.
+- It now accepts one well-formed store entry with a proof-covered bytes32
+  targetHash and checks `isIssued`, then `isRevoked`, against that signed store.
+  Unissued, revoked, malformed, wrong-network or unavailable status remains
+  invalid. Unknown/mixed status types remain unsupported. Recipient data and
+  signed credentials are not rewritten.
+- Historical unqualified `did:ethr:<address>#...` references retain Sepolia
+  semantics. Explicit Sepolia/mainnet references are accepted; new mainnet
+  payloads include the network qualifier. RPC endpoints come only from trusted
+  application configuration, never credential-provided URLs.
+- Dual DID/Ethereum issuance now anchors the same DID-signed credential used for
+  persistence/download rather than a separate wallet-signed payload. The store
+  comes from the signed status reference. Active hashes already registered by
+  the platform skip another transaction and display an already-registered state;
+  revoked hashes are rejected. Ethereum-only wallet signing remains available.
+- Existing dual-issuance downloads can still be unregistered if the prior wallet
+  transaction anchored a different hash and platform registration failed. This
+  correction does not mutate, re-sign or backfill historical documents.
+- This is application-level status support, not proof of TradeTrust/OpenCerts
+  acceptance. No live credential or blockchain transaction was created here.
+- Validation: 52 focused credential/store/issuance/UI/revocation regressions pass.
+  `npm run build -- --webpack` and TypeScript pass. Hosted verification of the
+  user's specific downloaded certificate remains pending deployment.
+
+## Delegated-wallet transaction failure — 2026-10-20
+
+- Failed Sepolia transaction
+  `0xcd6d3d3534409378df807cfc18f1a5ff1e25d6dae428c25163c903558a55f301`
+  has receipt status 0 at block 11954103. It is a type-4 EIP-7702 transaction
+  to `0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3`, not a direct store call.
+- Decoded `redeemDelegations(bytes[],bytes32[],bytes[])` calldata contains the
+  correct store `0x814D9c222D3b5A8282e0467Fa12b24C057731dD6` and
+  `issue(0x510ce14e6b17e650fe05df959f981a9657a7a766a5be8407424327c0f84dbfd0)`.
+  Thus the different outer destination does not establish an application
+  address-selection bug. The wallet now has EIP-7702 delegation code.
+- Read-back confirms the wallet has ISSUER_ROLE and the failed hash is not
+  issued. The exact direct issuance simulation currently passes. Historical
+  wrapper replay fails against block 11954102 state but passes against block
+  11954103 state, after the account delegation became active.
+- Failed transaction gas limit was 411657, gas used 211901. A subsequent
+  wrapper estimate was 414564 and direct estimate 135482. These observations
+  do not establish out-of-gas as the historical root cause. Nested debug traces
+  are unavailable through the configured provider; the precise wrapper revert
+  remains unproven.
+- No further grant or issuance transaction was sent. Next diagnostic: retry the
+  failed Ethereum operation with a fresh wallet estimate, or disable optional
+  wallet smart/delegated transaction routing and use a direct store transaction.
+  Do not change account delegation or permissions automatically.
+
 ## Ethereum wallet issuance SDK correction — 2026-10-20
 
 - Fixed wallet issuance and revocation simulations to use ethers v6
