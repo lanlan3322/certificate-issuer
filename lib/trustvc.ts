@@ -1663,7 +1663,7 @@ export async function signCredentialWithEthereum(
  * Canonical serialisation (sorted keys) ensures the hash is stable regardless
  * of JavaScript property insertion order.
  *
- * Requires an ethers v5 signer connected to the correct network (Sepolia).
+ * Requires an ethers v6 signer connected to the correct network (Sepolia).
  */
 export async function issueCertificateToEthereum(
   credential: Record<string, unknown>,
@@ -1683,13 +1683,11 @@ export async function issueCertificateToEthereum(
       documentStoreAddress,
       DOCUMENT_STORE_ABI,
       signer
-    ) as any;
+    );
 
-    // callStatic.issue simulates the transaction without sending it.
-    // This catches permission errors and "already issued" conditions
-    // before spending gas on a transaction that would revert.
+    // Simulate before asking the wallet to send a potentially reverting transaction.
     try {
-      await (contract.callStatic as any).issue(documentHash);
+      await contract.issue.staticCall(documentHash);
     } catch (staticErr) {
       const staticMsg = (staticErr as Error).message ?? String(staticErr);
       if (
@@ -1706,11 +1704,14 @@ export async function issueCertificateToEthereum(
       };
     }
 
-    const tx = await (contract as any).issue(documentHash);
+    const tx = await contract.issue(documentHash);
     const receipt = await tx.wait();
+    if (!receipt || receipt.status !== 1) {
+      return { error: "Document Store issuance transaction was not confirmed successfully.", documentHash };
+    }
 
     return {
-      txHash: receipt.transactionHash,
+      txHash: receipt.hash,
       documentHash,
       credential,
     };
@@ -1766,7 +1767,7 @@ export async function revokeCertificateOnEthereum(
       documentStoreAddress,
       DOCUMENT_STORE_ABI,
       signer
-    ) as any;
+    );
 
     const isRevoked = await contract.isRevoked(documentHash);
 
@@ -1775,7 +1776,7 @@ export async function revokeCertificateOnEthereum(
     }
 
     try {
-      await (contract.callStatic as any).revoke(documentHash);
+      await contract.revoke.staticCall(documentHash);
     } catch (staticErr) {
       const staticMsg = (staticErr as Error).message ?? String(staticErr);
       return {
@@ -1786,11 +1787,14 @@ export async function revokeCertificateOnEthereum(
       };
     }
 
-    const tx = await (contract as any).revoke(documentHash);
+    const tx = await contract.revoke(documentHash);
     const receipt = await tx.wait();
+    if (!receipt || receipt.status !== 1) {
+      return { error: "Document Store revocation transaction was not confirmed successfully.", documentHash };
+    }
 
     return {
-      txHash: receipt.transactionHash,
+      txHash: receipt.hash,
       documentHash,
     };
   } catch (err) {

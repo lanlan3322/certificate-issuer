@@ -43,14 +43,9 @@ export function formatIssuingMethodLabels(
     .join(", ");
 }
 
-// Document Store Configuration
-// TODO: Replace with your own deployed document store
-// Deploy guide: https://docs.tradetrust.io/docs/how-tos/deployment
+// Dedicated Verifiable.sg Document Store on Sepolia.
 export const DOCUMENT_STORE_CONFIG = {
-  // Demo document store on Sepolia
-  // For production, deploy your own at:
-  // https://sepolia.etherscan.io/address/0x4B30674f8F77C0b1Ab4C8A34b2a85C295A3aE2D4
-  address: "0x92600b6B5fE4D15D87d7d264C6cAdCcaf9D74594",
+  address: "0x814D9c222D3b5A8282e0467Fa12b24C057731dD6",
   
   // Identity Proof - DNS-TXT record
   // Add this TXT record to your DNS:

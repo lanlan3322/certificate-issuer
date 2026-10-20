@@ -2,6 +2,23 @@
 
 Last Updated: 2026-10-20
 
+## Ethereum wallet issuance SDK correction — 2026-10-20
+
+- Fixed wallet issuance and revocation simulations to use ethers v6
+  `contract.issue.staticCall(hash)` / `contract.revoke.staticCall(hash)`.
+  The old v5 `contract.callStatic` property was undefined; its resulting
+  TypeError was incorrectly presented as a possible permission failure.
+- Successful receipts now use v6 `receipt.hash`, and missing/failed receipts
+  return explicit errors instead of success-shaped results.
+- The shared browser default now points to the dedicated Sepolia store rather
+  than the old demo store. Profile-specific server overrides and historical
+  signed store references are unchanged. The connected wallet still needs the
+  appropriate on-chain role and Sepolia ETH; no roles are granted by this fix.
+- Regression coverage includes the installed ethers Contract reaching the wallet
+  request after simulation, successful receipt hash reporting, rejected prechecks,
+  absent/reverted receipts, and duplicate/revoked feedback. No live wallet
+  transaction was sent for this correction.
+
 ## Dedicated Document Store integration — 2026-10-20
 
 - Local `DOCUMENT_STORE_ADDRESS` now selects the dedicated Sepolia store and
