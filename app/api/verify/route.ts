@@ -8,7 +8,6 @@ import {
 import { CredentialService } from "../../../services/CredentialService";
 import { VerificationService } from "../../../services/VerificationService";
 import { createSafeDocumentLoader } from "../../../lib/safe-document-loader";
-import { TRUSTVC_CONFIG } from "../../../lib/constants";
 import { clientIp } from "../../../lib/apiAuth";
 import { enforceRateLimit, RateLimitError } from "../../../lib/auth";
 
@@ -59,15 +58,12 @@ async function readJsonBody(request: Request): Promise<unknown> {
 async function createVerificationDocumentLoader() {
   const baseLoader = await createTrustVCDocumentLoader();
   const localContextUrls = await getTrustVCContextUrls();
-  const localDidUrls = new Set([
-    TRUSTVC_CONFIG.didUrl,
-    process.env.DID_KEY_ID,
-    process.env.NEXT_PUBLIC_DID_KEY_ID,
-  ].filter((value): value is string => Boolean(value)));
+  // Always resolve issuer DIDs from their published documents. The base
+  // TrustVC loader contains only the legacy local key and can be stale after rotation.
   return createSafeDocumentLoader(
     baseLoader,
     localContextUrls,
-    localDidUrls
+    new Set()
   ) as import("@trustvc/w3c-context").DocumentLoader;
 }
 

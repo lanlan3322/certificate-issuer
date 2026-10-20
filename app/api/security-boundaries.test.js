@@ -300,6 +300,43 @@ test("public verification is rate-limited and rejects oversized payloads before 
   assert.equal((await validRequest.json()).verified, false);
 });
 
+test("public verification resolves issuer DIDs instead of using the stale local DID loader", async () => {
+  let localDidUrls;
+  const handler = load(path.resolve(__dirname, "verify/route.ts"), {
+    "../../../lib/apiAuth": { clientIp: () => "203.0.113.25" },
+    "../../../lib/auth": {
+      enforceRateLimit: async () => {},
+      RateLimitError: class TestRateLimitError extends Error {},
+    },
+    "../../../lib/trustvc": {
+      createTrustVCDocumentLoader: async () => async () => ({ contextUrl: null, document: {} }),
+      getTrustVCContextUrls: async () => new Set(["https://www.w3.org/ns/credentials/v2"]),
+      verifyCredential: async () => ({ valid: false, message: "Invalid credential." }),
+    },
+    "../../../lib/safe-document-loader": {
+      createSafeDocumentLoader: (_baseLoader, _localContextUrls, didUrls) => {
+        localDidUrls = didUrls;
+        return async () => ({ contextUrl: null, document: {} });
+      },
+    },
+    "../../../services/CredentialService": {
+      CredentialService: { findForPublicVerification: async () => null },
+    },
+    "../../../services/VerificationService": {
+      VerificationService: { log: async () => {} },
+    },
+  });
+
+  const response = await handler.POST(new Request("https://verifiable.sg/api/verify", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ credential: {} }),
+  }));
+
+  assert.equal(response.status, 200);
+  assert.equal(localDidUrls.size, 0);
+});
+
 test("unexpected verification failures return a generic error", async (t) => {
   t.mock.method(console, "error", () => {});
   const handler = load(path.resolve(__dirname, "verify/route.ts"), {
