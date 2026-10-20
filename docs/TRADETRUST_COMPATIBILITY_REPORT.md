@@ -7,6 +7,30 @@ remains unverified**
 
 ## Supported TrustVC issuance profile — 2026-10-20
 
+### Vercel registration configuration
+
+If issuance returns `blockchainRegistration: "disabled"`, the active server has
+not enabled optional registration. Local environment settings do not configure
+Vercel. In the Vercel project's environment settings, select Production (and
+Preview if needed), configure the following, then redeploy:
+
+- `ENABLE_DOCUMENT_STORE_REGISTRATION=true`
+- `DOCUMENT_STORE_ADDRESS=0x814D9c222D3b5A8282e0467Fa12b24C057731dD6`
+- `SEPOLIA_RPC_URL` through the deployment's secret configuration
+- `DOCUMENT_STORE_PRIVATE_KEY` through the deployment's secret configuration
+  (or `SEPOLIA_DEPLOYER_PRIVATE_KEY`, supported on Sepolia)
+
+Never prefix keys or private RPC endpoints with `NEXT_PUBLIC_`. Use a funded,
+authorized issuer signer, not an exposed admin key. Issuer-profile store overrides
+still take precedence. Changing the flag does not retroactively register previously
+skipped certificates. Check registration-submitted/registered/failed audit events
+after a fresh issuance; a scheduled response alone is not blockchain confirmation.
+
+The UI now labels this case "Certificate issued — blockchain registration skipped"
+as a warning, not "Ethereum Issuance Failed". No transaction was attempted in the
+disabled case. DID+Ethereum submission also no longer requires a connected browser
+wallet; wallet-only issuance still does.
+
 The user approved a W3C status-list profile with optional blockchain registration
 kept separately. Single and batch DID issuance now request `statusProfile: "trustvc"`.
 The authenticated issuance endpoint requires persistence, allocates durable

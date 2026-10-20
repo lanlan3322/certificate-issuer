@@ -47,6 +47,7 @@ test("wallet action appears next to Issuing Methods only when Ethereum is select
 });
 
 test("TrustVC dual issuance delegates optional anchoring to the platform, without replacing the DID credential", async () => {
+  for (const registrationStatus of ["scheduled", "disabled", undefined]) {
   for (const relativePath of ["app/insurance/page.tsx", "app/page.tsx"]) {
     const source = sourceFile(relativePath);
     const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
@@ -58,16 +59,17 @@ test("TrustVC dual issuance delegates optional anchoring to the platform, withou
     let anchored;
     let requestBody;
     let error;
+    let ethereumResult;
     const store = { address: "0x1111111111111111111111111111111111111111", network: "sepolia" };
     const dependencies = {
-      issuingMethods: ["did", "ethereum"], connected: true, network: "sepolia",
+      issuingMethods: ["did", "ethereum"], connected: false, network: "sepolia",
       formData: { recipientName: "Test", recipientEmail: "test@example.com",
         certificateType: "Course", templateId: "fta", description: "", hasValidity: false },
       validateCertificateData: () => ({ valid: true, errors: [] }),
       validateIssuingMethods: () => ({ valid: true, errors: [] }),
       setErrors: (value) => { error = value; }, setIssuing() {}, setIssuedCert() {},
       setIssuedTxHash() {}, setDIDResult() {}, setEthereumResult(value) {
-        if (value) assert.equal(value.error, undefined);
+        ethereumResult = value;
       },
       getISODateString: () => "2026-10-20T00:00:00Z", generateCertificateId: () => "test",
       dateInputToISO: () => null, buildVCPayload: () => { throw new Error("Must reuse DID credential"); },
@@ -82,7 +84,7 @@ test("TrustVC dual issuance delegates optional anchoring to the platform, withou
       fetch: async (url, options) => {
         requestBody = JSON.parse(options.body);
         return { ok: true, status: 200, json: async () => ({ signed: true, credential: signed,
-          blockchainRegistration: "scheduled" }) };
+          blockchainRegistration: registrationStatus }) };
       },
     };
     const run = new Function(...Object.keys(dependencies), `${javascript}\nreturn run;`)(
@@ -91,7 +93,36 @@ test("TrustVC dual issuance delegates optional anchoring to the platform, withou
     assert.deepEqual(error, []);
     assert.equal(anchored, undefined);
     assert.equal(requestBody.statusProfile, "trustvc");
+    if (relativePath === "app/insurance/page.tsx") {
+      if (registrationStatus === "scheduled") {
+        assert.deepEqual(ethereumResult, { registrationScheduled: true });
+      } else if (registrationStatus === "disabled") {
+        assert.deepEqual(ethereumResult, { registrationDisabled: true });
+      } else {
+        assert.match(ethereumResult.error, /unknown blockchain registration status/);
+      }
+    }
   }
+  }
+});
+
+test("disabled platform registration renders a warning rather than an Ethereum failure", () => {
+  const source = sourceFile("app/insurance/page.tsx");
+  const warning = findNode(source, (node) => ts.isJsxElement(node) &&
+    node.openingElement.attributes.properties.some((attribute) =>
+      ts.isJsxAttribute(attribute) && attribute.name.getText(source) === "role" &&
+      attribute.initializer?.text === "status") &&
+    node.getText(source).includes("blockchain registration skipped"));
+  assert.ok(warning);
+  assert.match(warning.getText(source), /No Ethereum transaction was submitted/);
+  const failure = findNode(source, (node) => ts.isJsxExpression(node) &&
+    node.getText(source).includes("Ethereum Issuance Failed") &&
+    node.getText(source).startsWith("{ethereumResult &&"));
+  assert.match(failure.getText(source), /!ethereumResult\.registrationDisabled/);
+  const issueButton = findNode(source, (node) => ts.isJsxOpeningElement(node) &&
+    node.tagName.getText(source) === "button" &&
+    node.getText(source).includes("onClick={handleIssue}"));
+  assert.match(issueButton.getText(source), /!issuingMethods\.includes\("did"\) && !connected/);
 });
 
 test("FTA certificate displays date-only values in both date positions", () => {

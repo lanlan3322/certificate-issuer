@@ -20,7 +20,7 @@ function load(mocks) {
   return instance.exports;
 }
 
-function createRoute({ statusProfile = "legacy", profileMapped = true, registrationError = false } = {}) {
+function createRoute({ statusProfile = "legacy", profileMapped = true, registrationError = false, registrationEnabled = true } = {}) {
   const calls = [];
   const pending = [];
   const defaultStore = {
@@ -111,7 +111,7 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
     },
     "../../../lib/document-store": {
       getDefaultDocumentStoreConfig: () => defaultStore,
-      isRegistered: () => true,
+      isRegistered: () => registrationEnabled,
       registerHash: async (...args) => {
         calls.push(["register-store", ...args]);
         if (!registrationError) await args[3]("0xregistration");
@@ -295,6 +295,21 @@ test("TrustVC DID-only issuance signs list status without scheduling a blockchai
   assert.equal(result.credential.credentialStatus[0].type, "BitstringStatusListEntry");
   assert.equal(result.blockchainRegistration, undefined);
   assert.equal(calls.find(([name]) => name === "persist")[1].documentHash, undefined);
+  await finish();
+  assert.equal(calls.some(([name]) => name === "register-store"), false);
+});
+
+test("disabled optional registration still issues the certificate and submits no transaction", async () => {
+  const { post, calls, finish } = createRoute({ statusProfile: "trustvc", registrationEnabled: false });
+  const response = await post({ data: {
+    id: "external-id", recipientName: "Test", recipientEmail: "test@example.com",
+    certificateType: "Completion", issuingMethods: ["did", "ethereum"],
+  } });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.signed, true);
+  assert.equal(result.blockchainRegistration, "disabled");
+  assert.ok(calls.some(([name]) => name === "persist"));
   await finish();
   assert.equal(calls.some(([name]) => name === "register-store"), false);
 });

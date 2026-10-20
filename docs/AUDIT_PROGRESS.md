@@ -2,6 +2,21 @@
 
 Last Updated: 2026-10-20
 
+## Vercel disabled-registration warning — 2026-10-20
+
+- User confirmed the disabled-registration response came from hosted Vercel.
+  The response reports the active deployment's registration flag, not the local
+  environment configuration. Vercel settings were not accessed or changed.
+- Replaced the misleading failure state with an explicit skipped-registration
+  warning. Unknown response statuses remain errors; actual transaction failures
+  retain their existing error handling.
+- Fixed the submit-button wallet gate for DID+Ethereum to match the server-side
+  registration flow. Ethereum-only issuance still requires a connected wallet.
+- Added disabled-response/no-transaction and scheduled/disabled/unknown UI
+  regressions. All 25 targeted tests and production build/TypeScript pass.
+- Documented server-only Vercel configuration and redeployment requirements in
+  the compatibility report. No secrets were printed or transactions broadcast.
+
 ## Supported TrustVC profile and hosted upload-gate check — 2026-10-20
 
 - Implemented the user-approved persisted W3C status-list issuance profile across

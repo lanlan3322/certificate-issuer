@@ -355,7 +355,9 @@ export default function InsurancePage() {
         if (issuingMethods.includes("ethereum")) {
           setEthereumResult(resultPayload.blockchainRegistration === "scheduled"
             ? { registrationScheduled: true }
-            : { error: "Certificate issued, but platform blockchain registration is disabled." });
+            : resultPayload.blockchainRegistration === "disabled"
+              ? { registrationDisabled: true }
+              : { error: "Certificate issued, but the platform returned an unknown blockchain registration status." });
         }
       }
 
@@ -746,7 +748,7 @@ export default function InsurancePage() {
 
                   <button
                     onClick={handleIssue}
-                    disabled={issuing || (issuingMethods.includes("ethereum") && !connected)}
+                    disabled={issuing || (issuingMethods.includes("ethereum") && !issuingMethods.includes("did") && !connected)}
                     className="btn-primary w-full flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
                   >
                     {issuing ? (
@@ -829,7 +831,17 @@ export default function InsurancePage() {
                         its transaction and outcome are recorded in the audit log. TrustVC verification uses the signed status lists.
                       </p>
                     )}
-                    {ethereumResult && !ethereumResult.registrationScheduled && (
+                    {ethereumResult?.registrationDisabled && (
+                      <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                        <p className="font-medium">Certificate issued — blockchain registration skipped</p>
+                        <p className="mt-1 text-xs">
+                          Optional blockchain registration is disabled on this deployment. No Ethereum transaction was submitted.
+                          The platform administrator must enable registration and configure an authorized server signer.
+                          TrustVC verification uses the signed status lists.
+                        </p>
+                      </div>
+                    )}
+                    {ethereumResult && !ethereumResult.registrationScheduled && !ethereumResult.registrationDisabled && (
                       <div
                         className={`p-3 rounded-lg border ${
                           ethereumResult.txHash || ethereumResult.alreadyRegistered
