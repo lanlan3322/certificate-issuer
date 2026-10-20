@@ -190,3 +190,20 @@ test("profile Bitstring revocation revokes the saved Document Store before the a
   assert.equal(result.transactionHash, "0xchain-tx");
   assert.equal(result.credentialStatus, "revoked");
 });
+
+test("TrustVC status-list revocation does not depend on optional blockchain registration", async () => {
+  const harness = createHarness({
+    id: "credential-id", status: "issued", external_id: "certificate-123",
+    issuer_profile_id: "profile-id",
+    document_store_address: "0x1111111111111111111111111111111111111111",
+    document_store_network: "sepolia",
+    credential: JSON.stringify({ issuingMethods: ["did"],
+      credentialStatus: [{ type: "BitstringStatusListEntry", statusPurpose: "revocation" }] }),
+  });
+  const result = await harness.service.apply({
+    credentialRef: "certificate-123", issuerId: "issuer", action: "revoke", reason: "test",
+  });
+  assert.equal(harness.chainCalls.length, 0);
+  assert.equal(harness.operations.find(([name]) => name === "rpc")[1], "apply_bitstring_revocation");
+  assert.equal(result.credentialStatus, "revoked");
+});

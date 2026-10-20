@@ -187,7 +187,7 @@ export default function BatchIssuePanel({
     return getNextYearSameDateInputValue(today);
   });
   const certificateFormat = "v1";
-  const walletRequired = issuingMethods.includes("ethereum");
+  const walletRequired = issuingMethods.includes("ethereum") && !issuingMethods.includes("did");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validRows = rows.filter((r) => r.errors.length === 0);
@@ -314,7 +314,7 @@ export default function BatchIssuePanel({
               data: certData,
               type: "did",
               certificateFormat,
-              statusProfile: issuingMethods.length === 1 ? "bitstring" : "legacy",
+              statusProfile: "trustvc",
               renderMethod: "embedded",
             }),
           });

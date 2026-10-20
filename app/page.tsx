@@ -466,7 +466,7 @@ export default function HomePage() {
     setErrors([]);
 
     // Ethereum issuance requires a connected wallet
-    if (issuingMethods.includes("ethereum") && !connected) {
+    if (issuingMethods.includes("ethereum") && !issuingMethods.includes("did") && !connected) {
       setErrors(["Please connect your wallet to issue an Ethereum certificate."]);
       return;
     }
@@ -507,7 +507,6 @@ export default function HomePage() {
         issuingMethods,
       };
 
-      let didCredential: Record<string, unknown> | undefined;
       // --- DID issuance ---
       if (issuingMethods.includes("did")) {
         // Signing and persistence both happen server-side; there is no browser
@@ -521,6 +520,8 @@ export default function HomePage() {
             data: certData,
             type: "did",
             templateId: formData.templateId,
+            statusProfile: "trustvc",
+            renderMethod: "embedded",
           }),
         });
 
@@ -544,7 +545,6 @@ export default function HomePage() {
           setErrors(["DID signing did not return a signed credential."]);
           return;
         }
-        didCredential = resultPayload.credential;
         setDIDResult({
           credential: resultPayload.credential,
           signed: true,
@@ -552,14 +552,14 @@ export default function HomePage() {
       }
 
       // --- Ethereum issuance ---
-      if (issuingMethods.includes("ethereum")) {
+      if (issuingMethods.includes("ethereum") && !issuingMethods.includes("did")) {
         try {
           // Switch to Sepolia if needed
           if (network !== "sepolia") {
             await switchToSepolia();
           }
           const signer = await getSigner();
-          const credential = didCredential ?? (await signCredentialWithEthereum(
+          const credential = (await signCredentialWithEthereum(
             buildVCPayload(certData), signer
           )).credential;
           const store = getCredentialDocumentStore(credential);

@@ -55,6 +55,7 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
         NextResponse.json({ error: error?.message ?? fallback }, { status }),
     },
     "../../../lib/trustvc": {
+      computeDocumentStoreHash: () => `0x${"b".repeat(64)}`,
       buildVCPayload: (data) => {
         calls.push(["payload", data]);
         return {
@@ -124,7 +125,13 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
       requireStatusListConfiguration: (profile) => calls.push(["require-status-list", profile]),
       StatusListService: { reserve: async (...args) => {
         calls.push(["reserve-status", ...args]);
-        return [];
+        return [{
+          id: "https://fta.verifiable.sg/api/status-list/0/revocation#0",
+          type: "BitstringStatusListEntry",
+          statusPurpose: "revocation",
+          statusListIndex: "0",
+          statusListCredential: "https://fta.verifiable.sg/api/status-list/0/revocation",
+        }];
       } },
     },
   };
@@ -259,4 +266,49 @@ test("issuer-profile issuance cannot skip persistence of its identity snapshots"
   assert.equal(response.status, 400);
   assert.match((await response.json()).error, /must be persisted/);
   assert.equal(calls.some(([name]) => name === "sign" || name === "persist"), false);
+});
+
+test("TrustVC dual issuance uses signed status lists and persists separate blockchain hash metadata", async () => {
+  const { post, calls, finish } = createRoute({ statusProfile: "trustvc" });
+  const response = await post({ data: {
+    id: "external-id", recipientName: "Test", recipientEmail: "test@example.com",
+    certificateType: "Completion", issuingMethods: ["did", "ethereum"],
+  } });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.blockchainRegistration, "scheduled");
+  assert.deepEqual(calls.find(([name]) => name === "payload")[1].issuingMethods, ["did"]);
+  assert.equal(result.credential.credentialStatus[0].type, "BitstringStatusListEntry");
+  assert.equal(result.credential.credentialStatus[0].targetHash, undefined);
+  const record = calls.find(([name]) => name === "persist")[1];
+  assert.equal(record.documentHash, `0x${"b".repeat(64)}`);
+  assert.deepEqual(record.issuingMethods, ["did", "ethereum"]);
+  await finish();
+  assert.equal(calls.find(([name]) => name === "register-store")[1], record.documentHash);
+});
+
+test("TrustVC DID-only issuance signs list status without scheduling a blockchain registration", async () => {
+  const { post, calls, finish } = createRoute({ statusProfile: "trustvc" });
+  const response = await post();
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.credential.credentialStatus[0].type, "BitstringStatusListEntry");
+  assert.equal(result.blockchainRegistration, undefined);
+  assert.equal(calls.find(([name]) => name === "persist")[1].documentHash, undefined);
+  await finish();
+  assert.equal(calls.some(([name]) => name === "register-store"), false);
+});
+
+test("TrustVC profile rejects non-persisted or Ethereum-only issuance before signing", async () => {
+  for (const overrides of [
+    { persist: false },
+    { data: { id: "external-id", recipientName: "Test", recipientEmail: "test@example.com",
+      certificateType: "Completion", issuingMethods: ["ethereum"] } },
+  ]) {
+    const { post, calls } = createRoute({ statusProfile: "trustvc" });
+    const response = await post(overrides);
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).error, /persisted DID issuance/);
+    assert.equal(calls.some(([name]) => name === "sign" || name === "persist"), false);
+  }
 });

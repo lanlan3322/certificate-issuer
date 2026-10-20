@@ -1648,6 +1648,7 @@ function stripExistingProof(
 export interface EthereumIssuanceResult {
   txHash?: string;
   alreadyRegistered?: boolean;
+  registrationScheduled?: boolean;
   documentHash?: string;
   credential?: Record<string, unknown>;
   walletAddress?: string;
@@ -1979,7 +1980,7 @@ export async function revokeCertificateViaOcspResponder(
   }
 }
 
-function computeDocumentStoreHash(
+export function computeDocumentStoreHash(
   credential: Record<string, unknown>,
   mode: RevocationHashMode = "auto"
 ): string {

@@ -97,7 +97,9 @@ export const RevocationService = {
     if (Array.isArray(statuses) && statuses.some((entry: { type?: string }) =>
       entry?.type === "BitstringStatusListEntry")) {
       let transactionHash = input.transactionHash ?? null;
-      if (input.action === "revoke" && credential.issuer_profile_id) {
+      if (input.action === "revoke" && credential.issuer_profile_id &&
+          (typeof document?.signature?.targetHash === "string" ||
+            statuses.some((entry: { targetHash?: unknown }) => typeof entry?.targetHash === "string"))) {
         transactionHash = await revokeProfileDocumentStore(credential, document);
       }
       const { data, error } = await getSupabaseAdmin().rpc("apply_bitstring_revocation", {

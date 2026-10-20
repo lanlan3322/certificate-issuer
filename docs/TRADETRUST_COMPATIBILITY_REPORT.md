@@ -1,9 +1,51 @@
 # TradeTrust compatibility report
 
 Updated: 2026-10-20
-Overall: **Latest dual-issuance download passes local application verification;
-external W3C status selector rejects its application-specific status;
-hosted portal execution not performed**
+Overall: **Supported W3C issuance profile implemented; synthetic hosted upload
+passes format recognition; full hosted verification of a newly issued credential
+remains unverified**
+
+## Supported TrustVC issuance profile — 2026-10-20
+
+The user approved a W3C status-list profile with optional blockchain registration
+kept separately. Single and batch DID issuance now request `statusProfile: "trustvc"`.
+The authenticated issuance endpoint requires persistence, allocates durable
+`BitstringStatusListEntry` status, and signs the credential with DID-only issuance
+semantics. Original selected issuance methods remain in platform metadata.
+
+When Ethereum is also selected, the platform hashes the signed document and saves
+the hash in `credentials.document_hash`. Optional post-response registration uses
+the selected issuer's store and existing transaction audit events. A scheduled
+response is not confirmation of registration. The external verifier checks signed
+status lists, not this separate anchor; revocation uses the atomic status-list
+update without depending on the optional anchor. Historical signed-hash
+revocation and wallet-only issuance retain their existing paths.
+
+Prerequisites: enable `ENABLE_BITSTRING_STATUS_LIST`, apply the existing status-list
+database migrations, and publish signed lists on an HTTPS issuer-controlled origin
+matching the DID. The legacy issuer also needs `STATUS_LIST_BASE_URL`.
+Missing configuration fails explicitly; there is no fallback to the incompatible
+application-specific status. No new database migration is required.
+
+Opened the actual `https://trustvc.io/` portal and uploaded only a non-personal
+synthetic credential signed using a newly generated ephemeral key. Its DID and
+status-list URLs deliberately used `compatibility-test.invalid`. The portal
+accepted the JSON format and attempted DID/list retrieval rather than displaying
+"Document is invalid". DNS resolution failed as expected, and the final UI said
+"Document has been tampered with". This proves upload recognition only, NOT a
+successful cryptographic or status verification. No recipient document was
+uploaded, no production key was used, and no new blockchain transaction was sent.
+
+Full acceptance still requires deployment, a freshly persisted certificate from
+the authenticated issuance UI, reachable authorized DID/signed-list endpoints,
+and successful hosted verification. Existing downloaded certificates are immutable
+and must be reissued for this profile; changing their status fields invalidates
+their signatures. No hosted TradeTrust success is claimed.
+
+Validation: 59 focused regressions and the webpack production build/TypeScript
+pass. Local availability checks show status lists disabled and no status-list
+origin or Supabase URL/service-role configuration. A true persisted end-to-end
+issuance cannot run in this local environment; hosted settings were not inspected.
 
 ## Exact latest download checked locally — 2026-10-20
 

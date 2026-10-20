@@ -2,6 +2,33 @@
 
 Last Updated: 2026-10-20
 
+## Supported TrustVC profile and hosted upload-gate check — 2026-10-20
+
+- Implemented the user-approved persisted W3C status-list issuance profile across
+  single and batch DID issuance. DID+Ethereum uses signed DID/list semantics plus
+  separate optional server-side blockchain registration metadata, without requiring
+  MetaMask or embedding an unsupported store status in the credential.
+- Optional registration retains selected profile store routing, persisted hash and
+  existing submitted/confirmed/failed transaction audit events. The UI labels work
+  as scheduled, not confirmed. Signed status-list revocation does not depend on
+  optional blockchain registration; historical signed-hash revocation is preserved.
+- The actual `https://trustvc.io/` upload accepted an ephemeral-key synthetic
+  Bitstring-profile JSON and reached DID/status-list resolution. Deliberately
+  unresolvable `.invalid` fixture URLs produced expected retrieval failures and
+  "Document has been tampered with", not the original format rejection.
+  This is upload-gate evidence only, not a hosted verification pass.
+- No recipient document upload, production-key use, new database issuance,
+  transaction broadcast, authentication change or DID change was performed.
+- Production rollout requires existing status-list configuration/migrations and
+  fresh authenticated issuance. Old signed downloads need reissuance, not editing.
+  See the compatibility report for prerequisites and remaining acceptance gates.
+- Final validation: 59 focused regressions pass; webpack production build and
+  TypeScript pass; whitespace check passes; 282 generated build files contain no
+  matches for configured secrets. Local availability checks found status lists
+  disabled, no status-list origin, and no Supabase URL/service-role configuration.
+  Therefore real persisted issuance and full hosted verification remain blocked;
+  hosted environment configuration was not inspected or changed.
+
 ## Downloaded credential validation and RPC correction — 2026-10-20
 
 - Inspected the latest two user-directed Downloads JSON files locally; no

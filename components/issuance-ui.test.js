@@ -46,7 +46,7 @@ test("wallet action appears next to Issuing Methods only when Ethereum is select
   }
 });
 
-test("dual issuance anchors the same DID credential returned for download", async () => {
+test("TrustVC dual issuance delegates optional anchoring to the platform, without replacing the DID credential", async () => {
   for (const relativePath of ["app/insurance/page.tsx", "app/page.tsx"]) {
     const source = sourceFile(relativePath);
     const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
@@ -56,6 +56,7 @@ test("dual issuance anchors the same DID credential returned for download", asyn
     }).outputText;
     const signed = { proof: { proofValue: "did-proof" }, credentialStatus: [] };
     let anchored;
+    let requestBody;
     let error;
     const store = { address: "0x1111111111111111111111111111111111111111", network: "sepolia" };
     const dependencies = {
@@ -78,13 +79,18 @@ test("dual issuance anchors the same DID credential returned for download", asyn
         anchored = credential;
         return { credential };
       },
-      fetch: async () => ({ ok: true, status: 200, json: async () => ({ signed: true, credential: signed }) }),
+      fetch: async (url, options) => {
+        requestBody = JSON.parse(options.body);
+        return { ok: true, status: 200, json: async () => ({ signed: true, credential: signed,
+          blockchainRegistration: "scheduled" }) };
+      },
     };
     const run = new Function(...Object.keys(dependencies), `${javascript}\nreturn run;`)(
       ...Object.values(dependencies));
     await run();
     assert.deepEqual(error, []);
-    assert.strictEqual(anchored, signed);
+    assert.equal(anchored, undefined);
+    assert.equal(requestBody.statusProfile, "trustvc");
   }
 });
 
@@ -219,7 +225,7 @@ test("DID-only batches issue without MetaMask using fixed V1, status and renderi
   await run();
   assert.equal(requests.length, 1);
   assert.equal(requests[0].certificateFormat, "v1");
-  assert.equal(requests[0].statusProfile, "bitstring");
+  assert.equal(requests[0].statusProfile, "trustvc");
   assert.equal(requests[0].renderMethod, "embedded");
   assert.equal(issued.length, 1);
   assert.equal(issued[0].certificate.proof.proofValue, "signed");

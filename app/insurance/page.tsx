@@ -270,7 +270,7 @@ export default function InsurancePage() {
 
     setErrors([]);
 
-    if (issuingMethods.includes("ethereum") && !connected) {
+    if (issuingMethods.includes("ethereum") && !issuingMethods.includes("did") && !connected) {
       setErrors(["Please connect MetaMask to sign the selected certificate."]);
       return;
     }
@@ -311,7 +311,6 @@ export default function InsurancePage() {
         issuingMethods,
       };
 
-      let didCredential: Record<string, unknown> | undefined;
       if (issuingMethods.includes("did")) {
         // Signing and persistence both happen server-side; there is no browser
         // fallback because the signing key is never sent to the client.
@@ -324,7 +323,7 @@ export default function InsurancePage() {
             data: certData,
             type: "did",
             certificateFormat: "v1",
-            statusProfile: issuingMethods.length === 1 ? "bitstring" : "legacy",
+            statusProfile: "trustvc",
             renderMethod: "embedded",
           }),
         });
@@ -333,6 +332,7 @@ export default function InsurancePage() {
           signed?: boolean;
           credential?: Record<string, unknown>;
           error?: string;
+          blockchainRegistration?: "scheduled" | "disabled";
         };
 
         if (!response.ok || resultPayload.error || !resultPayload.signed || !resultPayload.credential?.proof) {
@@ -348,20 +348,24 @@ export default function InsurancePage() {
           return;
         }
 
-        didCredential = resultPayload.credential;
         setDIDResult({
           credential: resultPayload.credential,
           signed: true,
         });
+        if (issuingMethods.includes("ethereum")) {
+          setEthereumResult(resultPayload.blockchainRegistration === "scheduled"
+            ? { registrationScheduled: true }
+            : { error: "Certificate issued, but platform blockchain registration is disabled." });
+        }
       }
 
-      if (issuingMethods.includes("ethereum")) {
+      if (issuingMethods.includes("ethereum") && !issuingMethods.includes("did")) {
         try {
           if (network !== "sepolia") {
             await switchToSepolia();
           }
           const signer = await getSigner();
-          const credential = didCredential ?? (await signCredentialWithEthereum(
+          const credential = (await signCredentialWithEthereum(
             buildVCPayload(certData, "v1"), signer
           )).credential;
           const store = getCredentialDocumentStore(credential);
@@ -819,7 +823,13 @@ export default function InsurancePage() {
                       </div>
                     )}
 
-                    {ethereumResult && (
+                    {ethereumResult?.registrationScheduled && (
+                      <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                        Certificate issued. Optional blockchain registration is pending on the platform;
+                        its transaction and outcome are recorded in the audit log. TrustVC verification uses the signed status lists.
+                      </p>
+                    )}
+                    {ethereumResult && !ethereumResult.registrationScheduled && (
                       <div
                         className={`p-3 rounded-lg border ${
                           ethereumResult.txHash || ethereumResult.alreadyRegistered

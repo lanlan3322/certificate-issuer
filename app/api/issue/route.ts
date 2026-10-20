@@ -2,6 +2,7 @@ import { after, NextResponse } from "next/server";
 import { authorize, errorResponse } from "../../../lib/apiAuth";
 import {
   buildVCPayload,
+  computeDocumentStoreHash,
   getDIDKeyPairFromEnv,
   getDIDKeyPairFromIssuerProfile,
   signDocumentWithDID,
@@ -93,7 +94,7 @@ export async function POST(request: Request) {
       templateId?: string;
       persist?: boolean;
       certificateFormat?: "standard" | "opencerts" | "v1" | "w3c";
-      statusProfile?: "legacy" | "bitstring";
+      statusProfile?: "legacy" | "bitstring" | "trustvc";
       renderMethod?: "none" | "embedded";
     };
 
@@ -104,8 +105,13 @@ export async function POST(request: Request) {
     const validated = validate(body.data);
     if (!validated.ok) return NextResponse.json({ error: validated.error }, { status: 400 });
     let data = validated.value;
-    if (body.statusProfile !== undefined && body.statusProfile !== "legacy" && body.statusProfile !== "bitstring") {
+    if (body.statusProfile !== undefined && !["legacy", "bitstring", "trustvc"].includes(body.statusProfile)) {
       return NextResponse.json({ error: "Unsupported status profile." }, { status: 400 });
+    }
+    const trustvcProfile = body.statusProfile === "trustvc";
+    const usesStatusList = trustvcProfile || body.statusProfile === "bitstring";
+    if (trustvcProfile && (body.persist === false || !data.issuingMethods?.includes("did"))) {
+      return NextResponse.json({ error: "TrustVC profile requires persisted DID issuance." }, { status: 400 });
     }
     if (body.renderMethod !== undefined && body.renderMethod !== "none" && body.renderMethod !== "embedded") {
       return NextResponse.json({ error: "Unsupported render method." }, { status: 400 });
@@ -174,7 +180,7 @@ export async function POST(request: Request) {
       verificationMethod: issuerProfile.verificationMethod,
       keyReference: issuerProfile.keyReference,
     } : undefined;
-    if (body.statusProfile === "bitstring") requireStatusListConfiguration(statusListIssuer);
+    if (usesStatusList) requireStatusListConfiguration(statusListIssuer);
 
     let profileKeyPair = null;
     if (issuerProfile) {
@@ -218,8 +224,9 @@ export async function POST(request: Request) {
       documentStoreNetwork: documentStore.network,
     };
 
-    const payload = buildVCPayload(data, body.certificateFormat);
-    const statusCredential: Record<string, unknown> = body.statusProfile === "bitstring"
+    const payload = buildVCPayload(trustvcProfile ? { ...data, issuingMethods: ["did"] } : data,
+      trustvcProfile ? "standard" : body.certificateFormat);
+    const statusCredential: Record<string, unknown> = usesStatusList
       ? { ...payload, credentialStatus: await StatusListService.reserve(user.issuerId, data.id, statusListIssuer) }
       : payload;
     const credential = body.renderMethod === "embedded"
@@ -244,7 +251,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const targetHash = extractTargetHash(result.credential);
+    const targetHash = trustvcProfile && data.issuingMethods?.includes("ethereum")
+      ? computeDocumentStoreHash(result.credential)
+      : extractTargetHash(result.credential);
     let stored: { id: string } | null = null;
     if (body.persist !== false) {
       try {
@@ -273,7 +282,7 @@ export async function POST(request: Request) {
           action: "credential.issued",
           entityType: "credential",
           entityId: record.id,
-          metadata: { externalId: data.id, methods: data.issuingMethods },
+          metadata: { externalId: data.id, methods: data.issuingMethods, statusProfile: body.statusProfile },
         });
       } catch (storeError) {
         if (storeError instanceof DuplicateCredentialError) {
@@ -330,7 +339,9 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({ signed: true, credential: result.credential, stored });
+    return NextResponse.json({ signed: true, credential: result.credential, stored,
+      ...(trustvcProfile && data.issuingMethods?.includes("ethereum")
+        ? { blockchainRegistration: isRegistered() ? "scheduled" : "disabled" } : {}) });
   } catch (error) {
     if (error instanceof DuplicateCredentialError) {
       return NextResponse.json({ signed: false, error: error.message }, { status: 409 });
