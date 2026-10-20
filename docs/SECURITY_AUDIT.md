@@ -161,7 +161,7 @@ No CRITICAL finding was confirmed from repository evidence.
 - **Affected files:**
   - `next.config.js`
 - **Recommended fix:** Configure HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options` or CSP `frame-ancestors`, and a least-privilege `Permissions-Policy`. Validate document embedding requirements before enforcing CSP.
-- **Remediation status:** Next.js now adds HSTS, nosniff, strict-origin-when-cross-origin referrer behavior, DENY framing, and a disabled camera/microphone/geolocation policy across routes. Verify these headers on deployed pages and APIs. CSP remains a staged follow-up because the compatible policy must account for Next.js and credential rendering.
+- **Remediation status:** Next.js adds HSTS, nosniff, strict-origin-when-cross-origin referrer behavior, and a disabled camera/microphone/geolocation policy across routes. `X-Frame-Options: DENY` applies except to `/renderer/`, which is intentionally embeddable by external credential viewers. Verify these headers on deployed pages and APIs. CSP remains a staged follow-up because the compatible policy must account for Next.js and credential rendering.
 
 ### S-11 — Static deployment workflow passed a private-key-named value as public
 

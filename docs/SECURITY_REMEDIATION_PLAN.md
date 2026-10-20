@@ -95,8 +95,8 @@ Local code remediations for S-01 through S-11 are implemented. The project owner
 
 ### 10. Add baseline HTTP security headers (S-10)
 
-- **Implemented locally:** Next.js sets HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, and a restrictive `Permissions-Policy`.
-- **Verified:** Configuration test asserts each header and the all-routes matcher.
+- **Implemented locally:** Next.js sets HSTS, `X-Content-Type-Options`, `Referrer-Policy`, and a restrictive `Permissions-Policy` on all routes. `X-Frame-Options: DENY` applies except to `/renderer/`, which must be embeddable by external credential viewers.
+- **Verified:** Configuration regression test checks the shared headers and renderer-specific framing exception.
 - **Pending before release:** Confirm headers are present on deployed pages, APIs, and rewritten DID routes; evaluate a CSP in report-only mode before enforcement.
 
 ### 11. Remove private-key-named public build variable (S-11)

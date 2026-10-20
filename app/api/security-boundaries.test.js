@@ -327,17 +327,26 @@ test("unexpected verification failures return a generic error", async (t) => {
   });
 });
 
-test("security response headers are configured for every route", async () => {
+test("security headers allow embedding only for the external credential renderer", async () => {
   const config = require("../../next.config.js");
+  const { tryToParsePath } = require("next/dist/lib/try-to-parse-path");
   const rules = await config.headers();
-  const headers = new Map(rules[0].headers.map(({ key, value }) => [key.toLowerCase(), value]));
+  const baselineHeaders = new Map(rules[0].headers.map(({ key, value }) => [key.toLowerCase(), value]));
+  const framingRule = rules.find(({ headers }) => headers.some(
+    ({ key }) => key.toLowerCase() === "x-frame-options"
+  ));
 
   assert.equal(rules[0].source, "/:path*");
-  assert.equal(headers.get("strict-transport-security"), "max-age=31536000");
-  assert.equal(headers.get("x-content-type-options"), "nosniff");
-  assert.equal(headers.get("referrer-policy"), "strict-origin-when-cross-origin");
-  assert.equal(headers.get("x-frame-options"), "DENY");
-  assert.equal(headers.get("permissions-policy"), "camera=(), microphone=(), geolocation=()");
+  assert.equal(baselineHeaders.get("strict-transport-security"), "max-age=31536000");
+  assert.equal(baselineHeaders.get("x-content-type-options"), "nosniff");
+  assert.equal(baselineHeaders.get("referrer-policy"), "strict-origin-when-cross-origin");
+  assert.equal(baselineHeaders.get("permissions-policy"), "camera=(), microphone=(), geolocation=()");
+  assert.equal(baselineHeaders.has("x-frame-options"), false);
+  assert.equal(framingRule?.source, "/((?!renderer(?:/|$)).*)");
+  assert.deepEqual(framingRule?.headers, [{ key: "X-Frame-Options", value: "DENY" }]);
+  const matchesFramingRule = new RegExp(tryToParsePath(framingRule.source).regexStr);
+  assert.equal(matchesFramingRule.test("/renderer/"), false);
+  assert.equal(matchesFramingRule.test("/verify/"), true);
 });
 
 test("static deployment workflow never receives a public-prefixed DID private key", () => {
