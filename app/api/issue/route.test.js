@@ -276,7 +276,7 @@ test("TrustVC dual issuance uses signed status lists and persists separate block
   } });
   assert.equal(response.status, 200);
   const result = await response.json();
-  assert.equal(result.blockchainRegistration, "scheduled");
+  assert.equal(result.blockchainRegistration, "wallet");
   assert.deepEqual(calls.find(([name]) => name === "payload")[1].issuingMethods, ["did"]);
   assert.equal(result.credential.credentialStatus[0].type, "BitstringStatusListEntry");
   assert.equal(result.credential.credentialStatus[0].targetHash, undefined);
@@ -284,7 +284,8 @@ test("TrustVC dual issuance uses signed status lists and persists separate block
   assert.equal(record.documentHash, `0x${"b".repeat(64)}`);
   assert.deepEqual(record.issuingMethods, ["did", "ethereum"]);
   await finish();
-  assert.equal(calls.find(([name]) => name === "register-store")[1], record.documentHash);
+  assert.equal(calls.some(([name]) => name === "register-store"), false);
+  assert.equal(result.documentStore.address, record.documentStoreAddress);
 });
 
 test("TrustVC DID-only issuance signs list status without scheduling a blockchain registration", async () => {
@@ -299,7 +300,7 @@ test("TrustVC DID-only issuance signs list status without scheduling a blockchai
   assert.equal(calls.some(([name]) => name === "register-store"), false);
 });
 
-test("selecting Ethereum registers with the selected store even when automatic registration is disabled", async () => {
+test("selecting Ethereum returns the issuer store for MetaMask without scheduling server registration", async () => {
   const { post, calls, finish } = createRoute({ statusProfile: "trustvc", registrationEnabled: false });
   const response = await post({ data: {
     id: "external-id", recipientName: "Test", recipientEmail: "test@example.com",
@@ -308,16 +309,14 @@ test("selecting Ethereum registers with the selected store even when automatic r
   assert.equal(response.status, 200);
   const result = await response.json();
   assert.equal(result.signed, true);
-  assert.equal(result.blockchainRegistration, "scheduled");
+  assert.equal(result.blockchainRegistration, "wallet");
   assert.ok(calls.some(([name]) => name === "persist"));
   await finish();
-  const registration = calls.find(([name]) => name === "register-store");
-  assert.equal(registration[1], `0x${"b".repeat(64)}`);
-  assert.equal(registration[3].address, "0x0000000000000000000000000000000000000001");
-  assert.deepEqual(registration[5], { required: true });
+  assert.equal(result.documentStore.address, "0x0000000000000000000000000000000000000001");
+  assert.equal(calls.some(([name]) => name === "register-store"), false);
 });
 
-test("requested Ethereum registration failure is audited without losing the issued certificate", async () => {
+test("wallet registration does not use a server signer even when server registration would fail", async () => {
   const { post, calls, finish } = createRoute({
     statusProfile: "trustvc", registrationEnabled: false, registrationError: true,
   });
@@ -328,9 +327,7 @@ test("requested Ethereum registration failure is audited without losing the issu
   assert.equal(response.status, 200);
   assert.equal((await response.json()).signed, true);
   await finish();
-  const failed = calls.find(([name, event]) =>
-    name === "audit" && event.action === "credential.registration_failed")[1];
-  assert.equal(failed.metadata.error, "Registration failed");
+  assert.equal(calls.some(([name]) => name === "register-store"), false);
 });
 
 test("TrustVC profile rejects non-persisted or Ethereum-only issuance before signing", async () => {

@@ -2,6 +2,26 @@
 
 Last Updated: 2026-10-20
 
+## Immediate client-side MetaMask registration — 2026-10-20
+
+- Per the latest user request, replaced TrustVC server-scheduled registration with
+  immediate client-side wallet registration for single and batch issuance.
+  Ethereum selection requires MetaMask, uses the returned issuer-profile store,
+  and waits for a confirmed receipt. Server duplication is suppressed.
+- DID+Ethereum registers the unchanged signed credential; the server persists its
+  canonical hash and returns store configuration. Signed status-list compatibility
+  and legacy server-registration paths remain intact.
+- Removed obsolete pending/skipped UI states. Wallet errors remain explicit and
+  signed DID credentials already persisted are not deleted on rejection.
+- Regression coverage checks wallet calls, unchanged DID proof, store selection,
+  batch rejection/success and absence of duplicate server transactions.
+  No real wallet request, live transaction or hosted deployment was performed.
+- Validation: all 37 directly affected tests pass; production build and TypeScript
+  pass; generated build output has no configured-secret matches. Broader crypto/
+  revocation run reports 55 passing and 3 failing tests (two footer assertions
+  plus their parent): current renderer says "Certificate Issued By" while old
+  assertions expect "Certificate Owner". That unrelated renderer was not changed.
+
 ## Explicit Ethereum selection requests registration — 2026-10-20
 
 - Ethereum selection now schedules registration with the selected issuer's

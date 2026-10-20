@@ -466,7 +466,7 @@ export default function HomePage() {
     setErrors([]);
 
     // Ethereum issuance requires a connected wallet
-    if (issuingMethods.includes("ethereum") && !issuingMethods.includes("did") && !connected) {
+    if (issuingMethods.includes("ethereum") && !connected) {
       setErrors(["Please connect your wallet to issue an Ethereum certificate."]);
       return;
     }
@@ -507,6 +507,8 @@ export default function HomePage() {
         issuingMethods,
       };
 
+      let didCredential: Record<string, unknown> | undefined;
+      let selectedStore: { address: string; network: string } | undefined;
       // --- DID issuance ---
       if (issuingMethods.includes("did")) {
         // Signing and persistence both happen server-side; there is no browser
@@ -529,6 +531,7 @@ export default function HomePage() {
           signed?: boolean;
           credential?: Record<string, unknown>;
           error?: string;
+          documentStore?: { address: string; network: string };
         };
 
         if (!response.ok || resultPayload.error) {
@@ -549,20 +552,23 @@ export default function HomePage() {
           credential: resultPayload.credential,
           signed: true,
         });
+        didCredential = resultPayload.credential;
+        selectedStore = resultPayload.documentStore;
       }
 
       // --- Ethereum issuance ---
-      if (issuingMethods.includes("ethereum") && !issuingMethods.includes("did")) {
+      if (issuingMethods.includes("ethereum")) {
         try {
           // Switch to Sepolia if needed
           if (network !== "sepolia") {
             await switchToSepolia();
           }
           const signer = await getSigner();
-          const credential = (await signCredentialWithEthereum(
+          const credential = didCredential ?? (await signCredentialWithEthereum(
             buildVCPayload(certData), signer
           )).credential;
-          const store = getCredentialDocumentStore(credential);
+          const store = didCredential ? selectedStore : getCredentialDocumentStore(credential);
+          if (!store) throw new Error("Issuance did not return the issuer's Document Store.");
           if (store.network !== "sepolia") {
             throw new Error("Wallet issuance currently supports Sepolia Document Stores only.");
           }
@@ -575,7 +581,7 @@ export default function HomePage() {
           if (result.txHash) {
             setIssuedTxHash(result.txHash);
           }
-          if (result.documentHash) {
+          if (result.documentHash && !didCredential) {
             await fetch("/api/credentials", {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },

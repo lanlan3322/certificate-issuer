@@ -7,7 +7,35 @@ remains unverified**
 
 ## Supported TrustVC issuance profile — 2026-10-20
 
+### Current Ethereum behavior: immediate MetaMask registration
+
+This supersedes the server-side scheduling behavior described in earlier entries.
+Selecting Ethereum now requires a connected MetaMask wallet in single and batch
+issuance. With DID also selected, the API first signs and persists the W3C
+status-list credential and its canonical document hash, then returns the selected
+issuer-profile Document Store address/network with `blockchainRegistration: "wallet"`.
+It does not schedule a server transaction for the TrustVC profile.
+
+The browser submits `issue(hash)` using MetaMask and waits for the mined receipt.
+It registers the same signed JSON without adding a wallet proof or rewriting
+credentialStatus. The UI shows the confirmed transaction hash or explicit wallet/
+contract failure, not a platform-pending message. Batch rows each request their own
+transaction; failed rows are reported as errors. DID-only issuance needs no wallet.
+Wallet-only issuance retains its wallet signing path.
+
+Currently wallet registration supports Sepolia only. The connected wallet must
+have issuer permission on the selected store and funds for gas. No server signing
+key or registration flag is required for this client-side transaction. A rejected
+or failed transaction does not remove a DID credential already persisted by the
+server. Reissue/retry behavior is not an automatic durable registration queue.
+The wallet receipt is shown in the client, not recorded through the superseded
+server-registration audit callback. Signed status lists remain authoritative for
+TrustVC revocation/verification; the chain anchor remains separate metadata.
+
 ### Vercel registration configuration
+
+The following settings apply only to historical/automatic server registration,
+not the current TrustVC MetaMask issuance flow.
 
 **Updated behavior:** selecting Ethereum explicitly requests Document Store
 registration, regardless of `ENABLE_DOCUMENT_STORE_REGISTRATION`. That flag

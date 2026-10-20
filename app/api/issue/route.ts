@@ -293,7 +293,7 @@ export async function POST(request: Request) {
     }
 
     const ethereumSelected = data.issuingMethods?.includes("ethereum") === true;
-    if ((ethereumSelected || isRegistered()) && targetHash) {
+    if (!trustvcProfile && (ethereumSelected || isRegistered()) && targetHash) {
       const entityId = stored?.id;
       after(async () => {
         try {
@@ -342,7 +342,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ signed: true, credential: result.credential, stored,
       ...(trustvcProfile && data.issuingMethods?.includes("ethereum")
-        ? { blockchainRegistration: "scheduled" } : {}) });
+        ? { blockchainRegistration: "wallet", documentStore } : {}) });
   } catch (error) {
     if (error instanceof DuplicateCredentialError) {
       return NextResponse.json({ signed: false, error: error.message }, { status: 409 });

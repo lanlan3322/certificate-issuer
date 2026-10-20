@@ -270,7 +270,7 @@ export default function InsurancePage() {
 
     setErrors([]);
 
-    if (issuingMethods.includes("ethereum") && !issuingMethods.includes("did") && !connected) {
+    if (issuingMethods.includes("ethereum") && !connected) {
       setErrors(["Please connect MetaMask to sign the selected certificate."]);
       return;
     }
@@ -311,6 +311,8 @@ export default function InsurancePage() {
         issuingMethods,
       };
 
+      let didCredential: Record<string, unknown> | undefined;
+      let selectedStore: { address: string; network: string } | undefined;
       if (issuingMethods.includes("did")) {
         // Signing and persistence both happen server-side; there is no browser
         // fallback because the signing key is never sent to the client.
@@ -332,7 +334,7 @@ export default function InsurancePage() {
           signed?: boolean;
           credential?: Record<string, unknown>;
           error?: string;
-          blockchainRegistration?: "scheduled" | "disabled";
+          documentStore?: { address: string; network: string };
         };
 
         if (!response.ok || resultPayload.error || !resultPayload.signed || !resultPayload.credential?.proof) {
@@ -352,25 +354,21 @@ export default function InsurancePage() {
           credential: resultPayload.credential,
           signed: true,
         });
-        if (issuingMethods.includes("ethereum")) {
-          setEthereumResult(resultPayload.blockchainRegistration === "scheduled"
-            ? { registrationScheduled: true }
-            : resultPayload.blockchainRegistration === "disabled"
-              ? { registrationDisabled: true }
-              : { error: "Certificate issued, but the platform returned an unknown blockchain registration status." });
-        }
+        didCredential = resultPayload.credential;
+        selectedStore = resultPayload.documentStore;
       }
 
-      if (issuingMethods.includes("ethereum") && !issuingMethods.includes("did")) {
+      if (issuingMethods.includes("ethereum")) {
         try {
           if (network !== "sepolia") {
             await switchToSepolia();
           }
           const signer = await getSigner();
-          const credential = (await signCredentialWithEthereum(
+          const credential = didCredential ?? (await signCredentialWithEthereum(
             buildVCPayload(certData, "v1"), signer
           )).credential;
-          const store = getCredentialDocumentStore(credential);
+          const store = didCredential ? selectedStore : getCredentialDocumentStore(credential);
+          if (!store) throw new Error("Issuance did not return the issuer's Document Store.");
           if (store.network !== "sepolia") {
             throw new Error("Wallet issuance currently supports Sepolia Document Stores only.");
           }
@@ -379,7 +377,7 @@ export default function InsurancePage() {
             store.address,
             signer
           );
-          setEthereumResult(result);
+          setEthereumResult({ ...result, documentStoreAddress: store.address });
           if (result.txHash) {
             setIssuedTxHash(result.txHash);
           }
@@ -748,7 +746,7 @@ export default function InsurancePage() {
 
                   <button
                     onClick={handleIssue}
-                    disabled={issuing || (issuingMethods.includes("ethereum") && !issuingMethods.includes("did") && !connected)}
+                    disabled={issuing || (issuingMethods.includes("ethereum") && !connected)}
                     className="btn-primary w-full flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
                   >
                     {issuing ? (
@@ -825,23 +823,7 @@ export default function InsurancePage() {
                       </div>
                     )}
 
-                    {ethereumResult?.registrationScheduled && (
-                      <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                        Certificate issued. Requested blockchain registration is pending on the platform;
-                        its transaction and outcome are recorded in the audit log. TrustVC verification uses the signed status lists.
-                      </p>
-                    )}
-                    {ethereumResult?.registrationDisabled && (
-                      <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                        <p className="font-medium">Certificate issued — blockchain registration skipped</p>
-                        <p className="mt-1 text-xs">
-                          Optional blockchain registration is disabled on this deployment. No Ethereum transaction was submitted.
-                          The platform administrator must enable registration and configure an authorized server signer.
-                          TrustVC verification uses the signed status lists.
-                        </p>
-                      </div>
-                    )}
-                    {ethereumResult && !ethereumResult.registrationScheduled && !ethereumResult.registrationDisabled && (
+                    {ethereumResult && (
                       <div
                         className={`p-3 rounded-lg border ${
                           ethereumResult.txHash || ethereumResult.alreadyRegistered
@@ -885,13 +867,13 @@ export default function InsurancePage() {
                                 <p className="text-xs text-green-600 mt-0.5">
                                   Store:{" "}
                                   <a
-                                    href={`https://sepolia.etherscan.io/address/${DOCUMENT_STORE_CONFIG.address}`}
+                                    href={`https://sepolia.etherscan.io/address/${ethereumResult.documentStoreAddress ?? DOCUMENT_STORE_CONFIG.address}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="underline inline-flex items-center space-x-1"
                                   >
                                     <span>
-                                      {DOCUMENT_STORE_CONFIG.address.slice(0, 12)}…
+                                      {(ethereumResult.documentStoreAddress ?? DOCUMENT_STORE_CONFIG.address).slice(0, 12)}…
                                     </span>
                                     <ExternalLink className="w-3 h-3 flex-shrink-0" />
                                   </a>

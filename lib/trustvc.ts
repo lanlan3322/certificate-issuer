@@ -1647,9 +1647,8 @@ function stripExistingProof(
 
 export interface EthereumIssuanceResult {
   txHash?: string;
+  documentStoreAddress?: string;
   alreadyRegistered?: boolean;
-  registrationScheduled?: boolean;
-  registrationDisabled?: boolean;
   documentHash?: string;
   credential?: Record<string, unknown>;
   walletAddress?: string;

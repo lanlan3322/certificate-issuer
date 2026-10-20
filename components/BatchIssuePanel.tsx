@@ -23,7 +23,11 @@ import {
   CertificateData,
   generateCertificateId,
   buildVCPayload,
+  getCredentialDocumentStore,
+  issueCertificateToEthereum,
+  signCredentialWithEthereum,
 } from "../lib/trustvc";
+import { useWalletConnection } from "../hooks/useWalletConnection";
 import {
   getISODateString,
 } from "../lib/certificate";
@@ -176,6 +180,7 @@ export default function BatchIssuePanel({
   onIssuingChange,
   walletControls,
 }: BatchIssuePanelProps) {
+  const { getSigner, switchToSepolia } = useWalletConnection();
   const [rows, setRows] = useState<BatchRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
@@ -187,7 +192,7 @@ export default function BatchIssuePanel({
     return getNextYearSameDateInputValue(today);
   });
   const certificateFormat = "v1";
-  const walletRequired = issuingMethods.includes("ethereum") && !issuingMethods.includes("did");
+  const walletRequired = issuingMethods.includes("ethereum");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validRows = rows.filter((r) => r.errors.length === 0);
@@ -274,9 +279,6 @@ export default function BatchIssuePanel({
       setRows([...updated]);
 
       try {
-        // Simulate async issuance (demo pattern matching single-certificate flow)
-        await new Promise<void>((resolve) => setTimeout(resolve, 150));
-
         const now = getISODateString();
         const validFromIso = hasValidity ? dateInputToISO(validFromDate) : now;
         const validUntilIsoRaw = hasValidity && validUntilDate
@@ -305,6 +307,7 @@ export default function BatchIssuePanel({
 
         let payload = buildVCPayload(certData, certificateFormat);
         let txHash: string | undefined;
+        let selectedStore: { address: string; network: string } | undefined;
 
         if (issuingMethods.includes("did")) {
           const response = await fetch("/api/issue", {
@@ -322,8 +325,9 @@ export default function BatchIssuePanel({
             signed?: boolean;
             credential?: Record<string, unknown>;
             error?: string;
+            documentStore?: { address: string; network: string };
           };
-          if (!response.ok || !result.signed) {
+          if (!response.ok || !result.signed || !result.credential?.proof) {
             throw new Error(
               result.error ??
                 (response.status === 401
@@ -332,7 +336,24 @@ export default function BatchIssuePanel({
             );
           }
           payload = result.credential as ReturnType<typeof buildVCPayload>;
+          selectedStore = result.documentStore;
           txHash = certData.id;
+        }
+
+        if (walletRequired) {
+          await switchToSepolia();
+          const signer = await getSigner();
+          if (!issuingMethods.includes("did")) {
+            payload = (await signCredentialWithEthereum(payload, signer)).credential as ReturnType<typeof buildVCPayload>;
+            selectedStore = getCredentialDocumentStore(payload);
+          }
+          if (!selectedStore) throw new Error("Issuance did not return the issuer's Document Store.");
+          if (selectedStore.network !== "sepolia") {
+            throw new Error("Wallet issuance currently supports Sepolia Document Stores only.");
+          }
+          const registration = await issueCertificateToEthereum(payload, selectedStore.address, signer);
+          if (registration.error) throw new Error(registration.error);
+          txHash = registration.txHash;
         }
 
         updated[i] = { ...updated[i], status: "success", txHash };

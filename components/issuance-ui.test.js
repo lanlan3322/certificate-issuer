@@ -46,8 +46,8 @@ test("wallet action appears next to Issuing Methods only when Ethereum is select
   }
 });
 
-test("TrustVC dual issuance delegates optional anchoring to the platform, without replacing the DID credential", async () => {
-  for (const registrationStatus of ["scheduled", "disabled", undefined]) {
+test("TrustVC dual issuance registers the unchanged DID credential through MetaMask and reports rejection", async () => {
+  for (const rejected of [false, true]) {
   for (const relativePath of ["app/insurance/page.tsx", "app/page.tsx"]) {
     const source = sourceFile(relativePath);
     const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
@@ -62,7 +62,7 @@ test("TrustVC dual issuance delegates optional anchoring to the platform, withou
     let ethereumResult;
     const store = { address: "0x1111111111111111111111111111111111111111", network: "sepolia" };
     const dependencies = {
-      issuingMethods: ["did", "ethereum"], connected: false, network: "sepolia",
+      issuingMethods: ["did", "ethereum"], connected: true, network: "sepolia",
       formData: { recipientName: "Test", recipientEmail: "test@example.com",
         certificateType: "Course", templateId: "fta", description: "", hasValidity: false },
       validateCertificateData: () => ({ valid: true, errors: [] }),
@@ -79,50 +79,33 @@ test("TrustVC dual issuance delegates optional anchoring to the platform, withou
       issueCertificateToEthereum: async (credential, address) => {
         assert.equal(address, store.address);
         anchored = credential;
-        return { credential };
+        return rejected ? { error: "Transaction rejected by user." } : { credential, txHash: "0xtx" };
       },
       fetch: async (url, options) => {
         requestBody = JSON.parse(options.body);
         return { ok: true, status: 200, json: async () => ({ signed: true, credential: signed,
-          blockchainRegistration: registrationStatus }) };
+          documentStore: store, blockchainRegistration: "wallet" }) };
       },
     };
     const run = new Function(...Object.keys(dependencies), `${javascript}\nreturn run;`)(
       ...Object.values(dependencies));
     await run();
     assert.deepEqual(error, []);
-    assert.equal(anchored, undefined);
+    assert.strictEqual(anchored, signed);
     assert.equal(requestBody.statusProfile, "trustvc");
-    if (relativePath === "app/insurance/page.tsx") {
-      if (registrationStatus === "scheduled") {
-        assert.deepEqual(ethereumResult, { registrationScheduled: true });
-      } else if (registrationStatus === "disabled") {
-        assert.deepEqual(ethereumResult, { registrationDisabled: true });
-      } else {
-        assert.match(ethereumResult.error, /unknown blockchain registration status/);
-      }
-    }
+    assert.equal(ethereumResult.error, rejected ? "Transaction rejected by user." : undefined);
+    assert.equal(ethereumResult.txHash, rejected ? undefined : "0xtx");
   }
   }
 });
 
-test("disabled platform registration renders a warning rather than an Ethereum failure", () => {
+test("Ethereum selection requires a connected wallet for the issuance button", () => {
   const source = sourceFile("app/insurance/page.tsx");
-  const warning = findNode(source, (node) => ts.isJsxElement(node) &&
-    node.openingElement.attributes.properties.some((attribute) =>
-      ts.isJsxAttribute(attribute) && attribute.name.getText(source) === "role" &&
-      attribute.initializer?.text === "status") &&
-    node.getText(source).includes("blockchain registration skipped"));
-  assert.ok(warning);
-  assert.match(warning.getText(source), /No Ethereum transaction was submitted/);
-  const failure = findNode(source, (node) => ts.isJsxExpression(node) &&
-    node.getText(source).includes("Ethereum Issuance Failed") &&
-    node.getText(source).startsWith("{ethereumResult &&"));
-  assert.match(failure.getText(source), /!ethereumResult\.registrationDisabled/);
+  assert.equal(source.text.includes("registration is pending on the platform"), false);
   const issueButton = findNode(source, (node) => ts.isJsxOpeningElement(node) &&
     node.tagName.getText(source) === "button" &&
     node.getText(source).includes("onClick={handleIssue}"));
-  assert.match(issueButton.getText(source), /!issuingMethods\.includes\("did"\) && !connected/);
+  assert.match(issueButton.getText(source), /issuingMethods\.includes\("ethereum"\) && !connected/);
 });
 
 test("FTA certificate displays date-only values in both date positions", () => {
@@ -260,6 +243,54 @@ test("DID-only batches issue without MetaMask using fixed V1, status and renderi
   assert.equal(requests[0].renderMethod, "embedded");
   assert.equal(issued.length, 1);
   assert.equal(issued[0].certificate.proof.proofValue, "signed");
+});
+
+test("Ethereum batches request MetaMask per row and never replace the DID proof", async () => {
+  const source = sourceFile("components/BatchIssuePanel.tsx");
+  const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
+    node.name.getText(source) === "handleIssueAll");
+  const javascript = ts.transpileModule(`const run = ${handler.initializer.getText(source)};`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText;
+  for (const rejected of [false, true]) {
+    const signed = { proof: { proofValue: "did-proof" } };
+    const store = { address: "0x1111111111111111111111111111111111111111", network: "sepolia" };
+    let walletRequests = 0;
+    let issued = [];
+    let rows;
+    const dependencies = {
+      connected: true, walletRequired: true, issuing: false, hasValidity: false,
+      issuingMethods: ["did", "ethereum"], certificateFormat: "v1", DEFAULT_TEMPLATE_ID: "fta",
+      rows: [{ recipientName: "Recipient", recipientEmail: "test@example.com",
+        certificateType: "Course", description: "", errors: [], rowIndex: 1 }],
+      setIssuing() {}, onIssuingChange() {}, setParseError() {},
+      setRows(value) { rows = value; },
+      onIssuedCertificatesChange(value) { issued = value; },
+      getISODateString: () => "2026-10-20T00:00:00Z",
+      generateCertificateId: () => "test-id", buildVCPayload: () => ({}),
+      switchToSepolia: async () => {}, getSigner: async () => ({}),
+      signCredentialWithEthereum: () => { throw new Error("Must preserve DID proof"); },
+      issueCertificateToEthereum: async (credential, address) => {
+        walletRequests++;
+        assert.strictEqual(credential, signed);
+        assert.equal(address, store.address);
+        return rejected ? { error: "Transaction rejected by user." } : { txHash: "0xbatch" };
+      },
+      fetch: async () => ({ ok: true, json: async () => ({
+        signed: true, credential: signed, documentStore: store,
+      }) }),
+    };
+    const run = new Function(...Object.keys(dependencies), `${javascript}\nreturn run;`)(
+      ...Object.values(dependencies));
+    await run();
+    assert.equal(walletRequests, 1);
+    assert.equal(rows[0].status, rejected ? "error" : "success");
+    if (rejected) assert.match(rows[0].issueError, /rejected/);
+    else {
+      assert.equal(rows[0].txHash, "0xbatch");
+      assert.strictEqual(issued[0].certificate, signed);
+    }
+  }
 });
 
 test("PDF export fits certificates proportionally on A4 and sanitizes download names", async () => {
