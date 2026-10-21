@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import {
   createTrustVCDocumentLoader,
+  computeDocumentStoreHash,
   getTrustVCContextUrls,
   verifyCredential,
   type VerificationResult,
 } from "../../../lib/trustvc";
+import { checkHashRegistration } from "../../../lib/document-store";
 import { CredentialService } from "../../../services/CredentialService";
 import { VerificationService } from "../../../services/VerificationService";
 import { createSafeDocumentLoader } from "../../../lib/safe-document-loader";
@@ -133,6 +135,33 @@ export async function POST(request: Request) {
           valid: false,
           message: "Credential not found.",
         };
+    // The W3C status-list document deliberately omits its separate chain anchor.
+    // Only use persisted issuer/store metadata when it matches this exact file.
+    if (cryptographicResult.valid && credentialToVerify && record?.issuingMethods?.includes("ethereum") &&
+        cryptographicResult.details?.blockchainVerification === "not required") {
+      const targetHash = computeDocumentStoreHash(credentialToVerify);
+      if (!record.documentHash || record.documentHash.toLowerCase() !== targetHash.toLowerCase()) {
+        cryptographicResult.details = { ...cryptographicResult.details, blockchainVerification: "unavailable",
+          blockchainReason: "Submitted document does not match the saved blockchain anchor." };
+      } else if (!record.documentStoreAddress || !record.documentStoreNetwork) {
+        cryptographicResult.details = { ...cryptographicResult.details, blockchainVerification: "unavailable",
+          blockchainReason: "Saved issuer Document Store configuration is unavailable." };
+      } else {
+        try {
+          const { issued, revoked } = await checkHashRegistration(targetHash, {
+            address: record.documentStoreAddress, network: record.documentStoreNetwork,
+          });
+          cryptographicResult.details = { ...cryptographicResult.details,
+            blockchainVerification: issued && !revoked ? "passed" : "failed",
+            documentStoreAddress: record.documentStoreAddress,
+            documentStoreNetwork: record.documentStoreNetwork, targetHash, revoked };
+        } catch {
+          console.error("[verification] Saved Document Store anchor lookup failed.");
+          cryptographicResult.details = { ...cryptographicResult.details, blockchainVerification: "unavailable",
+            blockchainReason: "Unable to check the saved Document Store anchor." };
+        }
+      }
+    }
     // A credential that exists but is revoked, suspended, or past its validity
     // window must not be reported as verified.
     const verified = cryptographicResult.valid && (!record || (status === "issued" && !expired));

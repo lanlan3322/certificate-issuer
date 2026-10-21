@@ -32,6 +32,25 @@ const Selector = load("components/IssuingMethodSelector.tsx", {
   "../lib/constants": constants,
 }).default;
 
+test("verification distinguishes confirmed, failed, unnecessary and unavailable blockchain checks", () => {
+  const source = sourceFile("app/verify/page.tsx");
+  const cell = findNode(source, (node) => ts.isJsxElement(node) &&
+    node.openingElement.tagName.getText(source) === "dd" &&
+    node.getText(source).includes('blockchainVerification === "passed"'));
+  const javascript = ts.transpileModule(`const cell = ${cell.getText(source)};`, {
+    compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS },
+  }).outputText;
+  for (const [status, label] of [
+    ["passed", "Yes"], ["failed", "No"], ["not required", "Not required"],
+    ["skipped", "Not required"], ["unavailable", "Unavailable"],
+  ]) {
+    const element = new Function("require", "exports", "result", `${javascript}\nreturn cell;`)(
+      require, {}, { details: { blockchainVerification: status } });
+    const html = renderToStaticMarkup(element);
+    assert.match(html, new RegExp(`>${label}<`));
+  }
+});
+
 test("wallet action appears next to Issuing Methods only when Ethereum is selected", () => {
   for (const selectedMethods of [[], ["did"], ["ethereum"], ["did", "ethereum"]]) {
     const html = renderToStaticMarkup(React.createElement(Selector, {

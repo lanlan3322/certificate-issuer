@@ -297,14 +297,16 @@ export default function VerifyPage() {
                               className={
                                 result.details.blockchainVerification === "passed"
                                   ? "text-green-600"
-                                  : result.details.blockchainVerification === "skipped"
+                                  : ["skipped", "not required", "unavailable"].includes(result.details.blockchainVerification)
                                     ? "text-gray-600"
                                     : "text-red-600"
                               }
                             >
                               {result.details.blockchainVerification === "passed"
                                 ? "Yes"
-                                : result.details.blockchainVerification === "skipped"
+                                : result.details.blockchainVerification === "unavailable"
+                                  ? "Unavailable"
+                                : ["skipped", "not required"].includes(result.details.blockchainVerification)
                                   ? "Not required"
                                   : "No"}
                               {typeof result.details.transactionHash === "string" && result.details.transactionHash ? (

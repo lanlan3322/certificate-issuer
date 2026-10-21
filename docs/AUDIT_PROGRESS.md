@@ -1,6 +1,27 @@
 # AUDIT_PROGRESS.md
 
-Last Updated: 2026-10-20
+Last Updated: 2026-10-21
+
+## Separate blockchain anchor verification — 2026-10-21
+
+- Read the user-attached certificate locally and checked only its canonical hash
+  against the dedicated Sepolia store. Hash
+  `0x2fe9b33df4e44fbb5f6337665844bcba24252447dd20e6cc76b1ee9f5011174f`
+  is issued and not revoked at
+  `0x814D9c222D3b5A8282e0467Fa12b24C057731dD6`, chain ID 11155111.
+  No recipient data was uploaded and no transaction was sent.
+- Root cause: status-list verification returned `blockchainVerification:
+  "not required"` without checking the separate saved anchor, and the UI treated
+  that value as "No".
+- Public verification now checks the separately persisted store/network and hash
+  for Ethereum-selected status-list credentials after successful cryptographic
+  verification. The submitted file must match the saved anchor exactly. No
+  credential-supplied RPC or global-store fallback is used for this check.
+- Confirmed anchors show Yes; unissued/revoked anchors show No; mismatched hashes,
+  missing snapshots or RPC failure show Unavailable. DID-only checks correctly
+  show Not required. Optional anchor results do not replace signed-list validity.
+- Validation: 26 targeted tests and production build/TypeScript pass. Hosted
+  database metadata and deployment were not inspected or changed.
 
 ## Immediate client-side MetaMask registration — 2026-10-20
 

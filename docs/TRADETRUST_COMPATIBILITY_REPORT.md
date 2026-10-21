@@ -1,9 +1,24 @@
 # TradeTrust compatibility report
 
-Updated: 2026-10-20
+Updated: 2026-10-21
 Overall: **Supported W3C issuance profile implemented; synthetic hosted upload
 passes format recognition; full hosted verification of a newly issued credential
 remains unverified**
+
+## Application display of separate chain anchors — 2026-10-21
+
+The latest attached status-list certificate's exact canonical hash
+`0x2fe9b33df4e44fbb5f6337665844bcba24252447dd20e6cc76b1ee9f5011174f`
+was independently read as issued and not revoked in the dedicated Sepolia store.
+Only the hash was sent to the RPC, not the recipient document.
+
+The application verification endpoint now checks persisted Ethereum-selection
+metadata against the submitted file hash and reads the saved issuer store/network.
+It reports passed/failed/unavailable separately from signed status-list validity.
+The UI no longer renders "not required" as "No". Without the saved matching hash
+and store snapshots, no separate anchor verification is claimed. This change does
+not alter the signed JSON, change TrustVC's status-list checks, or establish
+external hosted verifier acceptance.
 
 ## Supported TrustVC issuance profile — 2026-10-20
 

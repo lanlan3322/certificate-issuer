@@ -130,6 +130,27 @@ export async function hashExists(targetHash: string, config?: DocumentStoreConfi
   }
 }
 
+export async function checkHashRegistration(
+  targetHash: string,
+  config: DocumentStoreConfig
+): Promise<{ issued: boolean; revoked: boolean }> {
+  if (!/^0x[\da-f]{64}$/i.test(targetHash)) {
+    throw new Error("Invalid Document Store hash.");
+  }
+  const provider = getProvider(config.address, config.network);
+  try {
+    const network = NETWORKS[config.network as keyof typeof NETWORKS];
+    if ((await provider.getNetwork()).chainId !== BigInt(network.chainId)) {
+      throw new Error("Document Store provider network mismatch.");
+    }
+    const contract = new Contract(config.address, DOCUMENT_STORE_ABI, provider);
+    const issued = Boolean(await contract.isIssued(targetHash));
+    return { issued, revoked: issued ? Boolean(await contract.isRevoked(targetHash)) : false };
+  } finally {
+    provider.destroy();
+  }
+}
+
 export async function registerHash(
   targetHash: string,
   metadata?: RegistrationTxMetadata,
