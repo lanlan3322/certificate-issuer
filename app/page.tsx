@@ -700,7 +700,7 @@ function PublicHomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <section className="bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.16),_transparent_35%),linear-gradient(135deg,#0f172a_0%,#111827_18%,#0f172a_100%)] text-white">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
           <div className="grid items-center gap-8 sm:gap-10 md:gap-10 lg:grid-cols-[1.2fr_0.8fr]">
@@ -762,8 +762,8 @@ function PublicHomePage() {
       </section>
 
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:space-y-10 sm:px-6 sm:py-10 lg:px-8">
-        <section aria-labelledby="standards-heading" className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-          <h2 id="standards-heading" className="text-lg font-bold text-slate-900">Built on open standards</h2>
+        <section aria-labelledby="standards-heading" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-6">
+          <h2 id="standards-heading" className="text-lg font-bold text-slate-900 dark:text-slate-100">Built on open standards</h2>
           <div className="mt-4 grid gap-5 md:grid-cols-3">
             {[
               { title: "W3C credentials", description: "Verifiable Credentials following international W3C standards.", icon: ShieldCheck },
@@ -771,16 +771,16 @@ function PublicHomePage() {
               { title: "TradeTrust compatibility", description: "OpenAttestation-compatible workflows for credential verification.", icon: FileText },
             ].map(({ title, description, icon: Icon }) => (
               <div key={title} className="flex items-start gap-3">
-                <Icon className="mt-0.5 h-5 w-5 shrink-0 text-cyan-700" aria-hidden="true" />
-                <div><h3 className="text-sm font-semibold text-slate-900">{title}</h3><p className="mt-1 text-sm leading-relaxed text-slate-600">{description}</p></div>
+                <Icon className="mt-0.5 h-5 w-5 shrink-0 text-cyan-700 dark:text-cyan-400" aria-hidden="true" />
+                <div><h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h3><p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{description}</p></div>
               </div>
             ))}
           </div>
         </section>
 
-        <section aria-labelledby="faq-heading" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700 sm:text-sm">FAQ</p>
-          <h2 id="faq-heading" className="mt-2 text-xl font-bold text-slate-900">Common questions</h2>
+        <section aria-labelledby="faq-heading" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700 dark:text-cyan-400 sm:text-sm">FAQ</p>
+          <h2 id="faq-heading" className="mt-2 text-xl font-bold text-slate-900 dark:text-slate-100">Common questions</h2>
           <div className="mt-4 grid gap-3 sm:gap-4 md:grid-cols-2">
             {[
               ["What is TrustVC?", "A verifiable credentials platform for issuing and validating trusted digital certificates across multiple institutional scenarios."],
@@ -788,15 +788,15 @@ function PublicHomePage() {
               ["Does it support verification?", "Yes. Recipients and institutions can inspect credential authenticity and revocation status using a public verification experience."],
               ["Can it integrate with wallets?", "Yes. The platform is designed for wallet-ready delivery and compatibility with modern verifiable credential ecosystems."],
             ].map(([question, answer]) => (
-              <div key={question} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
-                <h3 className="text-sm font-semibold text-slate-900 sm:text-base">{question}</h3>
-                <p className="mt-2 text-xs leading-relaxed text-slate-600 sm:text-sm">{answer}</p>
+              <div key={question} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm dark:border-slate-600 dark:bg-slate-700 sm:p-4">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 sm:text-base">{question}</h3>
+                <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400 sm:text-sm">{answer}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="flex flex-col gap-4 rounded-2xl bg-slate-900 p-5 text-white sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <section className="flex flex-col gap-4 rounded-2xl bg-slate-900 p-5 text-white sm:flex-row sm:items-center sm:justify-between sm:p-6 dark:bg-slate-800">
           <div>
             <h2 className="text-lg font-semibold text-white">Need an institutional workflow?</h2>
             <p className="mt-1 text-sm text-slate-300">Explore enterprise controls and multi-issuer operations.</p>
