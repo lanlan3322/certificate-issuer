@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import { getUserSafely, isSupabaseAuthCookie } from "./lib/supabase/session";
 
 const protectedPages = ["/admin", "/audit", "/branding", "/delivery", "/did", "/insurance", "/revocation", "/wallet"];
 const protectedApiPrefixes = [
@@ -64,8 +65,16 @@ export async function proxy(request: NextRequest) {
 
   // Revalidates the JWT against GoTrue and refreshes it when expired. Do not
   // replace with getSession(), which trusts the cookie without verification.
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
+  const { user, staleSession } = await getUserSafely(supabase);
+  if (staleSession) {
+    // Drop dead session cookies so Server Components don't retry the refresh.
+    const staleNames = request.cookies.getAll().map(({ name }) => name).filter(isSupabaseAuthCookie);
+    for (const name of staleNames) request.cookies.delete(name);
+    if (staleNames.length) {
+      response = NextResponse.next({ request });
+      for (const name of staleNames) response.cookies.delete(name);
+    }
+  }
 
   const isProtectedPage = protectedPages.some((route) => pathname === route || pathname.startsWith(`${route}/`));
   const isProtectedApi = protectedApiPrefixes.some((route) => pathname === route || pathname.startsWith(`${route}/`));

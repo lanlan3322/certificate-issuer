@@ -1,4 +1,5 @@
 import { getSupabaseAdmin, getSupabasePasswordResetClient, getSupabaseServerClient } from "./supabase/server";
+import { getUserSafely } from "./supabase/session";
 
 export interface AuthUser {
   id: string;
@@ -159,13 +160,13 @@ export async function loginIssuer(emailInput: string, password: string) {
 
 export async function getCurrentIssuerUser(): Promise<AuthUser | null> {
   const supabase = await getSupabaseServerClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
+  const { user: authUser } = await getUserSafely(supabase);
+  if (!authUser) return null;
 
   const { data: appUser, error: appUserError } = await supabase
     .from("users")
     .select("id, organization_id, email, display_name, roles")
-    .eq("auth_user_id", data.user.id)
+    .eq("auth_user_id", authUser.id)
     .maybeSingle();
   if (appUserError || !appUser?.organization_id) return null;
 
