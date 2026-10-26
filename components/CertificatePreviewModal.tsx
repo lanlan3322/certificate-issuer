@@ -69,7 +69,7 @@ export default function CertificatePreviewModal({
         </div>
         <div className="bg-gray-100 p-4 sm:p-8">
           <div className="mb-6 space-y-3">
-            <div ref={certificatePreviewRef} className="mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm] text-gray-900 shadow-lg">
+            <div ref={certificatePreviewRef} className="certificate-paper mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm] text-gray-900 shadow-lg">
               <div className="flex-1">
                 <CertificateTemplateRenderer certificate={{ ...certificate, verificationUrl }} />
               </div>

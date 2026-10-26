@@ -106,20 +106,296 @@ html.dark body {
   }
 }
 
-@layer utilities {
-  .dark .bg-white { background-color: #1e293b; }
-  .dark .bg-gray-50, .dark .bg-slate-50 { background-color: #0f172a; }
-  .dark .bg-gray-100, .dark .bg-slate-100 { background-color: #1e293b; }
-  .dark .border-gray-100, .dark .border-gray-200, .dark .border-slate-200 { border-color: #334155; }
-  .dark .border-slate-300, .dark .border-gray-300 { border-color: #475569; }
-  .dark .text-gray-900, .dark .text-slate-900 { color: #f8fafc; }
-  .dark .text-gray-800, .dark .text-slate-800 { color: #e2e8f0; }
-  .dark .text-gray-700, .dark .text-slate-700 { color: #cbd5e1; }
-  .dark .text-gray-600, .dark .text-slate-600 { color: #94a3b8; }
-  .dark .text-gray-500, .dark .text-slate-500 { color: #94a3b8; }
-  .dark .placeholder\:text-gray-400::placeholder, .dark .placeholder\:text-slate-400::placeholder { color: #64748b; }
-  .dark input, .dark textarea, .dark select { background-color: #1e293b; color: #e2e8f0; border-color: #475569; }
-  .dark .shadow-sm, .dark .shadow-md, .dark .shadow-lg { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); }
+@layer components {
+  /*
+   * Unified dark theme (html.dark, toggled from the NavBar).
+   * Every page gets the same dark palette from its light-mode classes; explicit
+   * `dark:` utilities still win because utilities load after this layer.
+   * Certificate paper (.certificate-paper) and always-dark chrome (.theme-fixed)
+   * keep their light/fixed look so on-screen certificates match the PDF.
+   */
+  .dark .card, .dark .section-card, .dark .stat-card { border-color: #334155; background-color: #0f172a; box-shadow: 0 10px 30px rgb(0 0 0 / 0.25); }
+  .dark .surface-panel { border-color: #334155; background-color: rgb(30 41 59 / 0.5); }
+  .dark .btn-primary { background-color: #0891b2; }
+  .dark .btn-primary:hover { background-color: #06b6d4; }
+  .dark .btn-secondary { border-color: #475569; background-color: #1e293b; color: #e2e8f0; }
+  .dark .btn-secondary:hover { border-color: #64748b; background-color: #334155; }
+  .dark .input-field { border-color: #475569; background-color: #1e293b; color: #e2e8f0; }
+  .dark .input-field:focus { border-color: #06b6d4; --tw-ring-color: rgb(8 145 178 / 0.35); }
+  .dark .label { color: #cbd5e1; }
+  .dark .pill { border-color: #334155; background-color: #1e293b; color: #cbd5e1; }
+
+  .dark input:where(:not([type="checkbox"], [type="radio"], [type="range"], [type="color"])),
+  .dark textarea,
+  .dark select { background-color: #1e293b; color: #e2e8f0; border-color: #475569; }
+
+  /* Neutral surfaces */
+  .dark .bg-white:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: #0f172a; }
+  .dark .bg-white\/80:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(15 23 42 / 0.8); }
+  .dark .bg-white\/70:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(15 23 42 / 0.7); }
+  .dark .bg-gray-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .bg-slate-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .bg-slate-50\/80:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .bg-gray-50\/50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(30 41 59 / 0.5); }
+  .dark .bg-gray-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .bg-slate-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: #1e293b; }
+  .dark .bg-gray-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .bg-slate-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: #334155; }
+  .dark .bg-slate-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: #020617; }
+  /* Primary actions / selected pills: slate-900 is invisible on dark, use the accent. */
+  .dark .bg-slate-900.text-white:where(a, button):where(:not(.certificate-paper *, .theme-fixed *)) { background-color: #0891b2; }
+  .dark .bg-slate-900.text-white:where(a, button):hover:where(:not(.certificate-paper *, .theme-fixed *)) { background-color: #06b6d4; }
+
+  .dark .hover\:bg-gray-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:bg-slate-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(30 41 59 / 0.6); }
+  .dark .hover\:bg-gray-100:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:bg-slate-100:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: #1e293b; }
+  .dark .hover\:bg-gray-200:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:bg-slate-200:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: #334155; }
+
+  /* Neutral borders */
+  .dark .border-gray-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-gray-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-slate-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-slate-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-slate-200\/80:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: #334155; }
+  .dark .border-gray-300:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-slate-300:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: #475569; }
+  .dark .hover\:border-slate-300:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:border-slate-400:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: #64748b; }
+  .dark .divide-gray-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) > :not([hidden]) ~ :not([hidden]),
+  .dark .divide-slate-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) > :not([hidden]) ~ :not([hidden]) { border-color: #1e293b; }
+
+  /* Neutral text */
+  .dark .text-gray-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-slate-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #f1f5f9; }
+  .dark .text-gray-800:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-slate-800:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #e2e8f0; }
+  .dark .text-gray-700:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-slate-700:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #cbd5e1; }
+  .dark .text-gray-600:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-slate-600:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-gray-500:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-slate-500:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #94a3b8; }
+  .dark .hover\:text-gray-900:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:text-slate-900:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #ffffff; }
+  .dark .hover\:text-gray-600:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #cbd5e1; }
+  .dark .placeholder\:text-gray-400::placeholder,
+  .dark .placeholder\:text-slate-400::placeholder { color: #64748b; }
+  /* Dark text must stay dark on bright accent fills (e.g. cyan-400 badges/buttons). */
+  .dark :where(.bg-cyan-300, .bg-cyan-400, .bg-amber-300, .bg-amber-400, .bg-yellow-300, .bg-yellow-400, .bg-emerald-300, .bg-emerald-400, .bg-green-400, .bg-sky-300, .bg-sky-400).text-slate-900,
+  .dark :where(.bg-cyan-300, .bg-cyan-400, .bg-amber-300, .bg-amber-400, .bg-yellow-300, .bg-yellow-400, .bg-emerald-300, .bg-emerald-400, .bg-green-400, .bg-sky-300, .bg-sky-400).text-gray-900 { color: #0f172a; }
+  /* Brand navy (tailwind.config primary/accent) is unreadable on dark; lift it to sky. */
+  .dark .text-primary:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-accent:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #7dd3fc; }
+  .dark .text-primary\/80:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: rgb(125 211 252 / 0.8); }
+  .dark .border-primary:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: #38bdf8; }
+  .dark .bg-primary\/5:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .bg-primary\/10:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .bg-accent\/10:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(56 189 248 / 0.1); }
+  .dark .shadow-sm:where(:not(.certificate-paper, .theme-fixed)),
+  .dark .shadow-md:where(:not(.certificate-paper, .theme-fixed)),
+  .dark .shadow-lg:where(:not(.certificate-paper, .theme-fixed)) { box-shadow: 0 10px 30px rgb(0 0 0 / 0.25); }
+
+  /* Status tints (generated from the Tailwind palette: 50/100 fills -> translucent 500, 600-900 text -> 300/400). */
+  /* red */
+  .dark .bg-red-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(239 68 68 / 0.1); }
+  .dark .bg-red-50\/50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(239 68 68 / 0.08); }
+  .dark .bg-red-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(239 68 68 / 0.18); }
+  .dark .hover\:bg-red-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(239 68 68 / 0.15); }
+  .dark .hover\:bg-red-100:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(239 68 68 / 0.22); }
+  .dark .hover\:bg-red-200:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(239 68 68 / 0.28); }
+  .dark .text-red-600:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #f87171; }
+  .dark .text-red-700:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-red-800:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-red-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #fca5a5; }
+  .dark .hover\:text-red-800:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:text-red-900:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #fecaca; }
+  .dark .border-red-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-red-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(239 68 68 / 0.35); }
+  .dark .border-red-300:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(239 68 68 / 0.5); }
+  .dark .from-red-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-from: rgb(239 68 68 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: rgb(239 68 68 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .dark .to-red-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-to: rgb(239 68 68 / 0.08) var(--tw-gradient-to-position); }
+  /* green */
+  .dark .bg-green-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(34 197 94 / 0.1); }
+  .dark .bg-green-50\/50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(34 197 94 / 0.08); }
+  .dark .bg-green-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(34 197 94 / 0.18); }
+  .dark .hover\:bg-green-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(34 197 94 / 0.15); }
+  .dark .hover\:bg-green-100:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(34 197 94 / 0.22); }
+  .dark .hover\:bg-green-200:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(34 197 94 / 0.28); }
+  .dark .text-green-600:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #4ade80; }
+  .dark .text-green-700:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-green-800:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-green-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #86efac; }
+  .dark .hover\:text-green-800:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:text-green-900:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #bbf7d0; }
+  .dark .border-green-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-green-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(34 197 94 / 0.35); }
+  .dark .border-green-300:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(34 197 94 / 0.5); }
+  .dark .from-green-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-from: rgb(34 197 94 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: rgb(34 197 94 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .dark .to-green-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-to: rgb(34 197 94 / 0.08) var(--tw-gradient-to-position); }
+  /* emerald */
+  .dark .bg-emerald-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(16 185 129 / 0.1); }
+  .dark .bg-emerald-50\/50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(16 185 129 / 0.08); }
+  .dark .bg-emerald-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(16 185 129 / 0.18); }
+  .dark .hover\:bg-emerald-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(16 185 129 / 0.15); }
+  .dark .hover\:bg-emerald-100:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(16 185 129 / 0.22); }
+  .dark .hover\:bg-emerald-200:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(16 185 129 / 0.28); }
+  .dark .text-emerald-600:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #34d399; }
+  .dark .text-emerald-700:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-emerald-800:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-emerald-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #6ee7b7; }
+  .dark .hover\:text-emerald-800:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:text-emerald-900:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #a7f3d0; }
+  .dark .border-emerald-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-emerald-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(16 185 129 / 0.35); }
+  .dark .border-emerald-300:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(16 185 129 / 0.5); }
+  .dark .from-emerald-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-from: rgb(16 185 129 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: rgb(16 185 129 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .dark .to-emerald-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-to: rgb(16 185 129 / 0.08) var(--tw-gradient-to-position); }
+  /* amber */
+  .dark .bg-amber-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(245 158 11 / 0.1); }
+  .dark .bg-amber-50\/50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(245 158 11 / 0.08); }
+  .dark .bg-amber-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(245 158 11 / 0.18); }
+  .dark .hover\:bg-amber-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(245 158 11 / 0.15); }
+  .dark .hover\:bg-amber-100:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(245 158 11 / 0.22); }
+  .dark .hover\:bg-amber-200:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(245 158 11 / 0.28); }
+  .dark .text-amber-600:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #fbbf24; }
+  .dark .text-amber-700:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-amber-800:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-amber-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #fcd34d; }
+  .dark .hover\:text-amber-800:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:text-amber-900:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #fde68a; }
+  .dark .border-amber-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-amber-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(245 158 11 / 0.35); }
+  .dark .border-amber-300:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(245 158 11 / 0.5); }
+  .dark .from-amber-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-from: rgb(245 158 11 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: rgb(245 158 11 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .dark .to-amber-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-to: rgb(245 158 11 / 0.08) var(--tw-gradient-to-position); }
+  /* yellow */
+  .dark .bg-yellow-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(234 179 8 / 0.1); }
+  .dark .bg-yellow-50\/50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(234 179 8 / 0.08); }
+  .dark .bg-yellow-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(234 179 8 / 0.18); }
+  .dark .hover\:bg-yellow-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(234 179 8 / 0.15); }
+  .dark .hover\:bg-yellow-100:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(234 179 8 / 0.22); }
+  .dark .hover\:bg-yellow-200:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(234 179 8 / 0.28); }
+  .dark .text-yellow-600:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #facc15; }
+  .dark .text-yellow-700:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-yellow-800:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-yellow-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #fde047; }
+  .dark .hover\:text-yellow-800:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:text-yellow-900:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #fef08a; }
+  .dark .border-yellow-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-yellow-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(234 179 8 / 0.35); }
+  .dark .border-yellow-300:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(234 179 8 / 0.5); }
+  .dark .from-yellow-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-from: rgb(234 179 8 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: rgb(234 179 8 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .dark .to-yellow-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-to: rgb(234 179 8 / 0.08) var(--tw-gradient-to-position); }
+  /* cyan */
+  .dark .bg-cyan-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(6 182 212 / 0.1); }
+  .dark .bg-cyan-50\/50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(6 182 212 / 0.08); }
+  .dark .bg-cyan-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(6 182 212 / 0.18); }
+  .dark .hover\:bg-cyan-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(6 182 212 / 0.15); }
+  .dark .hover\:bg-cyan-100:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(6 182 212 / 0.22); }
+  .dark .hover\:bg-cyan-200:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(6 182 212 / 0.28); }
+  .dark .text-cyan-600:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #22d3ee; }
+  .dark .text-cyan-700:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-cyan-800:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-cyan-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #67e8f9; }
+  .dark .hover\:text-cyan-800:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:text-cyan-900:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #a5f3fc; }
+  .dark .border-cyan-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-cyan-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(6 182 212 / 0.35); }
+  .dark .border-cyan-300:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(6 182 212 / 0.5); }
+  .dark .from-cyan-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-from: rgb(6 182 212 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: rgb(6 182 212 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .dark .to-cyan-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-to: rgb(6 182 212 / 0.08) var(--tw-gradient-to-position); }
+  /* sky */
+  .dark .bg-sky-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(14 165 233 / 0.1); }
+  .dark .bg-sky-50\/50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(14 165 233 / 0.08); }
+  .dark .bg-sky-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(14 165 233 / 0.18); }
+  .dark .hover\:bg-sky-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(14 165 233 / 0.15); }
+  .dark .hover\:bg-sky-100:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(14 165 233 / 0.22); }
+  .dark .hover\:bg-sky-200:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(14 165 233 / 0.28); }
+  .dark .text-sky-600:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #38bdf8; }
+  .dark .text-sky-700:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-sky-800:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-sky-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #7dd3fc; }
+  .dark .hover\:text-sky-800:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:text-sky-900:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #bae6fd; }
+  .dark .border-sky-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-sky-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(14 165 233 / 0.35); }
+  .dark .border-sky-300:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(14 165 233 / 0.5); }
+  .dark .from-sky-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-from: rgb(14 165 233 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: rgb(14 165 233 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .dark .to-sky-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-to: rgb(14 165 233 / 0.08) var(--tw-gradient-to-position); }
+  /* blue */
+  .dark .bg-blue-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(59 130 246 / 0.1); }
+  .dark .bg-blue-50\/50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(59 130 246 / 0.08); }
+  .dark .bg-blue-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(59 130 246 / 0.18); }
+  .dark .hover\:bg-blue-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(59 130 246 / 0.15); }
+  .dark .hover\:bg-blue-100:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(59 130 246 / 0.22); }
+  .dark .hover\:bg-blue-200:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(59 130 246 / 0.28); }
+  .dark .text-blue-600:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #60a5fa; }
+  .dark .text-blue-700:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-blue-800:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-blue-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #93c5fd; }
+  .dark .hover\:text-blue-800:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:text-blue-900:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #bfdbfe; }
+  .dark .border-blue-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-blue-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(59 130 246 / 0.35); }
+  .dark .border-blue-300:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(59 130 246 / 0.5); }
+  .dark .from-blue-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-from: rgb(59 130 246 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: rgb(59 130 246 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .dark .to-blue-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-to: rgb(59 130 246 / 0.08) var(--tw-gradient-to-position); }
+  /* violet */
+  .dark .bg-violet-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(139 92 246 / 0.1); }
+  .dark .bg-violet-50\/50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(139 92 246 / 0.08); }
+  .dark .bg-violet-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(139 92 246 / 0.18); }
+  .dark .hover\:bg-violet-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(139 92 246 / 0.15); }
+  .dark .hover\:bg-violet-100:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(139 92 246 / 0.22); }
+  .dark .hover\:bg-violet-200:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(139 92 246 / 0.28); }
+  .dark .text-violet-600:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #a78bfa; }
+  .dark .text-violet-700:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-violet-800:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-violet-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #c4b5fd; }
+  .dark .hover\:text-violet-800:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:text-violet-900:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #ddd6fe; }
+  .dark .border-violet-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-violet-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(139 92 246 / 0.35); }
+  .dark .border-violet-300:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(139 92 246 / 0.5); }
+  .dark .from-violet-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-from: rgb(139 92 246 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: rgb(139 92 246 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .dark .to-violet-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-to: rgb(139 92 246 / 0.08) var(--tw-gradient-to-position); }
+  /* indigo */
+  .dark .bg-indigo-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(99 102 241 / 0.1); }
+  .dark .bg-indigo-50\/50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(99 102 241 / 0.08); }
+  .dark .bg-indigo-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(99 102 241 / 0.18); }
+  .dark .hover\:bg-indigo-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(99 102 241 / 0.15); }
+  .dark .hover\:bg-indigo-100:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(99 102 241 / 0.22); }
+  .dark .hover\:bg-indigo-200:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(99 102 241 / 0.28); }
+  .dark .text-indigo-600:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #818cf8; }
+  .dark .text-indigo-700:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-indigo-800:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-indigo-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #a5b4fc; }
+  .dark .hover\:text-indigo-800:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:text-indigo-900:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #c7d2fe; }
+  .dark .border-indigo-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-indigo-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(99 102 241 / 0.35); }
+  .dark .border-indigo-300:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(99 102 241 / 0.5); }
+  .dark .from-indigo-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-from: rgb(99 102 241 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: rgb(99 102 241 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .dark .to-indigo-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-to: rgb(99 102 241 / 0.08) var(--tw-gradient-to-position); }
+  /* rose */
+  .dark .bg-rose-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(244 63 94 / 0.1); }
+  .dark .bg-rose-50\/50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(244 63 94 / 0.08); }
+  .dark .bg-rose-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(244 63 94 / 0.18); }
+  .dark .hover\:bg-rose-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(244 63 94 / 0.15); }
+  .dark .hover\:bg-rose-100:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(244 63 94 / 0.22); }
+  .dark .hover\:bg-rose-200:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(244 63 94 / 0.28); }
+  .dark .text-rose-600:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #fb7185; }
+  .dark .text-rose-700:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-rose-800:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .text-rose-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #fda4af; }
+  .dark .hover\:text-rose-800:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .hover\:text-rose-900:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { color: #fecdd3; }
+  .dark .border-rose-100:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
+  .dark .border-rose-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(244 63 94 / 0.35); }
+  .dark .border-rose-300:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { border-color: rgb(244 63 94 / 0.5); }
+  .dark .from-rose-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-from: rgb(244 63 94 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: rgb(244 63 94 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .dark .to-rose-50:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { --tw-gradient-to: rgb(244 63 94 / 0.08) var(--tw-gradient-to-position); }
 }
 
 /* Certificate specific styles */

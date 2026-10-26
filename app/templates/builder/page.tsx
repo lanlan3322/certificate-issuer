@@ -400,7 +400,7 @@ export default function TemplateBuilderPage() {
             </div>
 
             <div
-              className="rounded-xl border p-5 text-center shadow-inner"
+              className="certificate-paper rounded-xl border p-5 text-center shadow-inner"
               style={{ borderColor: accentColor, background: `linear-gradient(135deg, ${accentColor}08, white)` }}
             >
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Certificate Issuer</p>

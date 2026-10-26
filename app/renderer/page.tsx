@@ -87,7 +87,7 @@ export default function EmbeddedRendererPage() {
   return (
     <div ref={container} className="bg-white text-gray-900" id="rendered-certificate">
       {certificate ? (
-        <div className="mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm]">
+        <div className="certificate-paper mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm]">
           <div className="flex-1">
             <CertificateTemplateRenderer
               certificate={certificate}

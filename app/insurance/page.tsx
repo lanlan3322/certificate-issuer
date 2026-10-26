@@ -942,7 +942,7 @@ export default function InsurancePage() {
                     </div>
                   )}
                   <div className="space-y-4">
-                    <div ref={certificatePreviewRef} className="bg-white">
+                    <div ref={certificatePreviewRef} className="certificate-paper bg-white">
                       <CertificateTemplateRenderer
                         certificate={{
                           ...issuedCert,
