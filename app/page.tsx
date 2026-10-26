@@ -762,26 +762,6 @@ function PublicHomePage() {
       </section>
 
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:space-y-10 sm:px-6 sm:py-10 lg:px-8">
-        <section aria-labelledby="quick-actions-heading">
-          <div className="mb-4">
-            <h2 id="quick-actions-heading" className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">What would you like to do?</h2>
-            <p className="mt-1 text-sm text-slate-600">Go straight to the tools you need.</p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {[
-              { href: "/insurance", title: "Issue certificates", description: "Create a single certificate or issue a batch from Excel or CSV.", icon: FileText, action: "Start issuing" },
-              { href: "/verify", title: "Verify a credential", description: "Check a certificate's signature, authenticity, and revocation status.", icon: ShieldCheck, action: "Open verification" },
-            ].map(({ href, title, description, icon: Icon, action }) => (
-              <a key={href} href={href} className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-cyan-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-600 sm:p-6">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700"><Icon className="h-5 w-5" aria-hidden="true" /></span>
-                <h3 className="mt-4 text-base font-semibold text-slate-900">{title}</h3>
-                <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">{description}</p>
-                <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-cyan-700">{action}<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" /></span>
-              </a>
-            ))}
-          </div>
-        </section>
-
         <section aria-labelledby="standards-heading" className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
           <h2 id="standards-heading" className="text-lg font-bold text-slate-900">Built on open standards</h2>
           <div className="mt-4 grid gap-5 md:grid-cols-3">
