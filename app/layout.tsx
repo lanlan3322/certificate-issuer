@@ -34,7 +34,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-gray-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-        <SiteChrome header={<NavBar agentAvailable={hasIssuerAdminRole} />} footer={<Footer />} widget={hasIssuerAdminRole ? <AgentWidget /> : null}>
+        <SiteChrome header={<NavBar agentAvailable={Boolean(user)} />} footer={<Footer />} widget={hasIssuerAdminRole ? <AgentWidget /> : null}>
           {children}
         </SiteChrome>
       </body>

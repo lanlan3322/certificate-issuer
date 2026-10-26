@@ -159,6 +159,7 @@ export default function NavBar({ agentAvailable = false }: { agentAvailable?: bo
           </div>
 
           <div className="flex items-center gap-2">
+            {issuerAuthenticated && agentAvailable && (
             <button
               type="button"
               aria-label="Open Issuer Success Agent"
@@ -174,6 +175,7 @@ export default function NavBar({ agentAvailable = false }: { agentAvailable?: bo
             >
               Agent
             </button>
+          )}
             <button
               type="button"
               onClick={toggleTheme}
