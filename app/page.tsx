@@ -327,8 +327,14 @@ export default function HomePage() {
     );
   }
 
-  /* ─── End dashboard (unauthenticated page follows) ─────────────── */
+  return <PublicHomePage />;
+}
 
+/* ─── Unauthenticated page ─────────────────────────────────────────
+ * Kept as a separate component so its hooks are never called after
+ * HomePage's conditional early returns (React error #310).
+ */
+function PublicHomePage() {
   const {
     connected,
     connecting,
