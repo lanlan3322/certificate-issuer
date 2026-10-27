@@ -56,6 +56,7 @@ export default function DashboardPage() {
     try { await fetch("/api/auth/logout", { method: "POST" }); } catch { /* ignore */ }
     setUser(null);
     setAllCredentials([]);
+    window.dispatchEvent(new Event("trustvc-auth-changed"));
   };
 
   const handleRevoke = async (credId: string) => {
