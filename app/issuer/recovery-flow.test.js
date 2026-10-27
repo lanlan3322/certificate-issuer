@@ -48,6 +48,61 @@ test("ordinary overview visits and issuer landing do not redirect or loop", () =
   }
 });
 
+test("overview query-string token hashes are forwarded for verification before password setup", () => {
+  for (const origin of ["https://www.verifiable.sg", "https://verifiable.sg"]) {
+    for (const basePath of ["", "/portal"]) {
+      for (const type of ["recovery", "invite"]) {
+        const token = "test-recovery-token";
+        const landing = new URL(`${origin}${basePath}/?token_hash=${token}&type=${type}&next=https://other.example`);
+        const destinations = [];
+        const component = load("../../components/AuthEmailRedirect.tsx", {
+          react: { useEffect: (effect) => effect() },
+          "../lib/site": { withBasePath: (url) => `${basePath}${url}` },
+        }, { window: { location: {
+          pathname: landing.pathname, search: landing.search, hash: "",
+          replace: (url) => destinations.push(new URL(url, origin).href),
+        } } });
+        component.default();
+        assert.deepEqual(destinations, [
+          `${origin}${basePath}/auth/recovery/?token_hash=${token}&type=${type}`,
+        ]);
+      }
+    }
+  }
+});
+
+test("query token compatibility handles issuer landing and token alias without redirect loops", () => {
+  for (const [pathname, search, expected] of [
+    ["/issuer/", "?token=example&type=recovery", "/auth/recovery/?token_hash=example&type=recovery"],
+    ["/auth/recovery/", "?token_hash=example&type=recovery", null],
+    ["/", "?token_hash=example&type=signup", null],
+    ["/", "?type=recovery", null],
+  ]) {
+    const destinations = [];
+    const component = load("../../components/AuthEmailRedirect.tsx", {
+      react: { useEffect: (effect) => effect() },
+      "../lib/site": { withBasePath: (url) => url },
+    }, { window: { location: {
+      pathname, search, hash: "", replace: (url) => destinations.push(url),
+    } } });
+    component.default();
+    assert.deepEqual(destinations, expected ? [expected] : []);
+  }
+});
+
+test("expired query-string recovery tokens return a visible invalid-link destination", async () => {
+  const route = load("../auth/recovery/route.ts", {
+    "../../../lib/site": { withBasePath: (url) => url },
+    "../../../lib/supabase/server": {
+      getSupabaseServerClient: async () => ({ auth: {
+        verifyOtp: async () => ({ data: { session: null, user: null }, error: { message: "Expired" } }),
+      } }),
+    },
+  });
+  const response = await route.GET(new Request("https://www.verifiable.sg/auth/recovery/?token_hash=expired-test&type=recovery"));
+  assert.equal(response.headers.get("location"), "https://www.verifiable.sg/issuer/?error=invalid_link");
+});
+
 test("token-hash links keep verifyOtp while default confirmation links reach the browser reset handler", async () => {
   const calls = [];
   const route = load("../auth/recovery/route.ts", {
