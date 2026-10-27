@@ -7,6 +7,7 @@ import CertificatePreviewModal from "../../components/CertificatePreviewModal";
 import { mapVcToCertEntry } from "../../lib/credential-mapper";
 import { TEMPLATE_OPTIONS } from "../templates/registry";
 import type { CertEntry } from "../../lib/certificate-types";
+import { useCredentialVerification } from "../../hooks/useCredentialVerification";
 
 interface AuthUser { issuerId: string; email: string; displayName: string; issuerName: string; organization: string }
 interface CredentialItem { id: string; externalId: string; recipientName: string; recipientEmail: string; status: string; issuedAt: string; credential: Record<string, unknown>; templateId: string | null }
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const [revokeLoading, setRevokeLoading] = useState<string | null>(null);
   const [allCredentials, setAllCredentials] = useState<CredentialItem[]>([]);
   const [selectedCredential, setSelectedCredential] = useState<CertEntry | null>(null);
+  const verificationResults = useCredentialVerification(allCredentials);
 
   // Detect auth session and load credentials on mount
   useEffect(() => {
@@ -141,13 +143,15 @@ export default function DashboardPage() {
             <p className="text-slate-500">No certificates have been issued yet.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] text-left text-sm">
+              <table className="w-full min-w-[1100px] text-left text-sm">
                 <thead className="border-b border-slate-200 text-slate-500 dark:border-slate-700">
                   <tr>
                     <th scope="col" className="px-3 py-3">Recipient</th>
                     <th scope="col" className="px-3 py-3">Email</th>
                     <th scope="col" className="px-3 py-3">Cert Type</th>
                     <th scope="col" className="px-3 py-3">Status</th>
+                    <th scope="col" className="px-3 py-3">Blockchain verified</th>
+                    <th scope="col" className="px-3 py-3">DID verified</th>
                     <th scope="col" className="px-3 py-3">Issued</th>
                     <th scope="col" className="px-3 py-3 text-center">View</th>
                     <th scope="col" className="px-3 py-3 text-right">Actions</th>
@@ -171,6 +175,12 @@ export default function DashboardPage() {
                         <td className={`px-3 py-3 ${isRevoked ? "text-gray-400 italic" : "text-slate-600 dark:text-slate-400"}`}>{cred.recipientEmail}</td>
                         <td className={`px-3 py-3 font-medium ${isRevoked ? "text-gray-400 italic" : "text-slate-700 dark:text-slate-300"}`}>{certType}</td>
                         <td className={`px-3 py-3 uppercase text-xs ${isRevoked ? "text-gray-400 italic" : ""}`}>{cred.status}</td>
+                        <td className="px-3 py-3" title={verificationResults[cred.id]?.message}>
+                          <span role="status">{verificationResults[cred.id]?.blockchain ?? "Checking..."}</span>
+                        </td>
+                        <td className="px-3 py-3" title={verificationResults[cred.id]?.message}>
+                          <span role="status">{verificationResults[cred.id]?.did ?? "Checking..."}</span>
+                        </td>
                         <td className={`px-3 py-3 ${isRevoked ? "text-gray-400 italic" : "text-slate-600 dark:text-slate-400"}`}>{new Date(cred.issuedAt).toLocaleDateString()}</td>
                         <td className="px-3 py-3 text-center">
                           <button

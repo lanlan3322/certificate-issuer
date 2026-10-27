@@ -426,12 +426,13 @@ test("dashboard headers match every cell and revoked rows hide Revoke but retain
       user: { displayName: "Issuer" }, Link: "a", LogOut: icons.LogOut,
       handleLogout() {}, credentialLoading: false, revokeLoading: null,
       allCredentials: [{ ...dashboardCredential, status }],
+      verificationResults: {},
       mapVcToCertEntry: mapper.mapVcToCertEntry,
       handleViewCredential() {}, handleRevoke() {}, selectedCredential: null,
     });
     const html = renderToStaticMarkup(render());
     const headers = [...html.matchAll(/<th\b[^>]*>(.*?)<\/th>/g)].map((match) => match[1]);
-    assert.deepEqual(headers, ["Recipient", "Email", "Cert Type", "Status", "Issued", "View", "Actions"]);
+    assert.deepEqual(headers, ["Recipient", "Email", "Cert Type", "Status", "Blockchain verified", "DID verified", "Issued", "View", "Actions"]);
     assert.equal((html.match(/<td\b/g) ?? []).length, headers.length);
     assert.match(html, />Training<\/td>/);
     assert.match(html, /title="View certificate details"/);
