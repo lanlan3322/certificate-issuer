@@ -4,11 +4,12 @@ import * as logout from "../logout/handler";
 import * as me from "../me/handler";
 import * as reset from "../reset/handler";
 import * as resetRequest from "../reset-request/handler";
+import * as profile from "../profile/handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const routes = { login, logout, me, reset, "reset-request": resetRequest };
+const routes = { login, logout, me, reset, profile, "reset-request": resetRequest };
 
 async function dispatch(request: Request, context: { params: Promise<{ action: string }> }) {
   const { action } = await context.params;

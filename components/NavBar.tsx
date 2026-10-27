@@ -32,6 +32,7 @@ export default function NavBar({ agentAvailable = false }: { agentAvailable?: bo
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [issuerAuthenticated, setIssuerAuthenticated] = useState(false);
+  const [platformAdmin, setPlatformAdmin] = useState(false);
   const [issuerMenuOpen, setIssuerMenuOpen] = useState(false);
   const issuerRef = useRef<HTMLDivElement>(null);
 
@@ -56,9 +57,15 @@ export default function NavBar({ agentAvailable = false }: { agentAvailable?: bo
 
   useEffect(() => {
     const refreshAuthentication = () => void fetch("/api/auth/me", { method: "POST" })
-      .then(async (response) => response.ok ? await response.json() as { user?: unknown } : null)
-      .then((payload) => setIssuerAuthenticated(Boolean(payload?.user)))
-      .catch(() => setIssuerAuthenticated(false));
+      .then(async (response) => response.ok ? await response.json() as { user?: { roles?: string[] } } : null)
+      .then((payload) => {
+        setIssuerAuthenticated(Boolean(payload?.user));
+        setPlatformAdmin(payload?.user?.roles?.includes("platform-admin") ?? false);
+      })
+      .catch(() => {
+        setIssuerAuthenticated(false);
+        setPlatformAdmin(false);
+      });
     refreshAuthentication();
     window.addEventListener("trustvc-auth-changed", refreshAuthentication);
     return () => window.removeEventListener("trustvc-auth-changed", refreshAuthentication);
@@ -85,7 +92,7 @@ export default function NavBar({ agentAvailable = false }: { agentAvailable?: bo
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/insurance", label: "Issue", icon: FilePlus2 },
     { href: "/branding", label: "Branding", icon: Palette },
-    { href: "/platform", label: "Organization", icon: KeyRound },
+    ...(platformAdmin ? [{ href: "/platform", label: "Organization", icon: KeyRound }] : []),
     { href: "/did", label: "Issuer", icon: KeyRound },
     { href: "/wallet", label: "Wallet", icon: Wallet },
   ];

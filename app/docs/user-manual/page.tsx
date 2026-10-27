@@ -9,6 +9,7 @@ export default function UserManualPage() {
       </div>
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm text-sm leading-7 text-slate-700">
         <p>Use the Issue page to create certificates with either DID or Ethereum issuance.</p>
+        <p className="mt-4">Select My Profile beside Issue certificate on the dashboard to view your account details and edit your display name. Email, roles, and organization/issuer assignments are read-only. Reset password sends instructions to your registered email. The Organization menu in eServices is visible only to platform-admin users.</p>
         <p className="mt-4">For DID issuance, ensure the signing configuration is valid and review the resulting proof before sending the credential.</p>
         <p className="mt-4">For Ethereum issuance, connect MetaMask, switch to Sepolia, confirm the wallet has ETH, and approve the transaction.</p>
         <p className="mt-4">Use the Verify page to check a credential’s validity, signature, and revocation state before sending or accepting it.</p>

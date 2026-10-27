@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { getUserSafely, isSupabaseAuthCookie } from "./lib/supabase/session";
 
-const protectedPages = ["/admin", "/audit", "/branding", "/delivery", "/did", "/insurance", "/revocation", "/wallet"];
+const protectedPages = ["/admin", "/audit", "/branding", "/delivery", "/did", "/insurance", "/profile", "/revocation", "/wallet"];
 const protectedApiPrefixes = [
   "/api/issuers",
   "/api/templates",
