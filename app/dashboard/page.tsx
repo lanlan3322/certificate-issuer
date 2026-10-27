@@ -5,6 +5,7 @@ import { LogOut } from "lucide-react";
 import Link from "next/link";
 import CertificatePreviewModal from "../../components/CertificatePreviewModal";
 import { mapVcToCertEntry } from "../../lib/credential-mapper";
+import { TEMPLATE_OPTIONS } from "../templates/registry";
 import type { CertEntry } from "../../lib/certificate-types";
 
 interface AuthUser { issuerId: string; email: string; displayName: string; issuerName: string; organization: string }
@@ -88,7 +89,11 @@ export default function DashboardPage() {
       recipientName: cred.recipientName,
       recipientEmail: cred.recipientEmail,
       issueDate: certificate.issueDate || cred.issuedAt,
-      templateId: cred.templateId ?? certificate.templateId,
+      templateId: TEMPLATE_OPTIONS.some((template) => template.id === certificate.templateId)
+        ? certificate.templateId
+        : TEMPLATE_OPTIONS.some((template) => template.id === cred.templateId)
+          ? cred.templateId ?? undefined
+          : certificate.templateId,
       status: cred.status,
     });
   };

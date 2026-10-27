@@ -402,6 +402,7 @@ function evaluate(expression, dependencies = {}) {
 }
 
 const mapper = load("lib/credential-mapper.ts");
+const { TEMPLATE_OPTIONS } = load("app/templates/registry.ts");
 const dashboardCredential = {
   id: "database-id", externalId: "certificate-id", recipientName: "Recipient",
   recipientEmail: "test@example.com", status: "issued", issuedAt: "2026-10-14",
@@ -446,6 +447,7 @@ test("dashboard opens shared preview with nested credential data and public cert
     let selected;
     evaluate(handler.initializer.getText(source), {
       mapVcToCertEntry: mapper.mapVcToCertEntry,
+      TEMPLATE_OPTIONS,
       setSelectedCredential(value) { selected = value; },
     })({ ...dashboardCredential, status });
     assert.equal(selected.id, "certificate-id");
@@ -460,6 +462,39 @@ test("dashboard opens shared preview with nested credential data and public cert
   const page = sourceFile("app/dashboard/page.tsx");
   findNode(page, (node) => ts.isJsxSelfClosingElement(node) &&
     node.tagName.getText(page) === "CertificatePreviewModal");
+});
+
+test("dashboard uses credential layout instead of the saved-template UUID and retains legacy style fallback", () => {
+  const source = sourceFile("app/dashboard/page.tsx");
+  const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
+    node.name.getText(source) === "handleViewCredential");
+  for (const [layout, storedTemplateId, expected] of [
+    ["fta", "00000000-0000-4000-8000-000000000001", "fta"],
+    ["modern", "00000000-0000-4000-8000-000000000002", "modern"],
+    ["fta", "classic", "fta"],
+    ["minimal", null, "minimal"],
+    [undefined, "fta", "fta"],
+    [undefined, "00000000-0000-4000-8000-000000000001", "default"],
+  ]) {
+    let selected;
+    const row = {
+      ...dashboardCredential,
+      templateId: storedTemplateId,
+      credential: {
+        ...dashboardCredential.credential,
+        credentialSubject: { ...dashboardCredential.credential.credentialSubject, templateId: layout },
+      },
+    };
+    const original = JSON.stringify(row.credential);
+    evaluate(handler.initializer.getText(source), {
+      mapVcToCertEntry: mapper.mapVcToCertEntry,
+      TEMPLATE_OPTIONS,
+      setSelectedCredential(value) { selected = value; },
+    })(row);
+    assert.equal(selected.templateId, expected);
+    assert.equal(JSON.stringify(row.credential), original);
+    assert.equal(selected.id, row.externalId);
+  }
 });
 
 test("dashboard revocation retains the row after success and reports server failures", async () => {

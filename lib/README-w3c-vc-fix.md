@@ -71,3 +71,18 @@ node --test lib/trustvc.test.js
 
 These exercise all four format names with a template identifier and temporary
 P-256 keys, without requiring configured production signing keys.
+
+## Diagnosing safe-mode issuance failures
+
+Signing keeps JSON-LD safe mode enabled. Errors now report a fixed validation
+category, such as `invalid property` (missing context definition) or
+`relative @id reference` (an identifier is not an absolute URI). The same
+category appears in the server's `[safe-mode]` validation result. Event values,
+which can contain recipient data, are not included in the diagnostic.
+
+The regression tests cover FTA standard-mode issuance with Bitstring Status List
+entries and embedded rendering, as used by the DID + Ethereum route before
+wallet anchoring. This flow passes with temporary valid keys; that is not proof
+that a production issuer's data or signing configuration is correct. If only a
+new issuer fails, capture the specific category and check its saved template
+and signing-profile mapping before changing contexts or key configuration.
