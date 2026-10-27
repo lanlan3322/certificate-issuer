@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { authorize, errorResponse } from "../../../lib/apiAuth";
 import { AuditService } from "../../../services/AuditService";
-import { IssuerService, type IssuerRecord } from "../../../services/IssuerService";
+import { IssuerService, IssuerInvitationError, type IssuerRecord } from "../../../services/IssuerService";
 import { getSupabaseServerClient } from "../../../lib/supabase/server";
+import { withBasePath } from "../../../lib/site";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
       contactEmail?: string;
       didUri?: string;
       organizationId?: string;
+      role?: string;
     };
 
     const name = body.name?.trim();
@@ -74,6 +76,12 @@ export async function POST(request: Request) {
     if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug)) {
       return NextResponse.json({ error: "Slug must be 2-63 lowercase letters, numbers, or hyphens." }, { status: 400 });
     }
+    if (body.role !== undefined && body.role !== "issuer-admin" && body.role !== "issuer-operator") {
+      return NextResponse.json({ error: "role must be issuer-admin or issuer-operator." }, { status: 400 });
+    }
+    if (body.role && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+      return NextResponse.json({ error: "A valid contact email is required for the invitation." }, { status: 400 });
+    }
 
     const requestedOrgId = body.organizationId?.trim();
     if (requestedOrgId && requestedOrgId !== user.organizationId && !isPlatformAdmin) {
@@ -81,13 +89,23 @@ export async function POST(request: Request) {
     }
     const targetOrgId = requestedOrgId || user.organizationId;
 
-    const issuer = await IssuerService.create({
+    const input = {
       organizationId: targetOrgId,
       name,
       slug,
       contactEmail,
       didUri: body.didUri?.trim() || undefined,
-    });
+    };
+    if (body.role === "issuer-admin" || body.role === "issuer-operator") {
+      const issuer = await IssuerService.createWithInvitation(
+        { ...input, contactEmail: contactEmail.toLowerCase() },
+        body.role,
+        user.id,
+        new URL(withBasePath("/issuer/?mode=reset"), request.url).href
+      );
+      return NextResponse.json({ issuer, invitationSent: true }, { status: 201 });
+    }
+    const issuer = await IssuerService.create(input);
 
     await AuditService.record({
       organizationId: targetOrgId,
@@ -101,6 +119,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ issuer }, { status: 201 });
   } catch (error) {
+    if (error instanceof IssuerInvitationError) {
+      return NextResponse.json({ error: error.message }, { status: 502 });
+    }
     return errorResponse(error, "Unable to create issuer.");
   }
 }

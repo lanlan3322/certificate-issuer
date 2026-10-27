@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { KeyRound, LogOut, ShieldCheck } from "lucide-react";
 import { withBasePath } from "../../lib/site";
 import { safeInternalPath } from "../../lib/safe-internal-path";
+import { getSupabaseBrowserClient } from "../../lib/supabase/client";
 import { resolveTemplateId, TEMPLATE_OPTIONS } from "../templates/registry";
 
 type Mode = "login" | "reset";
@@ -42,6 +43,21 @@ export default function IssuerPortalPage() {
   };
 
   useEffect(() => {
+    const acceptInvitation = async () => {
+      const fragment = new URLSearchParams(window.location.hash.slice(1));
+      if (fragment.get("type") !== "invite") return;
+      const accessToken = fragment.get("access_token");
+      const refreshToken = fragment.get("refresh_token");
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      if (!accessToken || !refreshToken) throw new Error("The invitation link is incomplete. Contact your administrator.");
+      const { error } = await getSupabaseBrowserClient().auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (error) throw new Error("The invitation link is invalid or expired. Contact your administrator.");
+      setMode("reset");
+      setRecoverySession(true);
+    };
     const params = new URLSearchParams(window.location.search);
     if (params.get("mode") === "reset") {
       setMode("reset");
@@ -52,7 +68,9 @@ export default function IssuerPortalPage() {
     if (params.get("error") === "invalid_link") setError("That reset link is invalid or has expired.");
     if (params.get("error") === "missing_code") setError("That reset link is missing the recovery token.");
     if (params.get("error") === "pkce_recovery_link") setError("That reset link uses an unsupported PKCE code. Request a new reset email after the recovery email template is updated.");
-    void loadSession().catch(() => undefined);
+    void acceptInvitation().then(loadSession).catch((reason) => {
+      setError(reason instanceof Error ? reason.message : "Unable to accept invitation.");
+    });
   }, []);
 
   const submit = async (event: FormEvent) => {

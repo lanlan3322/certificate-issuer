@@ -165,17 +165,18 @@ export async function getCurrentIssuerUser(): Promise<AuthUser | null> {
 
   const { data: appUser, error: appUserError } = await supabase
     .from("users")
-    .select("id, organization_id, email, display_name, roles")
+    .select("id, organization_id, issuer_id, email, display_name, roles")
     .eq("auth_user_id", authUser.id)
     .maybeSingle();
   if (appUserError || !appUser?.organization_id) return null;
 
-  const { data: issuer, error: issuerError } = await supabase
+  let issuerQuery = supabase
     .from("issuers")
     .select("id, name")
     .eq("organization_id", appUser.organization_id)
-    .eq("status", "active")
-    .maybeSingle();
+    .eq("status", "active");
+  if (appUser.issuer_id) issuerQuery = issuerQuery.eq("id", appUser.issuer_id);
+  const { data: issuer, error: issuerError } = await issuerQuery.maybeSingle();
   if (issuerError || !issuer) return null;
 
   return {

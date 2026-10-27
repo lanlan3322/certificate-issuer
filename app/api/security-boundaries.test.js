@@ -124,6 +124,7 @@ test("issuer directory scopes issuer-admins to their organization and denies tra
     contactEmail: "issuer@example.com", status: "active", createdAt: "now",
   };
   const handler = load(path.resolve(__dirname, "issuers/handler.ts"), {
+    "../../../lib/site": { withBasePath: (url) => url },
     "../../../lib/apiAuth": {
       authorize: async () => ({
         user: { id: "user-id", issuerId: "issuer-id", organizationId: "tenant-a", roles: ["issuer-admin"] },
@@ -166,6 +167,7 @@ test("issuer creation is tenant-scoped except for platform-admins", async () => 
   const calls = [];
   let roles = ["issuer-admin"];
   const handler = load(path.resolve(__dirname, "issuers/handler.ts"), {
+    "../../../lib/site": { withBasePath: (url) => url },
     "../../../lib/apiAuth": {
       authorize: async () => ({
         user: {
@@ -207,6 +209,47 @@ test("issuer creation is tenant-scoped except for platform-admins", async () => 
   const adminCrossTenant = await handler.POST(request("tenant-b"));
   assert.equal(adminCrossTenant.status, 201);
   assert.equal(calls.filter(([name]) => name === "create")[1][1].organizationId, "tenant-b");
+});
+
+test("issuer invitations allow only supported roles and preserve tenant authorization", async () => {
+  const calls = [];
+  let roles = ["issuer-admin"];
+  class IssuerInvitationError extends Error {}
+  const handler = load(path.resolve(__dirname, "issuers/handler.ts"), {
+    "../../../lib/site": { withBasePath: (url) => url },
+    "../../../lib/apiAuth": {
+      authorize: async () => ({
+        user: { id: "actor", organizationId: "tenant-a", roles },
+      }),
+      errorResponse: routeError,
+    },
+    "../../../services/AuditService": { AuditService: { record: async () => {} } },
+    "../../../services/IssuerService": {
+      IssuerInvitationError,
+      IssuerService: { createWithInvitation: async (...args) => {
+        calls.push(args);
+        return { id: "new-issuer" };
+      } },
+    },
+    "../../../lib/supabase/server": { getSupabaseServerClient: async () => ({}) },
+  });
+  const request = (role, organizationId = "tenant-a") => new Request("https://verifiable.sg/api/issuers", {
+    method: "POST",
+    body: JSON.stringify({ role, organizationId, name: "Academy", slug: "academy", contactEmail: "NEW@example.com" }),
+  });
+  assert.equal((await handler.POST(request("platform-admin"))).status, 400);
+  assert.equal((await handler.POST(request("issuer-admin", "tenant-b"))).status, 403);
+  assert.equal(calls.length, 0);
+  for (const role of ["issuer-admin", "issuer-operator"]) {
+    const response = await handler.POST(request(role));
+    assert.equal(response.status, 201);
+    assert.equal((await response.json()).invitationSent, true);
+    assert.equal(calls.at(-1)[1], role);
+    assert.equal(calls.at(-1)[0].contactEmail, "new@example.com");
+    assert.equal(calls.at(-1)[3], "https://verifiable.sg/issuer/?mode=reset");
+  }
+  roles = ["issuer-operator"];
+  assert.equal((await handler.POST(request("issuer-admin"))).status, 403);
 });
 
 test("auth callback redirects only to safe internal destinations", async (t) => {

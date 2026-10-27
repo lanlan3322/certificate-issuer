@@ -9,6 +9,8 @@ export default function AdminManualPage() {
       </div>
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm text-sm leading-7 text-slate-700">
         <p>Admins can manage issuer records, activation state, template setup, and operational lifecycle checks.</p>
+        <p className="mt-4">When creating an issuer, select issuer-operator (default) or issuer-admin for the new login user. The contact email receives a Supabase invitation to set a password. Existing accounts are not reassigned or promoted. Apply migration 012_issuer_user_invitations.sql before deploying this flow, configure Supabase SMTP, and allow the deployed /issuer/?mode=reset redirect URL in Supabase Auth. The default invitation email must use the Supabase ConfirmationURL; a custom token-hash template may instead link to /auth/recovery?token_hash=&#123;&#123; .TokenHash &#125;&#125;&amp;type=invite.</p>
+        <p className="mt-4">Issuer Management loads available issuers and active organizations when opened. Switch to Organization to view issuers for a specific organization; switching back preserves the full issuer list. Organization directory access requires the platform-admin role. Loading or permission failures are shown on the page rather than as empty dropdowns.</p>
         <p className="mt-4">Review the issuer workspace state before approving issuance and confirm DID or wallet configuration is valid before publishing credentials.</p>
         <p className="mt-4">Revocation, status checks, and audit review are important for safe governance across multiple issuers.</p>
         <div className="mt-6 flex flex-wrap gap-3">

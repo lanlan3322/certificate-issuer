@@ -13,6 +13,7 @@ interface OrganizationRecord {
 
 interface OrganizationsResponse {
   organizations?: OrganizationRecord[];
+  error?: string;
 }
 
 interface IssuerRecord {
@@ -27,6 +28,7 @@ interface IssuerRecord {
 
 interface IssuersResponse {
   issuers?: IssuerRecord[];
+  error?: string;
 }
 
 const orgInitialForm = {
@@ -41,29 +43,29 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedOrg, setSelectedOrg] = useState<OrganizationRecord | null>(null);
   const [issuers, setIssuers] = useState<IssuerRecord[]>([]);
-  const [issuerLoading, setIssuerLoading] = useState(false);
-  const [issuerForm, setIssuerForm] = useState({ name: "", slug: "", contactEmail: "" });
+  const [issuerLoading, setIssuerLoading] = useState(true);
+  const [issuerForm, setIssuerForm] = useState({ name: "", slug: "", contactEmail: "", role: "issuer-operator" });
+  const [issuerCreating, setIssuerCreating] = useState(false);
+  const [invitationMessage, setInvitationMessage] = useState<string | null>(null);
   const [issuerError, setIssuerError] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState<"all" | string>("all");
   const [createOrgId, setCreateOrgId] = useState<string>("");
   const [transferringIssuerId, setTransferringIssuerId] = useState<string | null>(null);
   const [transferError, setTransferError] = useState<string | null>(null);
+  const organizationIssuers = issuers.filter((issuer) => issuer.organizationId === selectedOrg?.id);
 
   useEffect(() => {
     void (async () => {
       try {
         const orgRes = await fetch(withBasePath("/api/organizations"));
-        let fetchedOrgs: OrganizationRecord[] = [];
-
-        if (orgRes.ok) {
-          const json = await orgRes.json();
-          const listPayload = json as OrganizationsResponse;
-
-          if (Array.isArray(listPayload.organizations)) {
-            fetchedOrgs = listPayload.organizations;
-            setOrganizations(fetchedOrgs);
-          }
+        const payload = (await orgRes.json()) as OrganizationsResponse;
+        if (!orgRes.ok) {
+          throw new Error(payload.error ?? "Unable to load organizations.");
         }
+        if (!Array.isArray(payload.organizations)) {
+          throw new Error("Invalid organization list response.");
+        }
+        setOrganizations(payload.organizations);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load data.");
@@ -71,9 +73,26 @@ export default function AdminPage() {
         setLoading(false);
       }
     })();
+
+    void (async () => {
+      try {
+        const response = await fetch(withBasePath("/api/issuers"));
+        const payload = (await response.json()) as IssuersResponse;
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Unable to load issuers.");
+        }
+        if (!Array.isArray(payload.issuers)) {
+          throw new Error("Invalid issuer list response.");
+        }
+        setIssuers(payload.issuers);
+        setIssuerError(null);
+      } catch (err) {
+        setIssuerError(err instanceof Error ? err.message : "Unable to load issuers.");
+      } finally {
+        setIssuerLoading(false);
+      }
+    })();
   }, []);
-
-
   const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}$/;
 
   const formatSlug = (value: string): string =>
@@ -157,36 +176,14 @@ export default function AdminPage() {
     }
   };
 
-  const handleSelectOrg = async (org: OrganizationRecord) => {
-    if (selectedOrg?.id === org.id) {
-      setSelectedOrg(null);
-      setIssuers([]);
-      return;
-    }
-
-    setSelectedOrg(org);
-    setIssuers([]);
-    setIssuerLoading(true);
-    setIssuerError(null);
-
-    try {
-      const response = await fetch(withBasePath("/api/issuers"));
-      if (!response.ok) {
-        throw new Error("Failed to load issuers.");
-      }
-      const data = (await response.json()) as IssuersResponse;
-      const allIssuers = Array.isArray(data.issuers) ? data.issuers : [];
-      setIssuers(allIssuers.filter((i) => i.organizationId === org.id));
-    } catch (err) {
-      setIssuerError(err instanceof Error ? err.message : "Unable to load issuers.");
-    } finally {
-      setIssuerLoading(false);
-    }
+  const handleSelectOrg = (org: OrganizationRecord) => {
+    setSelectedOrg(selectedOrg?.id === org.id ? null : org);
   };
 
   const handleCreateIssuer = async (e: React.FormEvent) => {
     e.preventDefault();
     setIssuerError(null);
+    setInvitationMessage(null);
 
     const name = issuerForm.name.trim();
     const slug = formatSlug(issuerForm.slug);
@@ -197,22 +194,28 @@ export default function AdminPage() {
       return;
     }
 
+    setIssuerCreating(true);
     try {
       const response = await fetch(withBasePath("/api/issuers"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug, contactEmail, organizationId: createOrgId || undefined }),
+        body: JSON.stringify({ name, slug, contactEmail, role: issuerForm.role, organizationId: createOrgId || undefined }),
       });
 
-      const data = (await response.json()) as { error?: string; issuer?: IssuerRecord };
+      const data = (await response.json()) as { error?: string; issuer?: IssuerRecord; invitationSent?: boolean };
       if (!response.ok) {
         throw new Error(data.error ?? "Failed to create issuer.");
       }
 
-      setIssuers((prev) => [...prev, data.issuer!]);
-      setIssuerForm({ name: "", slug: "", contactEmail: "" });
+      if (!data.issuer || data.invitationSent !== true) throw new Error("Issuer invitation was not confirmed. Contact your administrator before retrying.");
+      const createdIssuer = data.issuer;
+      setIssuers((prev) => [...prev.filter((issuer) => issuer.id !== createdIssuer.id), createdIssuer]);
+      setInvitationMessage(`Invitation sent to ${contactEmail} with the ${issuerForm.role} role.`);
+      setIssuerForm({ name: "", slug: "", contactEmail: "", role: "issuer-operator" });
     } catch (err) {
       setIssuerError(err instanceof Error ? err.message : "An unexpected error occurred.");
+    } finally {
+      setIssuerCreating(false);
     }
   };
 
@@ -273,7 +276,6 @@ export default function AdminPage() {
           onClick={() => {
             setGlobalFilter((prev) => (prev === "all" ? "scoped" : "all"));
             setSelectedOrg(null);
-            setIssuers([]);
             setCreateOrgId("");
           }}
           className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
@@ -285,6 +287,10 @@ export default function AdminPage() {
           {globalFilter === "all" ? "Switch to Organization" : "Switch to Issuer"}
         </button>
       </div>
+
+      {error && <p role="alert" className="mb-4 text-sm text-red-600">{error}</p>}
+      {issuerError && <p role="alert" className="mb-4 text-sm text-red-600">{issuerError}</p>}
+      {invitationMessage && <p role="status" className="mb-4 text-sm text-emerald-700">{invitationMessage}</p>}
 
       {/* Global Mode: Issuer Management */}
       {globalFilter === "all" && (
@@ -302,12 +308,23 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">Assign to organization</label>
-                  <select required className="w-full rounded-md border border-slate-300 px-3 py-2" value={createOrgId} onChange={(e) => setCreateOrgId(e.target.value)}>
+                  <select required disabled={loading} className="w-full rounded-md border border-slate-300 px-3 py-2" value={createOrgId} onChange={(e) => setCreateOrgId(e.target.value)}>
                     <option value="">Select an organization</option>
                     {organizations.filter((o) => o.status === "active").map((org) => (
                       <option key={org.id} value={org.id}>{org.name} ({org.slug})</option>
                     ))}
                   </select>
+                  {loading ? <p role="status" className="mt-1 text-sm text-slate-500">Loading organizations…</p> : !error && !organizations.some((org) => org.status === "active") ? (
+                    <p className="mt-1 text-sm text-slate-500">No active organizations available. Create or activate an organization in Organization Management.</p>
+                  ) : null}
+                </div>
+                <div>
+                  <label htmlFor="issuer-role" className="mb-1 block text-sm font-medium text-slate-700">Login user role</label>
+                  <select id="issuer-role" required value={issuerForm.role} onChange={(event) => setIssuerForm({ ...issuerForm, role: event.target.value })} className="w-full rounded-md border border-slate-300 px-3 py-2">
+                    <option value="issuer-operator">issuer-operator</option>
+                    <option value="issuer-admin">issuer-admin</option>
+                  </select>
+                  <p className="mt-1 text-sm text-slate-500">A new login invitation is sent to the contact email. Existing accounts cannot be reassigned here.</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -324,8 +341,7 @@ export default function AdminPage() {
                   <input required type="email" className="w-full rounded-md border border-slate-300 px-3 py-2" placeholder="e.g. ca-admin@example.com" name="contactEmail" value={issuerForm.contactEmail} onChange={(e) => setIssuerForm({ ...issuerForm, contactEmail: e.target.value })} />
                 </div>
               </div>
-              {issuerError && <p className="text-sm text-red-600">{issuerError}</p>}
-              <button type="submit" className={`w-full rounded-md px-4 py-2 font-medium text-white ${!createOrgId ? "cursor-not-allowed bg-slate-400" : "bg-indigo-600 hover:bg-indigo-500"}`}>Create issuer</button>
+              <button type="submit" disabled={loading || !createOrgId || issuerCreating} className="w-full rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-500 disabled:opacity-60">{issuerCreating ? "Sending invitation..." : "Create issuer"}</button>
             </form>
           </div>
 
@@ -335,16 +351,19 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">Issuer</label>
-                  <select required className="w-full rounded-md border border-slate-300 px-3 py-2" name="issuerId">
+                  <select required disabled={issuerLoading} className="w-full rounded-md border border-slate-300 px-3 py-2" name="issuerId">
                     <option value="">Select an issuer</option>
                     {issuers.map((i) => (
                       <option key={i.id} value={i.id}>{i.name} ({i.slug}) — Current: {organizations.find((o)=>o.id===i.organizationId)?.name ?? i.organizationId}</option>
                     ))}
                   </select>
+                  {issuerLoading ? <p role="status" className="mt-1 text-sm text-slate-500">Loading issuers…</p> : !issuerError && issuers.length === 0 ? (
+                    <p className="mt-1 text-sm text-slate-500">No issuers configured yet.</p>
+                  ) : null}
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">Target organization</label>
-                  <select required className="w-full rounded-md border border-slate-300 px-3 py-2" name="newOrgId">
+                  <select required disabled={loading} className="w-full rounded-md border border-slate-300 px-3 py-2" name="newOrgId">
                     <option value="">Select organization</option>
                     {organizations.filter((o) => o.status === "active").map((org) => (
                       <option key={org.id} value={org.id}>{org.name} ({org.slug})</option>
@@ -352,7 +371,7 @@ export default function AdminPage() {
                   </select>
                 </div>
               </div>
-              <button type="submit" className="w-full rounded-md bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-500">Transfer issuer</button>
+              <button type="submit" disabled={loading || issuerLoading || issuers.length === 0 || !organizations.some((org) => org.status === "active") || transferringIssuerId !== null} className="w-full rounded-md bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-500 disabled:opacity-60">Transfer issuer</button>
             </form>
           </div>
         </section>
@@ -491,7 +510,7 @@ export default function AdminPage() {
 
           {issuerLoading ? (
             <p className="text-slate-500">Loading issuers…</p>
-          ) : issuers.length === 0 ? (
+          ) : issuerError ? null : organizationIssuers.length === 0 ? (
             <>
               <p className="mb-4 text-slate-500">No issuers configured for this organization yet.</p>
               <p className="text-sm text-slate-600">
@@ -502,7 +521,6 @@ export default function AdminPage() {
                 onClick={() => {
                   setGlobalFilter("all");
                   setSelectedOrg(null);
-                  setIssuers([]);
                   setCreateOrgId(selectedOrg.id);
                 }}
                 className="mt-4 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
@@ -513,7 +531,7 @@ export default function AdminPage() {
           ) : (
             <>
               <div className="space-y-3">
-                {issuers.map((issuer) => (
+                {organizationIssuers.map((issuer) => (
                   <div
                     key={issuer.id}
                     className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 p-4"

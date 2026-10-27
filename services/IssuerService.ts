@@ -2,6 +2,8 @@ import { getSupabaseAdmin } from "../lib/supabase/server";
 
 export interface IssuerInput { organizationId: string; name: string; slug: string; contactEmail: string; didUri?: string; }
 export interface IssuerRecord extends IssuerInput { id: string; status: "active" | "disabled" | "suspended"; createdAt: string; }
+export type IssuerUserRole = "issuer-admin" | "issuer-operator";
+export class IssuerInvitationError extends Error {}
 
 const mapRow = (row: Record<string, unknown>): IssuerRecord => ({
   id: String(row.id),
@@ -15,6 +17,39 @@ const mapRow = (row: Record<string, unknown>): IssuerRecord => ({
 });
 
 export const IssuerService = {
+  async createWithInvitation(input: IssuerInput, role: IssuerUserRole, actorId: string, redirectTo: string) {
+    const supabase = getSupabaseAdmin();
+    const { data: reservation, error: reservationError } = await supabase.rpc("prepare_issuer_invitation", {
+      p_organization_id: input.organizationId,
+      p_name: input.name,
+      p_slug: input.slug,
+      p_email: input.contactEmail,
+      p_role: role,
+      p_actor_id: actorId,
+      p_did_uri: input.didUri ?? null,
+    });
+    if (reservationError) throw reservationError;
+    if (!reservation?.issuer || !reservation.user_id) {
+      throw new Error("Issuer invitation reservation is incomplete.");
+    }
+    const { data, error } = await supabase.auth.admin.inviteUserByEmail(input.contactEmail, { redirectTo });
+    if (error || !data.user) {
+      throw new IssuerInvitationError(
+        "Issuer saved, but the login invitation could not be sent. Retry with the same details or contact a platform administrator. Existing login accounts cannot be invited as new users."
+      );
+    }
+    const { error: linkError } = await supabase.rpc("complete_issuer_invitation", {
+      p_user_id: reservation.user_id,
+      p_auth_user_id: data.user.id,
+      p_actor_id: actorId,
+    });
+    if (linkError) {
+      throw new IssuerInvitationError(
+        "Invitation sent, but the login profile could not be linked. Contact a platform administrator before retrying."
+      );
+    }
+    return mapRow(reservation.issuer);
+  },
   async list(organizationId: string) {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
