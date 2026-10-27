@@ -10,6 +10,14 @@ export async function GET(request: Request) {
   const { user, response } = await authorize();
   if (response) return response;
   try {
+    if (new URL(request.url).searchParams.get("purpose") === "issuance") {
+      return NextResponse.json({
+        templates: await TemplateService.listForIssuance({
+          organizationId: user.organizationId,
+          platformAdmin: user.roles.includes("platform-admin"),
+        }),
+      }, { headers: { "Cache-Control": "no-store" } });
+    }
     const includeInactive = new URL(request.url).searchParams.get("includeInactive") === "true";
     // Scoped to the session's issuer; the issuerId query param is ignored.
     return NextResponse.json({ templates: await TemplateService.list(user.issuerId, { includeInactive }) });

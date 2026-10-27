@@ -12,7 +12,7 @@ function loadService(client) {
   instance.paths = Module._nodeModulePaths(path.dirname(filename));
   const normalRequire = instance.require.bind(instance);
   instance.require = (name) => name === "../lib/supabase/server"
-    ? { getSupabaseServerClient: async () => client }
+    ? { getSupabaseServerClient: async () => client, getSupabaseAdmin: () => client }
     : normalRequire(name);
   instance._compile(ts.transpileModule(readFileSync(filename, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
@@ -68,6 +68,62 @@ test("template upsert binds an active profile and preserves its mapping when omi
 
   const preserved = await service.upsert({ issuerId: "issuer-id", slug: "fta", name: "FTA" });
   assert.equal(preserved.issuerProfileId, "profile-id");
+});
+
+test("issuance catalog scopes active organization-owned templates, with a platform-admin exception", async () => {
+  const rows = [
+    { id: "own", issuer_id: "issuer-a", organization_id: "org-a", slug: "classic", name: "Own", is_active: true },
+    { id: "sibling", issuer_id: "issuer-b", organization_id: "org-a", slug: "classic", name: "Sibling", is_active: true },
+    { id: "foreign", issuer_id: "issuer-c", organization_id: "org-b", slug: "modern", name: "Foreign", is_active: true },
+    { id: "inactive", issuer_id: "issuer-a", organization_id: "org-a", slug: "old", is_active: false },
+    { id: "global", issuer_id: null, organization_id: null, slug: "global", is_active: true },
+  ];
+  const calls = [];
+  const service = loadService({
+    from(table) {
+      assert.equal(table, "templates");
+      const filters = [];
+      let innerJoin = false;
+      const query = {
+        select(fields) {
+          assert.ok(fields === "*" || fields === "*, issuers!inner(organization_id)");
+          innerJoin = fields.includes("!inner");
+          return query;
+        },
+        eq(field, value) { filters.push([field, value]); return query; },
+        async order() {
+          calls.push(filters);
+          return {
+            data: rows.filter((row) => (!innerJoin || row.issuer_id) && filters.every(([field, value]) =>
+              row[field === "issuers.organization_id" ? "organization_id" : field] === value)),
+            error: null,
+          };
+        },
+      };
+      return query;
+    },
+  });
+  const scope = { organizationId: "org-a", platformAdmin: false };
+  assert.deepEqual((await service.listForIssuance(scope)).map((row) => row.id), ["own", "sibling"]);
+  assert.deepEqual(calls[0], [["is_active", true], ["issuers.organization_id", "org-a"]]);
+  assert.deepEqual((await service.listForIssuance({ ...scope, platformAdmin: true })).map((row) => row.id), ["own", "sibling", "foreign", "global"]);
+  assert.deepEqual(calls[1], [["is_active", true]]);
+  assert.equal((await service.getAvailableForIssuance("sibling", scope)).issuerId, "issuer-b");
+  assert.equal(await service.getAvailableForIssuance("foreign", scope), null);
+  assert.equal(await service.getAvailableForIssuance("modern", scope), null);
+  assert.equal(await service.getAvailableForIssuance("inactive", scope), null);
+  await assert.rejects(service.getAvailableForIssuance("classic", scope), /ambiguous/);
+});
+
+test("issuance catalog surfaces database errors", async () => {
+  const query = {
+    select: () => query,
+    eq: () => query,
+    order: async () => ({ data: null, error: new Error("Database unavailable") }),
+  };
+  await assert.rejects(loadService({ from: () => query }).listForIssuance({
+    organizationId: "org-a", platformAdmin: false,
+  }), /Database unavailable/);
 });
 
 test("template upsert rejects a profile outside its issuer scope", async () => {

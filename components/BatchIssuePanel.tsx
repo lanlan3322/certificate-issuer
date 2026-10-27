@@ -32,7 +32,8 @@ import {
   getISODateString,
 } from "../lib/certificate";
 import { CERTIFICATE_TEMPLATES, IssuingMethod } from "../lib/constants";
-import { DEFAULT_TEMPLATE_ID } from "../app/templates";
+import { useIssuanceTemplates } from "../hooks/useIssuanceTemplates";
+import { withBasePath } from "../lib/site";
 
 function getTodayDateInputValue(): string {
   const now = new Date();
@@ -181,6 +182,12 @@ export default function BatchIssuePanel({
   walletControls,
 }: BatchIssuePanelProps) {
   const { getSigner, switchToSepolia } = useWalletConnection();
+  const { templates, loading: templatesLoading, error: templateError } = useIssuanceTemplates();
+  const [templateId, setTemplateId] = useState("");
+  const selectedTemplate = templates.find((template) => template.id === templateId);
+  useEffect(() => {
+    setTemplateId((current) => templates.some((template) => template.id === current) ? current : templates[0]?.id ?? "");
+  }, [templates]);
   const [rows, setRows] = useState<BatchRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
@@ -249,6 +256,10 @@ export default function BatchIssuePanel({
   };
 
   const handleIssueAll = async () => {
+    if (templatesLoading || templateError || !selectedTemplate) {
+      setParseError(templateError ?? "Select an available saved template before issuing.");
+      return;
+    }
     if ((walletRequired && !connected) || issuing) return;
 
     if (hasValidity) {
@@ -295,7 +306,7 @@ export default function BatchIssuePanel({
           recipientName: row.recipientName,
           recipientEmail: row.recipientEmail,
           certificateType: row.certificateType,
-          templateId: DEFAULT_TEMPLATE_ID,
+          templateId: selectedTemplate.slug,
           issuerName: "Certificate Issuer",
           issueDate: now,
           description: row.description,
@@ -310,10 +321,11 @@ export default function BatchIssuePanel({
         let selectedStore: { address: string; network: string } | undefined;
 
         if (issuingMethods.includes("did")) {
-          const response = await fetch("/api/issue", {
+          const response = await fetch(withBasePath("/api/issue"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              templateId: selectedTemplate.id,
               data: certData,
               type: "did",
               certificateFormat,
@@ -423,6 +435,15 @@ export default function BatchIssuePanel({
 
   return (
     <div className="space-y-4">
+      <div>
+        <label htmlFor="batch-template" className="label text-sm">Template Style</label>
+        <select id="batch-template" className="input-field" value={templateId} onChange={(event) => setTemplateId(event.target.value)} disabled={issuing || templatesLoading || templates.length === 0}>
+          <option value="">{templatesLoading ? "Loading templates..." : "Select a saved template"}</option>
+          {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+        </select>
+        {templateError && <p role="alert" className="text-sm text-red-600">{templateError}</p>}
+        {!templatesLoading && !templateError && templates.length === 0 && <p role="status" className="text-sm text-amber-700">No active saved templates are linked to your organization. Contact an administrator.</p>}
+      </div>
       <IssuingMethodSelector
         selectedMethods={issuingMethods}
         onToggle={onToggleIssuingMethod}
@@ -659,7 +680,7 @@ export default function BatchIssuePanel({
           {!isComplete && (
             <button
               onClick={handleIssueAll}
-              disabled={(walletRequired && !connected) || issuing || validRows.length === 0}
+              disabled={(walletRequired && !connected) || issuing || validRows.length === 0 || templatesLoading || !!templateError || !selectedTemplate}
               className="mt-3 btn-primary w-full flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
             >
               {issuing ? (

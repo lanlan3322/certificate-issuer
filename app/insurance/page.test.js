@@ -51,7 +51,10 @@ function setup({
   connected = false,
   statusProfile,
   status = 200,
-  body = { signed: true, credential },
+  body = { signed: true, credential, documentStore: { address: "test-store", network: "sepolia" } },
+  templates = [{ id: "saved-template-id", slug: "classic", name: "Classic" }],
+  loading = false,
+  templateError = null,
 } = {}) {
   const state = {};
   const calls = { requests: [], walletSignatures: 0, signers: 0, anchors: 0 };
@@ -62,11 +65,15 @@ function setup({
   );
   const run = compile(expression("handleIssue"), {
     ...setters,
+    templatesLoading: loading,
+    templateError,
+    availableTemplates: templates,
+    withBasePath: (value) => value,
     formData: {
       recipientName: "Test Recipient",
       recipientEmail: "test@example.com",
       certificateType: "ProfessionalCertificate",
-      templateId: "classic",
+      templateId: "saved-template-id",
       description: "Proof preservation regression",
       hasValidity: false,
       certificateFormat: "w3c",
@@ -85,6 +92,7 @@ function setup({
       return { ok: status >= 200 && status < 300, status, json: async () => body };
     },
     getSigner: async () => { calls.signers++; return { wallet: true }; },
+    getCredentialDocumentStore: () => ({ address: "test-store", network: "sepolia" }),
     switchToSepolia: async () => { throw new Error("Already on Sepolia"); },
     buildVCPayload: () => ({ unsigned: true }),
     signCredentialWithEthereum: async (payload) => {
@@ -118,8 +126,10 @@ test("DID-only issuance preserves server proof without connecting or invoking a 
   assert.equal(calls.walletSignatures, 0);
   assert.equal(calls.requests[0].url, "/api/issue");
   assert.equal(calls.requests[0].body.certificateFormat, "v1");
-  assert.equal(calls.requests[0].body.statusProfile, "bitstring");
+  assert.equal(calls.requests[0].body.statusProfile, "trustvc");
   assert.equal(calls.requests[0].body.renderMethod, "embedded");
+  assert.equal(calls.requests[0].body.templateId, "saved-template-id");
+  assert.equal(calls.requests[0].body.data.templateId, "classic");
 
   const current = compile(expression("currentCredential"), {
     useMemo: (callback) => callback(),
@@ -132,24 +142,24 @@ test("DID-only issuance preserves server proof without connecting or invoking a 
   assert.deepEqual(JSON.parse(JSON.stringify(current)).proof, original.proof);
 });
 
-test("fixed issuance settings override stale form values and keep status lists DID-only", async () => {
+test("fixed issuance settings override stale form values for DID and combined issuance", async () => {
   const didOnly = setup({ statusProfile: "legacy" });
   await didOnly.run();
-  assert.equal(didOnly.calls.requests[0].body.statusProfile, "bitstring");
+  assert.equal(didOnly.calls.requests[0].body.statusProfile, "trustvc");
   assert.equal(didOnly.calls.requests[0].body.certificateFormat, "v1");
   assert.equal(didOnly.calls.requests[0].body.renderMethod, "embedded");
   const combined = setup({ methods: ["did", "ethereum"], connected: true, statusProfile: "bitstring" });
   await combined.run();
-  assert.equal(combined.calls.requests[0].body.statusProfile, "legacy");
+  assert.equal(combined.calls.requests[0].body.statusProfile, "trustvc");
   assert.equal(combined.calls.requests[0].body.renderMethod, "embedded");
 });
 
-test("combined issuance preserves DID download while retaining separate Ethereum signing and anchoring", async () => {
+test("combined issuance preserves DID download and anchors the same signed credential", async () => {
   const { run, state, calls } = setup({ methods: ["did", "ethereum"], connected: true });
   await run();
   assert.strictEqual(state.DIDResult.credential, credential);
-  assert.equal(state.EthereumResult.credential.proof.type, "EthereumPersonalSignature2024");
-  assert.equal(calls.walletSignatures, 1);
+  assert.equal(state.EthereumResult.documentStoreAddress, "test-store");
+  assert.equal(calls.walletSignatures, 0);
   assert.equal(calls.anchors, 1);
   assert.equal(state.IssuedTxHash, "test-transaction");
   const current = compile(expression("currentCredential"), {
@@ -168,7 +178,17 @@ test("Ethereum-only issuance still uses its wallet proof", async () => {
   assert.equal(calls.requests.length, 0);
   assert.equal(calls.walletSignatures, 1);
   assert.equal(calls.anchors, 1);
-  assert.equal(state.EthereumResult.credential.proof.type, "EthereumPersonalSignature2024");
+  assert.equal(state.EthereumResult.documentStoreAddress, "test-store");
+});
+
+test("unavailable, loading, and failed template catalogs prevent issuance", async () => {
+  for (const options of [{ templates: [] }, { loading: true }, { templateError: "Catalog unavailable" }]) {
+    const { run, state, calls } = setup(options);
+    await run();
+    assert.equal(state.Errors.length, 1);
+    assert.equal(calls.requests.length, 0);
+    assert.equal(calls.walletSignatures, 0);
+  }
 });
 
 test("Ethereum issuance still requires a connected wallet", async () => {

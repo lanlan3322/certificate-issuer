@@ -136,21 +136,23 @@ export async function POST(request: Request) {
 
     const templateReference = body.templateId?.trim() || data.templateId?.trim();
     const template = templateReference
-      ? await TemplateService.getForIssuance(templateReference, user.issuerId)
+      ? await TemplateService.getAvailableForIssuance(templateReference, {
+        organizationId: user.organizationId,
+        platformAdmin: user.roles.includes("platform-admin"),
+      })
       : null;
-    const isUuidTemplateReference = Boolean(templateReference &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(templateReference));
-    if (isUuidTemplateReference && !template) {
-      return NextResponse.json({ error: "Template not found for this issuer." }, { status: 404 });
+    if (!template) {
+      return NextResponse.json({ error: "Select an active saved template available to your organization." }, { status: 404 });
     }
     if (template && !template.isActive) {
       return NextResponse.json({ error: "Template is inactive and cannot issue credentials." }, { status: 409 });
     }
 
-    const issuerProfile = template?.issuerProfileId
+    const usesOwnProfile = template.issuerId === user.issuerId && !!template.issuerProfileId;
+    const issuerProfile = usesOwnProfile && template.issuerProfileId
       ? await IssuerProfileService.get(template.issuerProfileId, user.issuerId)
       : null;
-    if (template?.issuerProfileId && (!issuerProfile || !issuerProfile.active)) {
+    if (usesOwnProfile && (!issuerProfile || !issuerProfile.active)) {
       return NextResponse.json(
         { error: "Template issuer profile is missing or inactive." },
         { status: 409 }
@@ -217,9 +219,10 @@ export async function POST(request: Request) {
     } : getDefaultDocumentStoreConfig();
     data = {
       ...data,
+      templateId: resolveTemplateId(template.slug),
       issuerDid: issuerProfile?.did,
       issuerDisplayName: issuerProfile?.displayName,
-      issuerName: issuerProfile?.displayName ?? data.issuerName,
+      issuerName: issuerProfile?.displayName ?? user.issuerName,
       documentStoreAddress: documentStore.address,
       documentStoreNetwork: documentStore.network,
     };
@@ -230,7 +233,7 @@ export async function POST(request: Request) {
       ? { ...payload, credentialStatus: await StatusListService.reserve(user.issuerId, data.id, statusListIssuer) }
       : payload;
     const credential = body.renderMethod === "embedded"
-      ? withEmbeddedRenderMethod(statusCredential, resolveTemplateId(data.templateId ?? body.templateId))
+      ? withEmbeddedRenderMethod(statusCredential, resolveTemplateId(template.slug))
       : statusCredential;
     const result = await signDocumentWithDID(
       credential,

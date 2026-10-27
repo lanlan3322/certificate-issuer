@@ -20,7 +20,7 @@ function load(mocks) {
   return instance.exports;
 }
 
-function createRoute({ statusProfile = "legacy", profileMapped = true, registrationError = false, registrationEnabled = true } = {}) {
+function createRoute({ statusProfile = "legacy", profileMapped = true, registrationError = false, registrationEnabled = true, templateOwner = "issuer-id", roles = ["issuer-operator"], available = true } = {}) {
   const calls = [];
   const pending = [];
   const defaultStore = {
@@ -49,7 +49,7 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
     "next/server": { NextResponse, after: (callback) => pending.push(callback) },
     "../../../lib/apiAuth": {
       authorize: async () => ({
-        user: { id: "user-id", issuerId: "issuer-id", organizationId: "org-id" },
+        user: { id: "user-id", issuerId: "issuer-id", issuerName: "Logged-in issuer", organizationId: "org-id", roles },
       }),
       errorResponse: (error, fallback, status = 500) =>
         NextResponse.json({ error: error?.message ?? fallback }, { status }),
@@ -99,14 +99,15 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
       } },
     },
     "../../../services/TemplateService": {
-      TemplateService: { getForIssuance: async (reference, issuerId) => {
-        calls.push(["load-template", reference, issuerId]);
-        return {
+      TemplateService: { getAvailableForIssuance: async (reference, scope) => {
+        calls.push(["load-template", reference, scope]);
+        return available ? {
           id: "template-row-id",
-          issuerId,
+          issuerId: templateOwner,
+          slug: "fta",
           issuerProfileId: profileMapped ? "profile-id" : null,
           isActive: true,
-        };
+        } : null;
       } },
     },
     "../../../lib/document-store": {
@@ -202,6 +203,33 @@ test("issue route signs and persists using the selected template issuer profile"
   const registration = calls.find(([name]) => name === "register-store");
   assert.equal(registration[3].address, profile.documentStoreAddress);
   assert.equal(registration[3].network, profile.documentStoreNetwork);
+});
+
+test("shared templates reuse style without borrowing the owner's signing profile or ownership", async () => {
+  for (const roles of [["issuer-operator"], ["platform-admin"]]) {
+    const { post, calls } = createRoute({ templateOwner: "other-issuer", roles });
+    assert.equal((await post()).status, 200);
+    assert.deepEqual(calls.find(([name]) => name === "load-template")[2], {
+      organizationId: "org-id", platformAdmin: roles.includes("platform-admin"),
+    });
+    assert.equal(calls.some(([name]) => name === "load-profile"), false);
+    const payload = calls.find(([name]) => name === "payload")[1];
+    assert.equal(payload.templateId, "fta");
+    assert.equal(payload.issuerName, "Logged-in issuer");
+    assert.equal(payload.issuerDid, undefined);
+    const saved = calls.find(([name]) => name === "persist")[1];
+    assert.equal(saved.issuerId, "issuer-id");
+    assert.equal(saved.templateId, "template-row-id");
+    assert.equal(saved.issuerProfileId, undefined);
+  }
+});
+
+test("inaccessible IDs and legacy slugs cannot bypass saved-template authorization", async () => {
+  for (const templateId of ["other-template-id", "classic"]) {
+    const { post, calls } = createRoute({ available: false });
+    assert.equal((await post({ templateId })).status, 404);
+    assert.equal(calls.some(([name]) => name === "sign" || name === "persist"), false);
+  }
 });
 
 test("profile-specific Bitstring status is allocated against the selected issuer profile", async () => {

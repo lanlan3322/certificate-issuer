@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "../lib/supabase/server";
+import { getSupabaseAdmin, getSupabaseServerClient } from "../lib/supabase/server";
 
 export interface TemplateInput {
   issuerId: string;
@@ -34,6 +34,26 @@ const mapRow = (row: Record<string, unknown>): TemplateRecord => ({
 });
 
 export const TemplateService = {
+  async listForIssuance(scope: { organizationId: string; platformAdmin: boolean }) {
+    const table = getSupabaseAdmin().from("templates");
+    let query = (scope.platformAdmin
+      ? table.select("*")
+      : table.select("*, issuers!inner(organization_id)")).eq("is_active", true);
+    if (!scope.platformAdmin) query = query.eq("issuers.organization_id", scope.organizationId);
+    const { data, error } = await query.order("name", { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map(mapRow);
+  },
+
+  async getAvailableForIssuance(reference: string, scope: { organizationId: string; platformAdmin: boolean }) {
+    const templates = await this.listForIssuance(scope);
+    const byId = templates.find((template) => template.id === reference);
+    if (byId) return byId;
+    const bySlug = templates.filter((template) => template.slug === reference);
+    if (bySlug.length > 1) throw new Error("Template slug is ambiguous. Select the saved template by ID.");
+    return bySlug[0] ?? null;
+  },
+
   async getForIssuance(reference: string, issuerId: string) {
     const supabase = await getSupabaseServerClient();
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reference);

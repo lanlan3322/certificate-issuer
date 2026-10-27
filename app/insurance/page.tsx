@@ -18,7 +18,8 @@ import {
   Info,
   Layers,
 } from "lucide-react";
-import { buildVerificationUrl } from "../../lib/site";
+import { buildVerificationUrl, withBasePath } from "../../lib/site";
+import { useIssuanceTemplates } from "../../hooks/useIssuanceTemplates";
 import DeploymentGuide from "../../components/DeploymentGuide";
 import CertificatePdfDownload from "../../components/CertificatePdfDownload";
 import BatchIssuePanel, {
@@ -168,6 +169,15 @@ export default function InsurancePage() {
   const [batchIssuing, setBatchIssuing] = useState(false);
   const [downloadingBatchZip, setDownloadingBatchZip] = useState(false);
   const [batchDownloadError, setBatchDownloadError] = useState<string | null>(null);
+  const { templates: availableTemplates, loading: templatesLoading, error: templateError } = useIssuanceTemplates();
+
+  useEffect(() => {
+    setFormData((current) => ({
+      ...current,
+      templateId: availableTemplates.some((template) => template.id === current.templateId)
+        ? current.templateId : availableTemplates[0]?.id ?? "",
+    }));
+  }, [availableTemplates]);
 
   useEffect(() => {
     const storedPrefill = window.sessionStorage.getItem("trustvc-agent-prefill");
@@ -242,6 +252,10 @@ export default function InsurancePage() {
   };
 
   const handleIssue = async () => {
+    if (templatesLoading || templateError || !availableTemplates.some((template) => template.id === formData.templateId)) {
+      setErrors([templateError ?? "Select an available saved template before issuing."]);
+      return;
+    }
     const validation = validateCertificateData({
       ...formData,
       validUntil: formData.validUntil ?? undefined,
@@ -302,7 +316,7 @@ export default function InsurancePage() {
         recipientName: formData.recipientName,
         recipientEmail: formData.recipientEmail,
         certificateType: formData.certificateType,
-        templateId: formData.templateId,
+        templateId: availableTemplates.find((template) => template.id === formData.templateId)?.slug,
         issuerName: "Certificate Issuer",
         issueDate: now,
         description: formData.description,
@@ -316,12 +330,13 @@ export default function InsurancePage() {
       if (issuingMethods.includes("did")) {
         // Signing and persistence both happen server-side; there is no browser
         // fallback because the signing key is never sent to the client.
-        const response = await fetch("/api/issue", {
+        const response = await fetch(withBasePath("/api/issue"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+            templateId: formData.templateId,
             data: certData,
             type: "did",
             certificateFormat: "v1",
@@ -639,17 +654,23 @@ export default function InsurancePage() {
                       name="templateId"
                       value={formData.templateId}
                       onChange={handleInputChange}
+                      disabled={templatesLoading || availableTemplates.length === 0}
                       className="input-field text-sm md:text-base"
                     >
-                      {TEMPLATE_OPTIONS.map((template) => (
+                      <option value="">{templatesLoading ? "Loading templates..." : "Select a saved template"}</option>
+                      {availableTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
-                          {template.label}
+                          {template.name}
                         </option>
                       ))}
                     </select>
                     <p className="mt-1 text-xs text-gray-500">
-                      {TEMPLATE_OPTIONS.find((t) => t.id === formData.templateId)?.description}
+                      {availableTemplates.find((template) => template.id === formData.templateId)?.description}
                     </p>
+                    {templateError && <p role="alert" className="mt-1 text-sm text-red-600">{templateError}</p>}
+                    {!templatesLoading && !templateError && availableTemplates.length === 0 && (
+                      <p role="status" className="mt-1 text-sm text-amber-700">No active saved templates are linked to your organization. Contact an administrator.</p>
+                    )}
                   </div>
 
                   <div>
@@ -746,7 +767,7 @@ export default function InsurancePage() {
 
                   <button
                     onClick={handleIssue}
-                    disabled={issuing || (issuingMethods.includes("ethereum") && !connected)}
+                    disabled={issuing || templatesLoading || !!templateError || !availableTemplates.some((template) => template.id === formData.templateId) || (issuingMethods.includes("ethereum") && !connected)}
                     className="btn-primary w-full flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
                   >
                     {issuing ? (

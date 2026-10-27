@@ -86,7 +86,7 @@ interface IssueFormState {
   certificateFormat: "standard" | "opencerts";
 }
 
-interface AuthUser { issuerId: string; email: string; displayName: string; issuerName: string }
+interface AuthUser { issuerId: string; email: string; displayName: string; issuerName: string; organization: string }
 interface CredentialItem { id: string; externalId: string; recipientName: string; recipientEmail: string; status: string; issuedAt: string; credential: Record<string, unknown>; templateId: string | null }
 
 function getTodayDateInputValue(): string {
@@ -232,7 +232,7 @@ export default function HomePage() {
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">Dashboard</p>
             <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">Welcome, {user.displayName}</h1>
-            <p className="mt-1 text-slate-600 dark:text-slate-300">{user.issuerName} · {user.email}</p>
+            <p className="mt-1 text-slate-600 dark:text-slate-300">{user.issuerName} · {user.organization}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/profile/" className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">My Profile</Link>
