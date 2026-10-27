@@ -89,7 +89,7 @@ export default function NavBar({ agentAvailable = false }: { agentAvailable?: bo
     { href: "/verify", label: "Verification", icon: CheckCircle },
   ];
   const issuerNavItems = [
-    { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/insurance", label: "Issue", icon: FilePlus2 },
     { href: "/branding", label: "Branding", icon: Palette },
     ...(platformAdmin ? [{ href: "/platform", label: "Organization", icon: KeyRound }] : []),

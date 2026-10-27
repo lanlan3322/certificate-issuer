@@ -67,7 +67,7 @@ test("wallet action appears next to Issuing Methods only when Ethereum is select
 
 test("TrustVC dual issuance registers the unchanged DID credential through MetaMask and reports rejection", async () => {
   for (const rejected of [false, true]) {
-  for (const relativePath of ["app/insurance/page.tsx", "app/page.tsx"]) {
+  for (const relativePath of ["app/insurance/page.tsx"]) {
     const source = sourceFile(relativePath);
     const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
       node.name.getText(source) === "handleIssue");
@@ -82,6 +82,9 @@ test("TrustVC dual issuance registers the unchanged DID credential through MetaM
     const store = { address: "0x1111111111111111111111111111111111111111", network: "sepolia" };
     const dependencies = {
       issuingMethods: ["did", "ethereum"], connected: true, network: "sepolia",
+      templatesLoading: false, templateError: null,
+      availableTemplates: [{ id: "fta", slug: "fta" }],
+      withBasePath: (url) => url,
       formData: { recipientName: "Test", recipientEmail: "test@example.com",
         certificateType: "Course", templateId: "fta", description: "", hasValidity: false },
       validateCertificateData: () => ({ valid: true, errors: [] }),
@@ -237,6 +240,9 @@ test("DID-only batches issue without MetaMask using fixed V1, status and renderi
   let issued = [];
   const dependencies = {
     connected: false, walletRequired: false, issuing: false, hasValidity: false,
+    templatesLoading: false, templateError: null,
+    selectedTemplate: { id: "saved-fta", slug: "fta" },
+    withBasePath: (url) => url,
     issuingMethods: ["did"], certificateFormat: "v1", DEFAULT_TEMPLATE_ID: "fta",
     rows: [{ recipientName: "Recipient", recipientEmail: "test@example.com",
       certificateType: "Course", description: "Description", errors: [], rowIndex: 1 }],
@@ -279,6 +285,9 @@ test("Ethereum batches request MetaMask per row and never replace the DID proof"
     let rows;
     const dependencies = {
       connected: true, walletRequired: true, issuing: false, hasValidity: false,
+      templatesLoading: false, templateError: null,
+      selectedTemplate: { id: "saved-fta", slug: "fta" },
+      withBasePath: (url) => url,
       issuingMethods: ["did", "ethereum"], certificateFormat: "v1", DEFAULT_TEMPLATE_ID: "fta",
       rows: [{ recipientName: "Recipient", recipientEmail: "test@example.com",
         certificateType: "Course", description: "", errors: [], rowIndex: 1 }],
@@ -407,7 +416,7 @@ const dashboardCredential = {
 };
 
 test("dashboard headers match every cell and revoked rows hide Revoke but retain View", () => {
-  const source = sourceFile("app/page.tsx");
+  const source = sourceFile("app/dashboard/page.tsx");
   const dashboard = findNode(source, (node) => ts.isIfStatement(node) &&
     node.expression.getText(source) === "user");
   const returned = dashboard.thenStatement.statements.find(ts.isReturnStatement);
@@ -430,7 +439,7 @@ test("dashboard headers match every cell and revoked rows hide Revoke but retain
 });
 
 test("dashboard opens shared preview with nested credential data and public certificate ID", () => {
-  const source = sourceFile("app/page.tsx");
+  const source = sourceFile("app/dashboard/page.tsx");
   const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
     node.name.getText(source) === "handleViewCredential");
   for (const status of ["issued", "revoked"]) {
@@ -448,13 +457,13 @@ test("dashboard opens shared preview with nested credential data and public cert
     assert.equal(selected.templateId, "fta");
     assert.equal(selected.status, status);
   }
-  const page = sourceFile("app/page.tsx");
+  const page = sourceFile("app/dashboard/page.tsx");
   findNode(page, (node) => ts.isJsxSelfClosingElement(node) &&
     node.tagName.getText(page) === "CertificatePreviewModal");
 });
 
 test("dashboard revocation retains the row after success and reports server failures", async () => {
-  const source = sourceFile("app/page.tsx");
+  const source = sourceFile("app/dashboard/page.tsx");
   const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
     node.name.getText(source) === "handleRevoke");
   for (const ok of [true, false]) {

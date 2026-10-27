@@ -55,6 +55,7 @@ test("desktop and mobile Organization navigation is visible only to platform-adm
     buttons.at(-1).props.onClick();
     assert.equal(find(render(), (node) => node.props?.href === "/platform").length,
       roles?.includes("platform-admin") ? 2 : 0);
+    assert.equal(find(render(), (node) => node.props?.href === "/dashboard").length, roles ? 2 : 0);
     currentRoles = ["issuer-operator"];
     listeners["trustvc-auth-changed"]();
     await new Promise((resolve) => setImmediate(resolve));
@@ -63,7 +64,7 @@ test("desktop and mobile Organization navigation is visible only to platform-adm
 });
 
 test("both dashboard views put My Profile immediately before Issue certificate", () => {
-  for (const relativePath of ["../app/page.tsx", "../app/issuer/page.tsx"]) {
+  for (const relativePath of ["../app/dashboard/page.tsx", "../app/issuer/page.tsx"]) {
     const source = ts.createSourceFile(relativePath, readFileSync(`${__dirname}/${relativePath}`, "utf8"),
       ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     let found = false;
