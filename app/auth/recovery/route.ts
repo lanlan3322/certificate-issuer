@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "../../../lib/supabase/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
+import { withBasePath } from "../../../lib/site";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,12 +44,13 @@ export async function GET(request: Request) {
       tokenHashPrefix: tokenHash?.slice(0, 5) ?? null,
       reason: "Password reset must use token_hash/token and verifyOtp, not exchangeCodeForSession.",
     });
-    return NextResponse.redirect(new URL("/issuer/?error=pkce_recovery_link", url.origin));
+    return NextResponse.redirect(new URL(withBasePath("/issuer/?error=pkce_recovery_link"), url.origin));
   }
 
   if (!tokenHash) {
-    authRecoveryLog("missing recovery token hash", { mode, type });
-    return NextResponse.redirect(new URL("/issuer/?error=missing_code", url.origin));
+    // Default ConfirmationURL emails carry session tokens in the fragment,
+    // which is inherited by this redirect and can only be read in the browser.
+    return NextResponse.redirect(new URL(withBasePath("/issuer/?mode=reset"), url.origin));
   }
 
   const supabase = await getSupabaseServerClient();
@@ -64,8 +66,8 @@ export async function GET(request: Request) {
   });
 
   if (error) {
-    return NextResponse.redirect(new URL("/issuer/?error=invalid_link", url.origin));
+    return NextResponse.redirect(new URL(withBasePath("/issuer/?error=invalid_link"), url.origin));
   }
 
-  return NextResponse.redirect(new URL(`/issuer/?mode=${encodeURIComponent(mode)}`, url.origin));
+  return NextResponse.redirect(new URL(withBasePath("/issuer/?mode=reset"), url.origin));
 }

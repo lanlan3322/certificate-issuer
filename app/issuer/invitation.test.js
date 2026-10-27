@@ -13,7 +13,7 @@ function visit(node) {
 }
 visit(source);
 
-function setup(hash, failure = null) {
+function setup(hash, failure = null, search = "?mode=reset") {
   const calls = [];
   const state = {};
   const script = ts.transpileModule(`const run = ${initializer.getText(source)};`, {
@@ -21,9 +21,11 @@ function setup(hash, failure = null) {
   }).outputText;
   const accept = new Function("window", "getSupabaseBrowserClient", "setMode", "setRecoverySession",
     `${script}\nreturn run;`)({
-    location: { hash, pathname: "/issuer/", search: "?mode=reset" },
+    location: { hash, pathname: "/issuer/", search },
     history: { replaceState: (...args) => calls.push(["replace", ...args]) },
-  }, () => ({ auth: { setSession: async (tokens) => {
+  }, () => ({ auth: {
+    getUser: async () => ({ data: { user: failure ? null : { id: "user" } }, error: failure }),
+    setSession: async (tokens) => {
     calls.push(["session", tokens]);
     return { error: failure };
   } } }), (mode) => { state.mode = mode; }, (value) => { state.recovery = value; });
@@ -50,4 +52,26 @@ test("ordinary login and server-verified token-hash links do not consume fragmen
   const app = setup("");
   await app.accept();
   assert.deepEqual(app.calls, []);
+  assert.equal(app.state.recovery, true);
+  const login = setup("", null, "");
+  await login.accept();
+  assert.equal(login.state.recovery, undefined);
+});
+
+test("recovery fragments establish the reset session just like invitation fragments", async () => {
+  const app = setup("#type=recovery&access_token=test-access&refresh_token=test-refresh");
+  await app.accept();
+  assert.equal(app.state.mode, "reset");
+  assert.equal(app.state.recovery, true);
+  assert.equal(app.calls[0][0], "replace");
+});
+
+test("invalid recovery fragments and expired cookie sessions cannot enable password setup", async () => {
+  const invalid = setup("#type=recovery&access_token=a&refresh_token=b", new Error("expired"));
+  await assert.rejects(invalid.accept(), /reset link is invalid or expired/);
+  assert.equal(invalid.state.recovery, undefined);
+  const expired = setup("", new Error("expired"));
+  await assert.rejects(expired.accept(), /reset link is invalid or has expired/);
+  assert.equal(expired.state.recovery, undefined);
+  await assert.rejects(setup("#type=recovery").accept(), /reset link is incomplete/);
 });

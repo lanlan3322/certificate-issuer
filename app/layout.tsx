@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Footer from "../components/Footer";
 import NavBar from "../components/NavBar";
 import SiteChrome from "../components/SiteChrome";
+import AuthEmailRedirect from "../components/AuthEmailRedirect";
 import AgentWidget from "../components/agent/AgentWidget";
 import { getCurrentIssuerUser } from "@/lib/auth";
 import "./globals.css";
@@ -42,6 +43,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-screen bg-gray-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+        <AuthEmailRedirect />
         <SiteChrome header={<NavBar agentAvailable={Boolean(user)} />} footer={<Footer />} widget={hasIssuerAdminRole ? <AgentWidget /> : null}>
           {children}
         </SiteChrome>

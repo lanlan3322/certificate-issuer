@@ -1,5 +1,7 @@
 import { getSupabaseAdmin, getSupabasePasswordResetClient, getSupabaseServerClient } from "./supabase/server";
 import { getUserSafely } from "./supabase/session";
+import { isValidPassword, PASSWORD_REQUIREMENTS } from "./password-policy";
+import { withBasePath } from "./site";
 
 export interface AuthUser {
   id: string;
@@ -24,8 +26,8 @@ interface RateLimitSnapshot {
 }
 
 function assertPassword(password: string) {
-  if (password.length < 10 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
-    throw new PasswordValidationError("Password must be at least 10 characters and include uppercase, lowercase, and a number.");
+  if (!isValidPassword(password)) {
+    throw new PasswordValidationError(PASSWORD_REQUIREMENTS);
   }
 }
 
@@ -128,7 +130,7 @@ export async function enforceRateLimit(bucket: string, identifier: string, limit
 }
 
 function passwordResetRedirectUrl(baseUrl: string) {
-  return `${baseUrl}/auth/recovery`;
+  return new URL(withBasePath("/issuer/?mode=reset"), baseUrl).href;
 }
 
 export async function loginIssuer(emailInput: string, password: string) {

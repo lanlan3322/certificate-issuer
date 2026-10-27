@@ -7,6 +7,7 @@ import { KeyRound, LogOut, ShieldCheck } from "lucide-react";
 import { withBasePath } from "../../lib/site";
 import { safeInternalPath } from "../../lib/safe-internal-path";
 import { getSupabaseBrowserClient } from "../../lib/supabase/client";
+import { isValidPassword, PASSWORD_REQUIREMENTS } from "../../lib/password-policy";
 import { resolveTemplateId, TEMPLATE_OPTIONS } from "../templates/registry";
 
 type Mode = "login" | "reset";
@@ -45,25 +46,34 @@ export default function IssuerPortalPage() {
   useEffect(() => {
     const acceptInvitation = async () => {
       const fragment = new URLSearchParams(window.location.hash.slice(1));
-      if (fragment.get("type") !== "invite") return;
+      const type = fragment.get("type");
+      if (type !== "invite" && type !== "recovery") {
+        if (new URLSearchParams(window.location.search).get("mode") === "reset") {
+          const { data, error } = await getSupabaseBrowserClient().auth.getUser();
+          if (error || !data.user) throw new Error("That reset link is invalid or has expired. Request a new reset email.");
+          setRecoverySession(true);
+        }
+        return;
+      }
       const accessToken = fragment.get("access_token");
       const refreshToken = fragment.get("refresh_token");
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      if (!accessToken || !refreshToken) throw new Error("The invitation link is incomplete. Contact your administrator.");
+      if (!accessToken || !refreshToken) throw new Error(type === "invite"
+        ? "The invitation link is incomplete. Contact your administrator."
+        : "The reset link is incomplete. Request a new reset email.");
       const { error } = await getSupabaseBrowserClient().auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken,
       });
-      if (error) throw new Error("The invitation link is invalid or expired. Contact your administrator.");
+      if (error) throw new Error(type === "invite"
+        ? "The invitation link is invalid or expired. Contact your administrator."
+        : "The reset link is invalid or expired. Request a new reset email.");
       setMode("reset");
       setRecoverySession(true);
     };
     const params = new URLSearchParams(window.location.search);
     if (params.get("mode") === "reset") {
       setMode("reset");
-      // Arriving here from an email link means /auth/recovery established
-      // the recovery session, so the new-password form can be shown.
-      setRecoverySession(true);
     }
     if (params.get("error") === "invalid_link") setError("That reset link is invalid or has expired.");
     if (params.get("error") === "missing_code") setError("That reset link is missing the recovery token.");
@@ -97,6 +107,7 @@ export default function IssuerPortalPage() {
   const submitReset = async (event: FormEvent) => {
     event.preventDefault(); setLoading(true); setError(null); setMessage(null);
     try {
+      if (!isValidPassword(newPassword)) throw new Error(PASSWORD_REQUIREMENTS);
       const response = await fetch(withBasePath("/api/auth/reset"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: newPassword }) });
       const payload = await response.json() as { error?: string; errorMessage?: string };
       if (!response.ok) throw new Error(payload.errorMessage ?? payload.error ?? "Unable to reset password.");
@@ -107,7 +118,7 @@ export default function IssuerPortalPage() {
 
   const logout = async () => { await fetch(withBasePath("/api/auth/logout"), { method: "POST" }); setUser(null); setCredentials([]); window.dispatchEvent(new Event("trustvc-auth-changed")); };
 
-  if (user) return (
+  if (user && mode !== "reset" && !recoverySession) return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
         <div><p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">Issuer portal</p><h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">Welcome, {user.displayName}</h1><p className="mt-1 text-slate-600 dark:text-slate-300">{user.issuerName} · {user.email}</p></div>
@@ -119,7 +130,7 @@ export default function IssuerPortalPage() {
 
   return <main className="mx-auto max-w-xl px-4 py-10 sm:px-6"><section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-8"><div className="mb-6 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-cyan-300"><ShieldCheck className="h-6 w-6" /></div><h1 className="mt-4 text-3xl font-bold text-slate-900 dark:text-white">Issuer access</h1><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Sign in to manage your certificates.</p></div>
     {mode === "reset" ? <form className="space-y-4" onSubmit={submit}><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Registered email<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="input-field mt-1" /></label><button disabled={loading} className="btn-primary w-full">{loading ? "Sending..." : "Send reset instructions"}</button>{recoverySession && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">Recovery session verified. Set a new password below.</div>}</form> : <form className="space-y-4" onSubmit={submit}><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Email<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="input-field mt-1" /></label><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Password<input required type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="input-field mt-1" /></label><button disabled={loading} className="btn-primary w-full">{loading ? "Working..." : "Log in"}</button></form>}
-    {recoverySession && mode === "reset" && <form className="mt-5 space-y-4 border-t border-slate-200 pt-5 dark:border-slate-700" onSubmit={submitReset}><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">New password<input required type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="input-field mt-1" /><span className="mt-1 block text-xs text-slate-500">Minimum 10 characters with uppercase, lowercase, and number.</span></label><button disabled={loading} className="btn-primary w-full">Set new password</button></form>}
+    {recoverySession && mode === "reset" && <form className="mt-5 space-y-4 border-t border-slate-200 pt-5 dark:border-slate-700" onSubmit={submitReset}><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">New password<input required minLength={10} autoComplete="new-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="input-field mt-1" /><span className="mt-1 block text-xs text-slate-500">{PASSWORD_REQUIREMENTS}</span></label><button disabled={loading} className="btn-primary w-full">Set new password</button></form>}
     {message && <div className="mt-4"><p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>{mode === "reset" && message === "If the email is registered, reset instructions have been created." && <button type="button" onClick={() => { setMode("login"); setMessage(null); }} className="mt-3 text-sm font-semibold text-cyan-700 hover:text-cyan-800 hover:underline dark:text-cyan-300 dark:hover:text-cyan-200">Log in</button>}</div>}{error && <div className="mt-4"><p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>{mode === "login" && error === "Invalid email or password." && <button type="button" onClick={() => { setMode("reset"); setError(null); setMessage(null); }} className="mt-3 text-sm font-semibold text-cyan-700 hover:text-cyan-800 hover:underline dark:text-cyan-300 dark:hover:text-cyan-200">Reset password</button>}</div>}<p className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-slate-500"><KeyRound className="h-3.5 w-3.5" /> Passwords are hashed server-side and never stored in the browser.</p>
   </section></main>;
 }
