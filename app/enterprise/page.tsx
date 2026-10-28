@@ -13,7 +13,7 @@ const plans = [
     price: "SGD 49",
     billing: "/ Month",
     description: "Perfect for trainers, coaches, consultants and small training providers.",
-    features: ["1 Issuer", "5 Certificate Templates", "100 Certificates Per Month", "Managed DID", "Certificate Verification Portal", "Certificate Revocation", "Basic Reporting", "Standard Support"],
+    features: ["1 Issuer", "3 Certificate Templates", "100 Certificates Per Month", "Managed DID", "Certificate Verification Portal", "Certificate Revocation", "Basic Reporting", "Standard Support"],
     note: "Certificate allowance resets each month.",
     idealFor: ["Training providers", "Coaches", "Professional trainers", "Small academies", "Membership organizations"],
     cta: "Start Free Consultation",
@@ -51,9 +51,9 @@ const benefits = [
 
 const comparison = [
   ["Issuers", "1 Issuer", "Unlimited Issuers", "Unlimited Issuers"],
-  ["Templates", "5 Templates", "Unlimited Templates", "Unlimited Templates"],
+  ["Templates", "3 Templates", "Unlimited Templates", "Unlimited Templates"],
   ["Certificates", "100 Certificates/Month", "1,000 Certificates/Month", "Unlimited Certificates"],
-  ["Credit Carry Forward", "Monthly reset", "Annual Credit Carry Forward", "Unlimited Certificates"],
+  ["Credit Carry Forward", "Monthly reset", "Monthly Credit Carry Forward", "Unlimited Certificates"],
   ["Digital Identity", "Managed DID", "Managed DID", "Self-Managed DID"],
   ["Reporting", "Basic Reporting", "Advanced Reporting", "Contact Sales"],
   ["DID Management", "Managed DID", "Managed DID", "Multi-Issuer DID Management"],
@@ -99,6 +99,14 @@ export default function EnterprisePage() {
                 ))}
               </ul>
               {plan.note && <p className="mt-4 text-sm leading-6">{plan.note}</p>}
+              {plan.name === "Starter" && <div className="mt-4 text-sm">
+                <h4 className="font-semibold">Optional Add-ons</h4>
+                <ol className="mt-2 list-decimal space-y-1 pl-5">
+                  <li>Additional template: SGD29</li>
+                  <li>Additional certificate: SGD0.99</li>
+                  <li>Self-Managed DID: SGD299</li>
+                </ol>
+              </div>}
               {plan.idealFor.length > 0 && <div className="mt-4 text-sm">
                 <h4 className="font-semibold">Ideal For</h4>
                 <ul className="mt-2 list-disc space-y-1 pl-5">{plan.idealFor.map((audience) => <li key={audience}>{audience}</li>)}</ul>
