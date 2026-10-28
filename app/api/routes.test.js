@@ -50,6 +50,7 @@ const groups = [
     params: (parts) => ({ resource: parts }),
     endpoints: [
       ["credentials", "../credentials/handler", ["GET", "POST", "PATCH"]],
+      ["credentials/send", "../credentials/send/handler", ["POST"]],
       ["issuers", "../issuers/handler", ["GET", "POST", "PATCH"]],
       ["issuer-profiles", "../issuer-profiles/handler", ["GET", "POST", "PATCH"]],
       ["templates", "../templates/handler", ["GET", "POST", "DELETE"]],
@@ -169,6 +170,10 @@ test("business consolidation retains handler-level authorization and issuer-admi
   const roles = [];
   const denied = Response.json({ error: "Issuer login required." }, { status: 401 });
   const mocks = {
+    "../../../../lib/apiAuth": { authorize: async (role) => { roles.push(role); return { response: denied }; } },
+    "../../../../lib/auth": { enforceRateLimit: async () => {}, RateLimitError: class extends Error {} },
+    "../../../../services/CredentialService": { CredentialService: {} },
+    "../../../../services/AuditService": { AuditService: {} },
     "../../../lib/apiAuth": { authorize: async (role) => { roles.push(role); return { response: denied }; } },
     "../../../services/AuditService": { AuditService: {} },
     "../../../services/CredentialService": { CredentialService: {}, DuplicateCredentialError: class extends Error {} },

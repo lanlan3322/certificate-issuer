@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
 import Link from "next/link";
 import CertificatePreviewModal from "../../components/CertificatePreviewModal";
+import SendCertificateButton from "../../components/SendCertificateButton";
 import { mapVcToCertEntry } from "../../lib/credential-mapper";
 import { TEMPLATE_OPTIONS } from "../templates/registry";
 import type { CertEntry } from "../../lib/certificate-types";
@@ -156,6 +157,7 @@ export default function DashboardPage() {
                     <th scope="col" className="px-3 py-3">Issued</th>
                     <th scope="col" className="px-3 py-3 text-center">View</th>
                     <th scope="col" className="px-3 py-3 text-right">Actions</th>
+                    <th scope="col" className="px-3 py-3 text-right">Send</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -169,7 +171,7 @@ export default function DashboardPage() {
                         onClick={() => handleViewCredential(cred)}
                         role="button"
                         tabIndex={0}
-                        onKeyDown={(e) => { if (e.key === "Enter") handleViewCredential(cred); }}
+                        onKeyDown={(e) => { if (e.target === e.currentTarget && e.key === "Enter") handleViewCredential(cred); }}
                         style={{ cursor: "pointer" }}
                       >
                         <td className={`px-3 py-3 font-medium ${isRevoked ? "text-gray-400 italic" : "text-slate-800 dark:text-slate-200"}`}>{cred.recipientName}</td>
@@ -209,6 +211,7 @@ export default function DashboardPage() {
                             </button>
                           ))}
                         </td>
+                        <td className="px-3 py-3 text-right"><SendCertificateButton credential={cred} /></td>
                       </tr>
                     );
                   })}

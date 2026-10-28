@@ -1,5 +1,6 @@
 import { dispatchApiRequest } from "../../../lib/api-router";
 import * as credentials from "../credentials/handler";
+import * as credentialSend from "../credentials/send/handler";
 import * as issuers from "../issuers/handler";
 import * as issuersId from "../issuers/[id]/handler";
 import * as issuerProfiles from "../issuer-profiles/handler";
@@ -15,6 +16,7 @@ export const dynamic = "force-dynamic";
 
 const routes: Record<string, any> = {
   credentials,
+  "credentials/send": credentialSend,
   issuers,
   "issuers/[id]": issuersId,
   "issuer-profiles": issuerProfiles,
