@@ -4,16 +4,16 @@ import { ArrowRight, Check, CreditCard, Sparkles } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Enterprise Pricing | Verifiable.sg",
-  description: "Transparent pricing for issuing, managing and verifying digital credentials with managed or self-managed digital identities.",
+  description: "Affordable digital credential infrastructure for organizations of all sizes. Issue, verify and manage trusted credentials with managed or self-managed digital identities.",
 };
 
 const plans = [
   {
     name: "Starter",
-    price: "SGD 29",
+    price: "SGD 49",
     billing: "/ Month",
     description: "Perfect for trainers, coaches, consultants and small training providers.",
-    features: ["1 Issuer", "3 Certificate Templates", "50 Certificates Per Month", "Managed DID", "Certificate Verification Portal", "Certificate Revocation", "Basic Reporting", "Standard Support"],
+    features: ["1 Issuer", "5 Certificate Templates", "100 Certificates Per Month", "Managed DID", "Certificate Verification Portal", "Certificate Revocation", "Basic Reporting", "Standard Support"],
     note: "Certificate allowance resets each month.",
     idealFor: ["Training providers", "Coaches", "Professional trainers", "Small academies", "Membership organizations"],
     cta: "Start Free Consultation",
@@ -31,33 +31,15 @@ const plans = [
     featured: true,
   },
   {
-    name: "Enterprise Flex",
-    price: "SGD 299",
-    billing: "One-Time Onboarding",
-    description: "Pay only for what you use.",
-    features: ["1 Issuer", "1 Certificate Template", "10 Certificates", "Organization Setup", "Platform Configuration", "Certificate Verification Portal", "Certificate Revocation"],
+    name: "Enterprise",
+    price: "From SGD 499",
+    billing: "/ Month",
+    description: "For universities, enterprises, regulators and large-scale credential programmes.",
+    features: ["Unlimited Issuers", "Unlimited Templates", "Unlimited Certificates", "Dedicated Organization Portal", "Self-Managed DID", "Multi-Issuer DID Management", "DID Document Generator", "Verification Key Management", "Custom Branding", "API Access", "Bulk Issuance", "Priority Support", "Dedicated Onboarding"],
     note: "",
-    idealFor: [],
+    idealFor: ["Universities", "Regulatory bodies", "Enterprises", "Government projects", "Professional licensing authorities"],
     cta: "Contact Sales",
     featured: false,
-  },
-];
-
-const additionalServices = [
-  {
-    name: "Additional Certificate Template", price: "SGD 59 / Template", subtitle: "One-Time Setup Fee",
-    description: "Create additional branded certificate templates for different programmes, courses, or departments.",
-    features: [],
-  },
-  {
-    name: "Certificate Issuance", price: "SGD 0.99 / Certificate", subtitle: "",
-    description: "Only pay for certificates that are issued.",
-    features: [],
-  },
-  {
-    name: "Self-Managed DID Portal", price: "SGD 599", subtitle: "",
-    description: "Own and manage your organization's digital identity.",
-    features: ["Self-Managed DID", "Issuer Verification Key Management", "DID Document Generation", "Downloadable did.json Files", "Multi-Issuer Verification Support", "Full Identity Ownership"],
   },
 ];
 
@@ -68,16 +50,16 @@ const benefits = [
 ];
 
 const comparison = [
-  ["Issuers", "1 Issuer", "Unlimited Issuers", "1 Issuer"],
-  ["Templates", "3 Templates", "Unlimited Templates", "1 Template"],
-  ["Certificates", "50 Certificates/Month", "1,000 Certificates/Month", "10 Certificates Included"],
-  ["Credit Carry Forward", "Monthly reset", "Annual Credit Carry Forward", "Pay per certificate issued"],
-  ["Digital Identity", "Managed DID", "Managed DID", "Optional Self-Managed DID Portal: SGD 599"],
+  ["Issuers", "1 Issuer", "Unlimited Issuers", "Unlimited Issuers"],
+  ["Templates", "5 Templates", "Unlimited Templates", "Unlimited Templates"],
+  ["Certificates", "100 Certificates/Month", "1,000 Certificates/Month", "Unlimited Certificates"],
+  ["Credit Carry Forward", "Monthly reset", "Annual Credit Carry Forward", "Unlimited Certificates"],
+  ["Digital Identity", "Managed DID", "Managed DID", "Self-Managed DID"],
   ["Reporting", "Basic Reporting", "Advanced Reporting", "Contact Sales"],
-  ["Revocation", "Certificate Revocation", "Certificate Revocation", "Certificate Revocation"],
-  ["Additional Template", "Contact us", "Unlimited Templates", "SGD 59 each"],
-  ["Certificate Issuance", "50 Certificates/Month", "1,000 Certificates/Month", "SGD 0.99 each"],
-  ["Price", "SGD 29/month", "SGD 199/month", "SGD 299 Onboarding"],
+  ["DID Management", "Managed DID", "Managed DID", "Multi-Issuer DID Management"],
+  ["API Access", "Contact us", "Contact us", "API Access"],
+  ["Support", "Standard Support", "Priority Support", "Dedicated Support"],
+  ["Price", "SGD 49/month", "SGD 199/month", "From SGD 499/month"],
 ];
 
 export default function EnterprisePage() {
@@ -108,7 +90,6 @@ export default function EnterprisePage() {
               <div className="mt-4 text-3xl font-bold">{plan.price}</div>
               <p className="mt-1 text-sm">{plan.billing}</p>
               <p className="mt-4 text-sm leading-6">{plan.description}</p>
-              {plan.name === "Enterprise Flex" && <h4 className="mt-4 text-sm font-semibold">Onboarding Includes</h4>}
               <ul className="mt-4 space-y-3 text-sm">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2">
@@ -130,27 +111,12 @@ export default function EnterprisePage() {
         </div>
       </section>
 
-      <section aria-labelledby="services-heading" className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        <h2 id="services-heading" className="text-xl font-semibold text-slate-900">Enterprise Additional Services</h2>
-        <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {additionalServices.map((service) => <div key={service.name} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-slate-900">
-            <h3 className="text-lg font-semibold">{service.name}</h3>
-            <p className="mt-4 text-3xl font-bold">{service.price}</p>
-            {service.subtitle && <p className="mt-1 text-sm">{service.subtitle}</p>}
-            <p className="mt-4 text-sm leading-6">{service.description}</p>
-            {service.features.length > 0 && <ul className="mt-4 space-y-3 text-sm">{service.features.map((feature) => <li key={feature} className="flex items-start gap-2">
-              <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /><span>{feature}</span>
-            </li>)}</ul>}
-          </div>)}
-        </div>
-      </section>
-
       <section aria-labelledby="comparison-heading" className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <h2 id="comparison-heading" className="text-xl font-semibold text-slate-900">Plans Comparison</h2>
         <div className="mt-5 overflow-x-auto" role="region" aria-label="Plans comparison table" tabIndex={0}>
           <table className="w-full min-w-[640px] text-left text-sm text-slate-900">
             <caption className="sr-only">Compare allowances, identity options and pricing across all plans</caption>
-            <thead><tr>{["Feature", "Starter", "Professional ★ Most Popular", "Enterprise Flex"].map((heading) => <th key={heading} scope="col" className="border-b border-slate-200 p-3 font-semibold">{heading}</th>)}</tr></thead>
+            <thead><tr>{["Feature", ...plans.map((plan) => `${plan.name}${plan.featured ? " ★ Most Popular" : ""}`)].map((heading) => <th key={heading} scope="col" className="border-b border-slate-200 p-3 font-semibold">{heading}</th>)}</tr></thead>
             <tbody>{comparison.map(([label, ...values]) => <tr key={label}>
               <th scope="row" className="border-b border-slate-200 p-3 font-medium">{label}</th>
               {values.map((value, index) => <td key={index} className="border-b border-slate-200 p-3">{value}</td>)}
