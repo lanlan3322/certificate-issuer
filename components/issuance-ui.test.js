@@ -433,7 +433,6 @@ test("dashboard headers match every cell and revoked rows hide Revoke but retain
       allCredentials: [{ ...dashboardCredential, status }],
       visibleCredentials: [{ ...dashboardCredential, status }],
       searchQuery: "", setSearchQuery() {}, sort: null, toggleSort() {}, getTemplateLabel,
-      verificationResults: {},
       error: null,
       SendCertificateButton: () => null,
       mapVcToCertEntry: mapper.mapVcToCertEntry,
@@ -443,7 +442,7 @@ test("dashboard headers match every cell and revoked rows hide Revoke but retain
     const html = renderToStaticMarkup(render());
     const headers = [...html.matchAll(/<th\b[^>]*>(.*?)<\/th>/g)]
       .map((match) => match[1].replace(/<span aria-hidden="true">.*?<\/span>/g, "").replace(/<[^>]+>/g, "").trim());
-    assert.deepEqual(headers, ["Recipient", "Email", "Template", "Status", "Blockchain verified", "DID verified", "Issued", "View", "Actions", "Send"]);
+    assert.deepEqual(headers, ["Recipient", "Email", "Template", "Status", "Issued", "View", "Actions", "Send"]);
     assert.equal((html.match(/<td\b/g) ?? []).length, headers.length);
     assert.match(html, />FTA Academy<\/td>/);
     assert.match(html, /title="View certificate details"/);
@@ -451,7 +450,7 @@ test("dashboard headers match every cell and revoked rows hide Revoke but retain
   }
 });
 
-test("shared table shows loading, errors, empty states and explicit verification results", () => {
+test("shared table shows loading, errors, empty states and template labels", () => {
   const source = sourceFile("components/IssuedCertificatesTable.tsx");
   const component = findNode(source, (node) => ts.isFunctionDeclaration(node) &&
     node.name?.text === "IssuedCertificatesTable");
@@ -459,7 +458,7 @@ test("shared table shows loading, errors, empty states and explicit verification
   const render = (overrides) => renderToStaticMarkup(evaluate(`() => (${returned.expression.getText(source)})`, {
     credentialLoading: false, error: null, allCredentials: [], selectedCredential: null,
     visibleCredentials: overrides.allCredentials ?? [], searchQuery: "", setSearchQuery() {}, sort: null, toggleSort() {}, getTemplateLabel,
-    revokeLoading: null, verificationResults: {}, SendCertificateButton: () => null,
+    revokeLoading: null, SendCertificateButton: () => null,
     mapVcToCertEntry: mapper.mapVcToCertEntry, TEMPLATE_OPTIONS, handleViewCredential() {}, handleRevoke() {},
     ...overrides,
   })());
@@ -468,11 +467,6 @@ test("shared table shows loading, errors, empty states and explicit verification
   const failed = render({ error: "Certificate service unavailable" });
   assert.match(failed, /role="alert"/);
   assert.doesNotMatch(failed, /No certificates have been issued/);
-  const verified = render({
-    allCredentials: [dashboardCredential],
-    verificationResults: { [dashboardCredential.id]: { blockchain: "Yes", did: "Yes", message: "Verified" } },
-  });
-  assert.equal((verified.match(/role="status">Yes</g) ?? []).length, 2);
   for (const [signedTemplate, savedTemplate, expectedLabel] of [
     ["fta", "00000000-0000-4000-8000-000000000001", "FTA Academy"],
     ["modern", "fta", "Modern Gradient"],
@@ -536,7 +530,7 @@ test("sortable headers toggle direction, reset new column ascending, and expose 
   const returned = component.body.statements.find(ts.isReturnStatement);
   const render = (rows) => renderToStaticMarkup(evaluate(`() => (${returned.expression.getText(source)})`, {
     allCredentials: [dashboardCredential], visibleCredentials: rows, credentialLoading: false, error: null,
-    selectedCredential: null, revokeLoading: null, verificationResults: {}, SendCertificateButton: () => null,
+    selectedCredential: null, revokeLoading: null, SendCertificateButton: () => null,
     searchQuery: "none", setSearchQuery() {}, sort, toggleSort, getTemplateLabel,
     handleViewCredential() {}, handleRevoke() {},
   })());
@@ -544,6 +538,34 @@ test("sortable headers toggle direction, reset new column ascending, and expose 
   assert.match(html, /aria-sort="descending"/);
   assert.match(html, /type="search"/);
   assert.match(render([]), /No certificates match your search/);
+  assert.match(render([]), /colSpan="8"/i);
+});
+
+test("mounting the shared table never starts realtime verification or network requests", () => {
+  const Table = load("components/IssuedCertificatesTable.tsx", {
+    react: {
+      useState: (initial) => [initial, () => {}],
+    },
+    "./CertificatePreviewModal": () => null,
+    "./SendCertificateButton": () => null,
+    "../lib/credential-mapper": mapper,
+    "../app/templates/registry": { TEMPLATE_OPTIONS },
+    "../lib/site": { withBasePath: (url) => url },
+    "../hooks/useCredentialVerification": {
+      useCredentialVerification() { assert.fail("Table must not verify credentials"); },
+    },
+  }).default;
+  const originalFetch = global.fetch;
+  global.fetch = () => { assert.fail("Rendering must not send network requests"); };
+  try {
+    const html = renderToStaticMarkup(Table({ credentials: [dashboardCredential], onCredentialsChange() {} }));
+    assert.doesNotMatch(html, /Blockchain verified|DID verified|Checking/);
+    assert.match(html, /FTA Academy/);
+    assert.equal((html.match(/<td\b/g) ?? []).length, 8);
+  } finally {
+    global.fetch = originalFetch;
+  }
+  assert.doesNotMatch(readFileSync(path.join(root, "components/IssuedCertificatesTable.tsx"), "utf8"), /useCredentialVerification|\/api\/verify/);
 });
 
 test("dashboard opens shared preview with nested credential data and public certificate ID", () => {

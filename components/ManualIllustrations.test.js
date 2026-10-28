@@ -52,8 +52,8 @@ test("user quick reference preserves search, sort, Send and verification limitat
   const html = renderManual("user");
   for (const phrase of [
     "illustration", "ascending", "descending", "Cancel sends nothing",
-    "Accepted is not delivered", "recorded recipient", "Unavailable",
-    "Do not treat this as success", "Rate limited", "shared identity",
+    "Accepted is not delivered", "recorded recipient", "does not run automatic verification",
+    "unavailable results are not verification success", "shared identity",
   ]) assert.ok(html.includes(phrase), phrase);
   assert.doesNotMatch(html, /<input|<button/);
 });

@@ -80,20 +80,10 @@ export default function UserManualPage() {
             ["Send (ISSUED only)", "Review the fixed recorded recipient → Confirm → provider accepts the signed .json email. Cancel sends nothing."],
           ]} />
           <aside className={noteStyle}><strong>Accepted is not delivered.</strong> Check with the recipient before deliberately sending another copy. You cannot edit the recipient in the confirmation dialog.</aside>
-          <details className="mt-4 rounded-xl border border-slate-200 p-4 dark:border-slate-700" open>
-            <summary className="cursor-pointer font-semibold">Read verification results</summary>
-            <p className="mt-3">Checks run one at a time automatically. Evidence and lifecycle status are separate: also check issued, revoked or expired.</p>
-            <ManualReference caption="What the indicators mean" headings={["Indicator", "Meaning / next step"]} rows={[
-              ["Blockchain: Yes", "Blockchain registration confirmed."],
-              ["DID: Yes", "Signature and issuer DID authorization verified."],
-              ["Checking", "Pending or in progress."],
-              ["No / Not verified", "Successful verification was not established."],
-              ["Unavailable", "The check could not finish. Do not treat this as success."],
-              ["Not required / Not applicable", "This verification method does not apply."],
-              ["Rate limited", "Remaining checks stopped. Wait for the limit to reset before reloading."],
-            ]} />
-            <p className="mt-3">Hover over an indicator for the verifier&apos;s message.</p>
-          </details>
+          <aside className="mt-4 rounded-xl bg-cyan-50 p-4 dark:bg-cyan-950">
+            <h3 className="font-bold">Need to verify?</h3>
+            <p className="mt-2">The table does not run automatic verification. Open <Link href="/verify" className="font-semibold underline">Verify</Link> to check a credential. Review signature, issuer authorization, applicable blockchain evidence and lifecycle status; unavailable results are not verification success.</p>
+          </aside>
         </section>
 
         <section id="profile" aria-labelledby="profile-heading" className={sectionStyle}>

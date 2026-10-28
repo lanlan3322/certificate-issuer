@@ -6,7 +6,6 @@ import SendCertificateButton from "./SendCertificateButton";
 import { mapVcToCertEntry } from "../lib/credential-mapper";
 import { TEMPLATE_OPTIONS } from "../app/templates/registry";
 import type { CertEntry } from "../lib/certificate-types";
-import { useCredentialVerification } from "../hooks/useCredentialVerification";
 import { withBasePath } from "../lib/site";
 
 export interface CredentialItem { id: string; externalId: string; recipientName: string; recipientEmail: string; status: string; issuedAt: string; credential: Record<string, unknown>; templateId: string | null }
@@ -55,7 +54,6 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
   const [selectedCredential, setSelectedCredential] = useState<CertEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sort, setSort] = useState<Sort | null>(null);
-  const verificationResults = useCredentialVerification(allCredentials);
   const visibleCredentials = getVisibleCredentials(allCredentials, searchQuery, sort);
 
   const toggleSort = (column: Sort["column"]) => {
@@ -134,7 +132,7 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
         <p className="text-slate-500">No certificates have been issued yet.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-left text-sm">
+          <table className="w-full min-w-[850px] text-left text-sm">
             <thead className="border-b border-slate-200 text-slate-500 dark:border-slate-700">
               <tr>
                 <th scope="col" aria-sort={sort?.column === "recipientName" ? sort.direction : "none"} className="px-3 py-3">
@@ -145,8 +143,6 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
                 <th scope="col" className="px-3 py-3">Email</th>
                 <th scope="col" className="px-3 py-3">Template</th>
                 <th scope="col" className="px-3 py-3">Status</th>
-                <th scope="col" className="px-3 py-3">Blockchain verified</th>
-                <th scope="col" className="px-3 py-3">DID verified</th>
                 <th scope="col" aria-sort={sort?.column === "issuedAt" ? sort.direction : "none"} className="px-3 py-3">
                   <button type="button" onClick={() => toggleSort("issuedAt")} className="inline-flex items-center gap-1 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600">
                     Issued <span aria-hidden="true">{sort?.column === "issuedAt" ? (sort.direction === "ascending" ? "\u2191" : "\u2193") : "\u2195"}</span>
@@ -159,7 +155,7 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
             </thead>
             <tbody>
               {visibleCredentials.length === 0 && (
-                <tr><td colSpan={10} className="px-3 py-6 text-slate-500" role="status">No certificates match your search.</td></tr>
+                <tr><td colSpan={8} className="px-3 py-6 text-slate-500" role="status">No certificates match your search.</td></tr>
               )}
               {visibleCredentials.map((cred) => {
                 const templateLabel = getTemplateLabel(cred);
@@ -178,12 +174,6 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
                     <td className={`px-3 py-3 ${isRevoked ? "text-gray-400 italic" : "text-slate-600 dark:text-slate-400"}`}>{cred.recipientEmail}</td>
                     <td className={`px-3 py-3 font-medium ${isRevoked ? "text-gray-400 italic" : "text-slate-700 dark:text-slate-300"}`}>{templateLabel}</td>
                     <td className={`px-3 py-3 uppercase text-xs ${isRevoked ? "text-gray-400 italic" : ""}`}>{cred.status}</td>
-                    <td className="px-3 py-3" title={verificationResults[cred.id]?.message}>
-                      <span role="status">{verificationResults[cred.id]?.blockchain ?? "Checking..."}</span>
-                    </td>
-                    <td className="px-3 py-3" title={verificationResults[cred.id]?.message}>
-                      <span role="status">{verificationResults[cred.id]?.did ?? "Checking..."}</span>
-                    </td>
                     <td className={`px-3 py-3 ${isRevoked ? "text-gray-400 italic" : "text-slate-600 dark:text-slate-400"}`}>{new Date(cred.issuedAt).toLocaleDateString()}</td>
                     <td className="px-3 py-3 text-center">
                       <button
