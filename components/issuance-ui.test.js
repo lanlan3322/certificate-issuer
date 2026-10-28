@@ -403,6 +403,11 @@ function evaluate(expression, dependencies = {}) {
 
 const mapper = load("lib/credential-mapper.ts");
 const { TEMPLATE_OPTIONS } = load("app/templates/registry.ts");
+const tableSource = sourceFile("components/IssuedCertificatesTable.tsx");
+const getTemplateLabel = evaluate(findNode(tableSource, (node) => ts.isFunctionDeclaration(node) &&
+  node.name?.text === "getTemplateLabel").getText(tableSource), { mapVcToCertEntry: mapper.mapVcToCertEntry, TEMPLATE_OPTIONS });
+const getVisibleCredentials = evaluate(findNode(tableSource, (node) => ts.isFunctionDeclaration(node) &&
+  node.name?.text === "getVisibleCredentials").getText(tableSource), { getTemplateLabel });
 const dashboardCredential = {
   id: "database-id", externalId: "certificate-id", recipientName: "Recipient",
   recipientEmail: "test@example.com", status: "issued", issuedAt: "2026-10-14",
@@ -426,6 +431,8 @@ test("dashboard headers match every cell and revoked rows hide Revoke but retain
       user: { displayName: "Issuer" }, Link: "a", LogOut: icons.LogOut,
       handleLogout() {}, credentialLoading: false, revokeLoading: null,
       allCredentials: [{ ...dashboardCredential, status }],
+      visibleCredentials: [{ ...dashboardCredential, status }],
+      searchQuery: "", setSearchQuery() {}, sort: null, toggleSort() {}, getTemplateLabel,
       verificationResults: {},
       error: null,
       SendCertificateButton: () => null,
@@ -434,7 +441,8 @@ test("dashboard headers match every cell and revoked rows hide Revoke but retain
       handleViewCredential() {}, handleRevoke() {}, selectedCredential: null,
     });
     const html = renderToStaticMarkup(render());
-    const headers = [...html.matchAll(/<th\b[^>]*>(.*?)<\/th>/g)].map((match) => match[1]);
+    const headers = [...html.matchAll(/<th\b[^>]*>(.*?)<\/th>/g)]
+      .map((match) => match[1].replace(/<span aria-hidden="true">.*?<\/span>/g, "").replace(/<[^>]+>/g, "").trim());
     assert.deepEqual(headers, ["Recipient", "Email", "Template", "Status", "Blockchain verified", "DID verified", "Issued", "View", "Actions", "Send"]);
     assert.equal((html.match(/<td\b/g) ?? []).length, headers.length);
     assert.match(html, />FTA Academy<\/td>/);
@@ -450,6 +458,7 @@ test("shared table shows loading, errors, empty states and explicit verification
   const returned = component.body.statements.find(ts.isReturnStatement);
   const render = (overrides) => renderToStaticMarkup(evaluate(`() => (${returned.expression.getText(source)})`, {
     credentialLoading: false, error: null, allCredentials: [], selectedCredential: null,
+    visibleCredentials: overrides.allCredentials ?? [], searchQuery: "", setSearchQuery() {}, sort: null, toggleSort() {}, getTemplateLabel,
     revokeLoading: null, verificationResults: {}, SendCertificateButton: () => null,
     mapVcToCertEntry: mapper.mapVcToCertEntry, TEMPLATE_OPTIONS, handleViewCredential() {}, handleRevoke() {},
     ...overrides,
@@ -482,6 +491,59 @@ test("shared table shows loading, errors, empty states and explicit verification
     assert.ok(html.includes(`>${expectedLabel}</td>`));
     assert.doesNotMatch(html, />Training<\/td>/);
   }
+});
+
+test("certificate search filters displayed fields without mutating records and combines with chronological sorting", () => {
+  const rows = [
+    { ...dashboardCredential, id: "z", recipientName: "Zoe", issuedAt: "2025-12-31" },
+    { ...dashboardCredential, id: "a", recipientName: "Alice", issuedAt: "2026-01-02", status: "revoked" },
+    { ...dashboardCredential, id: "b", recipientName: "Bob", issuedAt: "invalid" },
+  ];
+  const original = JSON.stringify(rows);
+  for (const [query, ids] of [
+    ["  ALICE ", ["a"]], ["test@example", ["z", "a", "b"]], ["fta academy", ["z", "a", "b"]],
+    ["revoked", ["a"]], ["2025-12", ["z"]], ["certificate-id", ["z", "a", "b"]],
+    ["nonexistent", []], ["  ", ["z", "a", "b"]],
+  ]) {
+    assert.deepEqual(getVisibleCredentials(rows, query, null).map((row) => row.id), ids);
+  }
+  for (const [column, direction, ids] of [
+    ["recipientName", "ascending", ["a", "b", "z"]],
+    ["recipientName", "descending", ["z", "b", "a"]],
+    ["issuedAt", "ascending", ["z", "a", "b"]],
+    ["issuedAt", "descending", ["a", "z", "b"]],
+  ]) {
+    assert.deepEqual(getVisibleCredentials(rows, "", { column, direction }).map((row) => row.id), ids);
+  }
+  assert.deepEqual(getVisibleCredentials(rows, "issued", { column: "recipientName", direction: "ascending" }).map((row) => row.id), ["b", "z"]);
+  assert.equal(JSON.stringify(rows), original);
+});
+
+test("sortable headers toggle direction, reset new column ascending, and expose accessible sort state", () => {
+  const source = tableSource;
+  const toggle = findNode(source, (node) => ts.isVariableDeclaration(node) && node.name.getText(source) === "toggleSort");
+  let sort = null;
+  const toggleSort = evaluate(toggle.initializer.getText(source), { setSort(update) { sort = update(sort); } });
+  toggleSort("recipientName");
+  assert.deepEqual(sort, { column: "recipientName", direction: "ascending" });
+  toggleSort("recipientName");
+  assert.equal(sort.direction, "descending");
+  toggleSort("issuedAt");
+  assert.deepEqual(sort, { column: "issuedAt", direction: "ascending" });
+  toggleSort("issuedAt");
+  assert.equal(sort.direction, "descending");
+  const component = findNode(source, (node) => ts.isFunctionDeclaration(node) && node.name?.text === "IssuedCertificatesTable");
+  const returned = component.body.statements.find(ts.isReturnStatement);
+  const render = (rows) => renderToStaticMarkup(evaluate(`() => (${returned.expression.getText(source)})`, {
+    allCredentials: [dashboardCredential], visibleCredentials: rows, credentialLoading: false, error: null,
+    selectedCredential: null, revokeLoading: null, verificationResults: {}, SendCertificateButton: () => null,
+    searchQuery: "none", setSearchQuery() {}, sort, toggleSort, getTemplateLabel,
+    handleViewCredential() {}, handleRevoke() {},
+  })());
+  const html = render([dashboardCredential]);
+  assert.match(html, /aria-sort="descending"/);
+  assert.match(html, /type="search"/);
+  assert.match(render([]), /No certificates match your search/);
 });
 
 test("dashboard opens shared preview with nested credential data and public certificate ID", () => {

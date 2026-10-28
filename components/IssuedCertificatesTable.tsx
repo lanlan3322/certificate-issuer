@@ -18,10 +18,52 @@ interface Props {
   error?: string | null;
 }
 
+type Sort = { column: "recipientName" | "issuedAt"; direction: "ascending" | "descending" };
+
+function getTemplateLabel(cred: CredentialItem): string {
+  const certificate = mapVcToCertEntry(cred.credential);
+  const template = TEMPLATE_OPTIONS.find((option) => option.id === certificate?.templateId)
+    ?? TEMPLATE_OPTIONS.find((option) => option.id === cred.templateId);
+  return template?.label ?? "Not recorded";
+}
+
+function getVisibleCredentials(credentials: CredentialItem[], query: string, sort: Sort | null): CredentialItem[] {
+  const search = query.trim().toLowerCase();
+  const visible = credentials.filter((cred) => !search || [
+    cred.recipientName, cred.recipientEmail, getTemplateLabel(cred), cred.status,
+    cred.externalId, cred.issuedAt, new Date(cred.issuedAt).toLocaleDateString(),
+  ].some((value) => value.toLowerCase().includes(search)));
+  if (!sort) return visible;
+  return visible.sort((a, b) => {
+    let comparison: number;
+    if (sort.column === "issuedAt") {
+      const first = Date.parse(a.issuedAt);
+      const second = Date.parse(b.issuedAt);
+      // Unknown dates stay last in either direction.
+      if (!Number.isFinite(first)) return Number.isFinite(second) ? 1 : 0;
+      if (!Number.isFinite(second)) return -1;
+      comparison = first - second;
+    } else {
+      comparison = a.recipientName.localeCompare(b.recipientName, undefined, { sensitivity: "base", numeric: true });
+    }
+    return sort.direction === "ascending" ? comparison : -comparison;
+  });
+}
+
 export default function IssuedCertificatesTable({ credentials: allCredentials, onCredentialsChange: setAllCredentials, loading: credentialLoading = false, error }: Props) {
   const [revokeLoading, setRevokeLoading] = useState<string | null>(null);
   const [selectedCredential, setSelectedCredential] = useState<CertEntry | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sort, setSort] = useState<Sort | null>(null);
   const verificationResults = useCredentialVerification(allCredentials);
+  const visibleCredentials = getVisibleCredentials(allCredentials, searchQuery, sort);
+
+  const toggleSort = (column: Sort["column"]) => {
+    setSort((previous) => ({
+      column,
+      direction: previous?.column === column && previous.direction === "ascending" ? "descending" : "ascending",
+    }));
+  };
 
   const handleRevoke = async (credId: string) => {
     if (allCredentials.find((cred) => cred.id === credId)?.status.toLowerCase() === "revoked") return;
@@ -72,6 +114,16 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
   return <>
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">Issued certificates</h2>
+      <label className="mb-4 block text-sm font-medium text-slate-700 dark:text-slate-300">
+        Search certificates
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Search recipient, email, template, status or date"
+          className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-slate-600 dark:bg-slate-800 dark:text-white sm:max-w-md"
+        />
+      </label>
       {credentialLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin h-6 w-6 border-2 border-cyan-500 border-t-transparent rounded-full" />
@@ -85,24 +137,32 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
           <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="border-b border-slate-200 text-slate-500 dark:border-slate-700">
               <tr>
-                <th scope="col" className="px-3 py-3">Recipient</th>
+                <th scope="col" aria-sort={sort?.column === "recipientName" ? sort.direction : "none"} className="px-3 py-3">
+                  <button type="button" onClick={() => toggleSort("recipientName")} className="inline-flex items-center gap-1 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600">
+                    Recipient <span aria-hidden="true">{sort?.column === "recipientName" ? (sort.direction === "ascending" ? "\u2191" : "\u2193") : "\u2195"}</span>
+                  </button>
+                </th>
                 <th scope="col" className="px-3 py-3">Email</th>
                 <th scope="col" className="px-3 py-3">Template</th>
                 <th scope="col" className="px-3 py-3">Status</th>
                 <th scope="col" className="px-3 py-3">Blockchain verified</th>
                 <th scope="col" className="px-3 py-3">DID verified</th>
-                <th scope="col" className="px-3 py-3">Issued</th>
+                <th scope="col" aria-sort={sort?.column === "issuedAt" ? sort.direction : "none"} className="px-3 py-3">
+                  <button type="button" onClick={() => toggleSort("issuedAt")} className="inline-flex items-center gap-1 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600">
+                    Issued <span aria-hidden="true">{sort?.column === "issuedAt" ? (sort.direction === "ascending" ? "\u2191" : "\u2193") : "\u2195"}</span>
+                  </button>
+                </th>
                 <th scope="col" className="px-3 py-3 text-center">View</th>
                 <th scope="col" className="px-3 py-3 text-right">Actions</th>
                 <th scope="col" className="px-3 py-3 text-right">Send</th>
               </tr>
             </thead>
             <tbody>
-              {allCredentials.map((cred) => {
-                const certificate = mapVcToCertEntry(cred.credential);
-                const template = TEMPLATE_OPTIONS.find((option) => option.id === certificate?.templateId)
-                  ?? TEMPLATE_OPTIONS.find((option) => option.id === cred.templateId);
-                const templateLabel = template?.label ?? "Not recorded";
+              {visibleCredentials.length === 0 && (
+                <tr><td colSpan={10} className="px-3 py-6 text-slate-500" role="status">No certificates match your search.</td></tr>
+              )}
+              {visibleCredentials.map((cred) => {
+                const templateLabel = getTemplateLabel(cred);
                 const isRevoked = cred.status.toLowerCase() === "revoked";
                 return (
                   <tr
