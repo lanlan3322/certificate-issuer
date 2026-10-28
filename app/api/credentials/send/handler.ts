@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "The stored recipient email is invalid. Contact your administrator." }, { status: 422 });
     }
     const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.CERTIFICATE_EMAIL_FROM;
+    const from = process.env.EMAIL_FROM;
     if (!apiKey || !from) {
       return NextResponse.json({ error: "Certificate email delivery is not configured. Contact your administrator." }, { status: 503 });
     }

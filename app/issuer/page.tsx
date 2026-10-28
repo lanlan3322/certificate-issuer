@@ -8,19 +8,11 @@ import { withBasePath } from "../../lib/site";
 import { safeInternalPath } from "../../lib/safe-internal-path";
 import { getSupabaseBrowserClient } from "../../lib/supabase/client";
 import { isValidPassword, PASSWORD_REQUIREMENTS } from "../../lib/password-policy";
-import { resolveTemplateId, TEMPLATE_OPTIONS } from "../templates/registry";
 import LegalNotice from "../../components/legal/LegalNotice";
-import SendCertificateButton from "../../components/SendCertificateButton";
+import IssuedCertificatesTable, { type CredentialItem } from "../../components/IssuedCertificatesTable";
 
 type Mode = "login" | "reset";
 interface User { issuerId: string; email: string; displayName: string; issuerName: string; organization: string; }
-interface Credential { id: string; externalId: string; recipientName: string; recipientEmail: string; status: string; issuedAt: string; credential: Record<string, unknown>; templateId: string | null; }
-
-function formatDateSafe(value: string | null | undefined): string {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString();
-}
 
 export default function IssuerPortalPage() {
   const router = useRouter();
@@ -30,7 +22,9 @@ export default function IssuerPortalPage() {
   const [recoverySession, setRecoverySession] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [user, setUser] = useState<User | null>(null);
-  const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [credentials, setCredentials] = useState<CredentialItem[]>([]);
+  const [credentialLoading, setCredentialLoading] = useState(false);
+  const [credentialError, setCredentialError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -40,9 +34,20 @@ export default function IssuerPortalPage() {
     const payload = await response.json() as { user?: User | null };
     if (!payload.user) return;
     setUser(payload.user);
-    const credentialResponse = await fetch(withBasePath("/api/credentials"));
-    const credentialPayload = await credentialResponse.json() as { credentials?: Credential[] };
-    setCredentials(credentialPayload.credentials ?? []);
+    setCredentialLoading(true);
+    setCredentialError(null);
+    try {
+      const credentialResponse = await fetch(withBasePath("/api/credentials"));
+      const credentialPayload = await credentialResponse.json() as { credentials?: CredentialItem[]; error?: string };
+      if (!credentialResponse.ok || !Array.isArray(credentialPayload.credentials)) {
+        throw new Error(credentialPayload.error ?? "Unable to load certificates.");
+      }
+      setCredentials(credentialPayload.credentials);
+    } catch (reason) {
+      setCredentialError(reason instanceof Error ? reason.message : "Unable to load certificates.");
+    } finally {
+      setCredentialLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -126,30 +131,7 @@ export default function IssuerPortalPage() {
         <div><p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">Issuer portal</p><h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">Welcome, {user.displayName}</h1><p className="mt-1 text-slate-600 dark:text-slate-300">{user.issuerName} · {user.organization}</p></div>
         <div className="flex flex-wrap gap-2"><Link href="/profile/" className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">My Profile</Link><Link href="/insurance/" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">Issue certificate</Link><button type="button" onClick={() => void logout()} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200"><LogOut className="h-4 w-4" /> Log out</button></div>
       </div>
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">Issued certificates</h2>
-        {credentials.length === 0 ? <p className="text-slate-500">No certificates have been stored for this issuer yet.</p> : <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left text-sm">
-            <thead className="border-b border-slate-200 text-slate-500 dark:border-slate-700"><tr>
-              <th className="px-3 py-3">Recipient</th><th className="px-3 py-3">Email</th><th className="px-3 py-3">Cert Type</th><th className="px-3 py-3">Template</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Issued</th><th scope="col" className="px-3 py-3 text-right">Send</th>
-            </tr></thead>
-            <tbody>{credentials.map((credential) => {
-              const certType = (credential.credential?.certificateType as string) || "Certificate";
-              const tpl = TEMPLATE_OPTIONS.find(t => t.id === credential.templateId);
-              const label = tpl ? tpl.label : resolveTemplateId(credential.templateId ?? undefined).replace(/^\w/, c => c.toUpperCase());
-              return <tr key={credential.id} className="border-b border-slate-100 dark:border-slate-800">
-                <td className="px-3 py-3 font-medium text-slate-800 dark:text-slate-200">{credential.recipientName}</td>
-                <td className="px-3 py-3 text-slate-600 dark:text-slate-400">{credential.recipientEmail}</td>
-                <td className="px-3 py-3 font-medium text-slate-700 dark:text-slate-300">{certType}</td>
-                <td className="px-3 py-3 text-slate-600 dark:text-slate-400">{label}</td>
-                <td className="px-3 py-3 uppercase text-xs">{credential.status}</td>
-                <td className="px-3 py-3 text-slate-600 dark:text-slate-400">{formatDateSafe(credential.issuedAt || undefined)}</td>
-                <td className="px-3 py-3 text-right"><SendCertificateButton credential={credential} /></td>
-              </tr>;
-            })}</tbody>
-          </table>
-        </div>}
-      </section>
+      <IssuedCertificatesTable credentials={credentials} onCredentialsChange={setCredentials} loading={credentialLoading} error={credentialError} />
     </main>
   );
 

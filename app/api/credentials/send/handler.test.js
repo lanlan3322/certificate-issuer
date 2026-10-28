@@ -35,7 +35,7 @@ function setup(options = {}) {
   };
   new Function("require", "module", "exports", "process", "fetch", "console", code)(
     (name) => { assert.ok(mocks[name], name); return mocks[name]; }, module, module.exports,
-    { env: options.unconfigured ? {} : { RESEND_API_KEY: "test-secret", CERTIFICATE_EMAIL_FROM: "sender@example.com" } },
+    { env: options.unconfigured ? {} : { RESEND_API_KEY: "test-secret", EMAIL_FROM: "sender@example.com" } },
     async (url, init) => {
       calls.push(["email", url, init]);
       if (options.transportError) throw new Error("sensitive provider data");

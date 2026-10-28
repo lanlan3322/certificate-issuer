@@ -417,22 +417,24 @@ const dashboardCredential = {
 };
 
 test("dashboard headers match every cell and revoked rows hide Revoke but retain View", () => {
-  const source = sourceFile("app/dashboard/page.tsx");
-  const dashboard = findNode(source, (node) => ts.isIfStatement(node) &&
-    node.expression.getText(source) === "user");
-  const returned = dashboard.thenStatement.statements.find(ts.isReturnStatement);
+  const source = sourceFile("components/IssuedCertificatesTable.tsx");
+  const dashboard = findNode(source, (node) => ts.isFunctionDeclaration(node) &&
+    node.name?.text === "IssuedCertificatesTable");
+  const returned = dashboard.body.statements.find(ts.isReturnStatement);
   for (const status of ["issued", "revoked", "REVOKED"]) {
     const render = evaluate(`() => (${returned.expression.getText(source)})`, {
       user: { displayName: "Issuer" }, Link: "a", LogOut: icons.LogOut,
       handleLogout() {}, credentialLoading: false, revokeLoading: null,
       allCredentials: [{ ...dashboardCredential, status }],
       verificationResults: {},
+      error: null,
+      SendCertificateButton: () => null,
       mapVcToCertEntry: mapper.mapVcToCertEntry,
       handleViewCredential() {}, handleRevoke() {}, selectedCredential: null,
     });
     const html = renderToStaticMarkup(render());
     const headers = [...html.matchAll(/<th\b[^>]*>(.*?)<\/th>/g)].map((match) => match[1]);
-    assert.deepEqual(headers, ["Recipient", "Email", "Cert Type", "Status", "Blockchain verified", "DID verified", "Issued", "View", "Actions"]);
+    assert.deepEqual(headers, ["Recipient", "Email", "Cert Type", "Status", "Blockchain verified", "DID verified", "Issued", "View", "Actions", "Send"]);
     assert.equal((html.match(/<td\b/g) ?? []).length, headers.length);
     assert.match(html, />Training<\/td>/);
     assert.match(html, /title="View certificate details"/);
@@ -440,8 +442,31 @@ test("dashboard headers match every cell and revoked rows hide Revoke but retain
   }
 });
 
+test("shared table shows loading, errors, empty states and explicit verification results", () => {
+  const source = sourceFile("components/IssuedCertificatesTable.tsx");
+  const component = findNode(source, (node) => ts.isFunctionDeclaration(node) &&
+    node.name?.text === "IssuedCertificatesTable");
+  const returned = component.body.statements.find(ts.isReturnStatement);
+  const render = (overrides) => renderToStaticMarkup(evaluate(`() => (${returned.expression.getText(source)})`, {
+    credentialLoading: false, error: null, allCredentials: [], selectedCredential: null,
+    revokeLoading: null, verificationResults: {}, SendCertificateButton: () => null,
+    mapVcToCertEntry: mapper.mapVcToCertEntry, handleViewCredential() {}, handleRevoke() {},
+    ...overrides,
+  })());
+  assert.match(render({}), /No certificates have been issued yet/);
+  assert.match(render({ credentialLoading: true }), /animate-spin/);
+  const failed = render({ error: "Certificate service unavailable" });
+  assert.match(failed, /role="alert"/);
+  assert.doesNotMatch(failed, /No certificates have been issued/);
+  const verified = render({
+    allCredentials: [dashboardCredential],
+    verificationResults: { [dashboardCredential.id]: { blockchain: "Yes", did: "Yes", message: "Verified" } },
+  });
+  assert.equal((verified.match(/role="status">Yes</g) ?? []).length, 2);
+});
+
 test("dashboard opens shared preview with nested credential data and public certificate ID", () => {
-  const source = sourceFile("app/dashboard/page.tsx");
+  const source = sourceFile("components/IssuedCertificatesTable.tsx");
   const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
     node.name.getText(source) === "handleViewCredential");
   for (const status of ["issued", "revoked"]) {
@@ -460,13 +485,13 @@ test("dashboard opens shared preview with nested credential data and public cert
     assert.equal(selected.templateId, "fta");
     assert.equal(selected.status, status);
   }
-  const page = sourceFile("app/dashboard/page.tsx");
+  const page = sourceFile("components/IssuedCertificatesTable.tsx");
   findNode(page, (node) => ts.isJsxSelfClosingElement(node) &&
     node.tagName.getText(page) === "CertificatePreviewModal");
 });
 
 test("dashboard uses credential layout instead of the saved-template UUID and retains legacy style fallback", () => {
-  const source = sourceFile("app/dashboard/page.tsx");
+  const source = sourceFile("components/IssuedCertificatesTable.tsx");
   const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
     node.name.getText(source) === "handleViewCredential");
   for (const [layout, storedTemplateId, expected] of [
@@ -499,7 +524,7 @@ test("dashboard uses credential layout instead of the saved-template UUID and re
 });
 
 test("dashboard revocation retains the row after success and reports server failures", async () => {
-  const source = sourceFile("app/dashboard/page.tsx");
+  const source = sourceFile("components/IssuedCertificatesTable.tsx");
   const handler = findNode(source, (node) => ts.isVariableDeclaration(node) &&
     node.name.getText(source) === "handleRevoke");
   for (const ok of [true, false]) {
@@ -508,6 +533,7 @@ test("dashboard revocation retains the row after success and reports server fail
     let busy;
     const revoke = evaluate(handler.initializer.getText(source), {
       allCredentials: credentials, prompt: () => "Revocation reason",
+      withBasePath: (url) => url,
       setRevokeLoading(value) { busy = value; },
       fetch: async () => ({ ok, json: async () => ({ error: "Not authorized" }) }),
       setAllCredentials(update) { credentials = update(credentials); },

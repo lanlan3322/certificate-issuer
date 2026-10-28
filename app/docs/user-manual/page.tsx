@@ -100,6 +100,7 @@ export default function UserManualPage() {
         <section id="dashboard" aria-labelledby="dashboard-heading" className="scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <h2 id="dashboard-heading" className="text-xl font-bold">4. Read dashboard verification results</h2>
           <p className="mt-3">Checks run automatically, one certificate at a time. Verification evidence and certificate lifecycle status are separate.</p>
+          <p className="mt-3">The Dashboard and signed-in Issuer Portal share the same certificate table: verification columns, row or View-button preview, Revoke action, and rightmost Send action. Revocation updates the displayed status and removes the Send action for that certificate.</p>
           <p className="mt-3">For an ISSUED certificate, choose <strong>Send</strong> in the rightmost column on either certificate table. Review the recorded recipient and confirm to email the signed .json file. Cancel sends nothing. Recipient addresses cannot be edited in this dialog. Provider acceptance does not confirm inbox delivery; check with the recipient before deliberately sending another copy.</p>
           <dl className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">

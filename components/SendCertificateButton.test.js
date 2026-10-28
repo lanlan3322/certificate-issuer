@@ -89,10 +89,12 @@ test("failed sends stay open, expose errors, and reuse the same idempotency key 
   assert.equal(app.requests[0][1].requestId, app.requests[1][1].requestId);
 });
 
-test("both certificate tables place the shared action in the final column", () => {
+test("both pages use the same certificate table with Send in the final column", () => {
   for (const page of ["dashboard", "issuer"]) {
     const source = readFileSync(`${__dirname}/../app/${page}/page.tsx`, "utf8");
-    assert.match(source, /<SendCertificateButton credential=\{(?:cred|credential)\} \/><\/td>\s*<\/tr>/);
-    assert.match(source, />Send<\/th>\s*<\/tr>/);
+    assert.match(source, /<IssuedCertificatesTable credentials=/);
   }
+  const table = readFileSync(`${__dirname}/IssuedCertificatesTable.tsx`, "utf8");
+  assert.match(table, /<SendCertificateButton credential=\{cred\} \/><\/td>\s*<\/tr>/);
+  assert.match(table, />Send<\/th>\s*<\/tr>/);
 });
