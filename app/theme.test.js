@@ -21,10 +21,18 @@ test("NavBar toggle uses the same storage key as the init script", () => {
   assert.match(read("components/NavBar.tsx"), /trustvc-theme/);
 });
 
-test("NavBar wordmark stays readable in both themes", () => {
+test("NavBar displays the matching cropped logo for each theme", () => {
   const navbar = read("components/NavBar.tsx");
-  assert.match(navbar, /verifiable-logo-light\.svg"[^>]*dark:hidden/);
-  assert.match(navbar, /verifiable-logo\.svg"[^>]*hidden[^>]*dark:block/);
+  assert.match(navbar, /src="\/vs-light\.png"[^>]*alt="Verifiable.sg"[^>]*dark:hidden/);
+  assert.match(navbar, /src="\/vs-dark\.png"[^>]*alt="Verifiable.sg"[^>]*className="hidden[^"]*dark:block/);
+  assert.equal((navbar.match(/<img\b/g) ?? []).length, 2);
+  assert.doesNotMatch(navbar, /src="\/vs\.png"/);
+  for (const name of ["vs-light.png", "vs-dark.png"]) {
+    const png = fs.readFileSync(path.join(root, "public", name));
+    assert.equal(png.subarray(1, 4).toString(), "PNG");
+    assert.equal(png.readUInt32BE(16), 1420);
+    assert.equal(png.readUInt32BE(20), 300);
+  }
 });
 
 test("global dark theme never restyles certificate paper", () => {

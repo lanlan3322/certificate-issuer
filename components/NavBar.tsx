@@ -116,8 +116,8 @@ export default function NavBar({ agentAvailable = false }: { agentAvailable?: bo
       <div className="mx-auto max-w-7xl rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/85 dark:shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
         <div className="flex h-16 items-center justify-between px-4 sm:px-6">
           <Link href="/" onNavigate={() => startNavigation("/")} className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <img src="/verifiable-logo-light.svg" alt="Verifiable" className="h-8 w-auto max-w-[170px] dark:hidden sm:h-9 sm:max-w-[205px]" />
-            <img src="/verifiable-logo.svg" alt="Verifiable" className="hidden h-8 w-auto max-w-[170px] dark:block sm:h-9 sm:max-w-[205px]" />
+            <img src="/vs-light.png" alt="Verifiable.sg" width={1420} height={300} className="h-auto w-[170px] rounded dark:hidden sm:w-[205px]" />
+            <img src="/vs-dark.png" alt="Verifiable.sg" width={1420} height={300} className="hidden h-auto w-[170px] rounded dark:block sm:w-[205px]" />
           </Link>
 
           <div className="hidden items-center gap-2 md:flex">

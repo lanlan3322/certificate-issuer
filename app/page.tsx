@@ -88,7 +88,7 @@ export default function HomePage() {
               ["What is TrustVC?", "A verifiable credentials platform for issuing and validating trusted digital certificates across multiple institutional scenarios."],
               ["Can it support multiple issuers?", "Yes. The platform is designed to support multi-issuer operations with role-based governance and controlled issuance flows."],
               ["Does it support verification?", "Yes. Recipients and institutions can inspect credential authenticity and revocation status using a public verification experience."],
-              ["Can it integrate with wallets?", "Yes. The platform is designed for wallet-ready delivery and compatibility with modern verifiable credential ecosystems."],
+              ["Can it integrate with wallets?", "Coming soon. The platform is designed for wallet-ready delivery and compatibility with modern verifiable credential ecosystems."],
             ].map(([question, answer]) => (
               <div key={question} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm dark:border-slate-600 dark:bg-slate-700 sm:p-4">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 sm:text-base">{question}</h3>
@@ -103,7 +103,7 @@ export default function HomePage() {
             <h2 className="text-lg font-semibold text-white">Need an institutional workflow?</h2>
             <p className="mt-1 text-sm text-slate-300">Explore enterprise controls and multi-issuer operations.</p>
           </div>
-          <a href="/enterprise" className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl border border-white/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10">Talk to sales<ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" /></a>
+          <a href="/enterprise" className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl border border-white/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10">View Plans<ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" /></a>
         </section>
 
       </div>
