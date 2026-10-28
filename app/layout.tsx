@@ -4,6 +4,7 @@ import NavBar from "../components/NavBar";
 import SiteChrome from "../components/SiteChrome";
 import AuthEmailRedirect from "../components/AuthEmailRedirect";
 import AgentWidget from "../components/agent/AgentWidget";
+import CookieBanner from "../components/legal/CookieBanner";
 import { getCurrentIssuerUser } from "@/lib/auth";
 import "./globals.css";
 
@@ -47,6 +48,7 @@ export default async function RootLayout({
         <SiteChrome header={<NavBar agentAvailable={Boolean(user)} />} footer={<Footer authenticated={Boolean(user)} />} widget={hasIssuerAdminRole ? <AgentWidget /> : null}>
           {children}
         </SiteChrome>
+        <CookieBanner />
       </body>
     </html>
   );

@@ -1,4 +1,5 @@
 import { withBasePath } from "../site";
+import { hasAnalyticsConsent } from "../cookie-consent";
 
 /**
  * Client-side analytics reporter. Posts to the server so events land in
@@ -7,7 +8,7 @@ import { withBasePath } from "../site";
  */
 export const AgentAnalyticsService = {
   track(type: string, page: string) {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !hasAnalyticsConsent()) return;
     void fetch(withBasePath("/api/agent/analytics"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },

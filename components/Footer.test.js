@@ -23,6 +23,7 @@ function setup(initial = false) {
     if (name === "next/link") return { default: "a" };
     if (name === "next/navigation") return { usePathname: () => "/" };
     if (name === "../lib/site") return { withBasePath: (url) => `/base${url}` };
+    if (name === "../lib/cookie-consent") return { openCookiePreferences() {} };
     assert.equal(name, "react/jsx-runtime");
     return require(name);
   }, module, module.exports, async (url, options) => {
@@ -48,9 +49,10 @@ function setup(initial = false) {
 
 test("Documentation footer is hidden anonymously and appears after successful login", async () => {
   const footer = setup();
-  assert.equal(footer.html(), "");
+  assert.doesNotMatch(footer.html(), /Documentation/);
+  assert.match(footer.html(), /Privacy Policy/);
   await footer.refresh();
-  assert.equal(footer.html(), "");
+  assert.doesNotMatch(footer.html(), /Documentation/);
   footer.changeUser({ id: "signed-in-user" });
   await footer.refresh();
   const html = footer.html();
@@ -60,7 +62,8 @@ test("Documentation footer is hidden anonymously and appears after successful lo
   assert.match(html, /Release Notes/);
   footer.changeUser(null);
   await footer.refresh();
-  assert.equal(footer.html(), "");
+  assert.doesNotMatch(footer.html(), /Documentation/);
+  assert.match(footer.html(), /Cookie Preferences/);
   footer.cleanup();
   assert.equal(footer.listeners["trustvc-auth-changed"], undefined);
 });
@@ -70,6 +73,7 @@ test("server-authenticated footer renders initially and hides if authentication 
   assert.match(footer.html(), /Documentation/);
   footer.fail();
   await footer.refresh();
-  assert.equal(footer.html(), "");
+  assert.doesNotMatch(footer.html(), /Documentation/);
+  assert.match(footer.html(), /Privacy Policy/);
   footer.cleanup();
 });

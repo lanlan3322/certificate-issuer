@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { withBasePath } from "../lib/site";
+import { openCookiePreferences } from "../lib/cookie-consent";
 
 const footerLinks = [
   { href: "/docs/user-manual", label: "User Manual" },
@@ -37,12 +38,10 @@ export default function Footer({ authenticated = false }: { authenticated?: bool
     };
   }, [pathname]);
 
-  if (!visible) return null;
-
   return (
     <footer className="theme-fixed border-t border-slate-200 bg-slate-950 text-slate-200">
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+        {visible && <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Documentation</p>
           </div>
@@ -57,6 +56,18 @@ export default function Footer({ authenticated = false }: { authenticated?: bool
                 {link.label}
               </Link>
             ))}
+          </nav>
+        </div>}
+        <div className={`${visible ? "mt-6 border-t border-slate-700 pt-6 " : ""}flex flex-col gap-3 text-sm md:flex-row md:items-center md:justify-between`}>
+          <p>© Verifiable.sg</p>
+          <nav aria-label="Legal links" className="flex flex-wrap items-center gap-3">
+            <Link href="/privacy" className="underline underline-offset-4 focus-visible:outline focus-visible:outline-2">Privacy Policy</Link>
+            <span aria-hidden="true">|</span>
+            <Link href="/terms" className="underline underline-offset-4 focus-visible:outline focus-visible:outline-2">Terms of Service</Link>
+            <span aria-hidden="true">|</span>
+            <Link href="/contact" className="underline underline-offset-4 focus-visible:outline focus-visible:outline-2">Contact Us</Link>
+            <span aria-hidden="true">|</span>
+            <button type="button" onClick={openCookiePreferences} className="underline underline-offset-4 focus-visible:outline focus-visible:outline-2">Cookie Preferences</button>
           </nav>
         </div>
       </div>
