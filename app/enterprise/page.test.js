@@ -25,8 +25,8 @@ test("pricing page displays exact plan allowances, charges and reset terms", () 
   assert.equal(cards.length, 3);
   const expected = [
     ["Starter", "SGD 49", "/ Month", "1 Issuer", "3 Certificate Templates", "100 Certificates Per Month", "resets each month", "Managed DID", "Basic Reporting", "Standard Support", "Start Free Consultation", "Membership organizations"],
-    ["Professional", "SGD 199", "/ Month", "★ Most Popular", "Unlimited Issuers", "Unlimited Certificate Templates", "1,000 Certificates Per Month", "accumulate throughout the subscription year", "resets upon annual renewal", "Managed DID", "Advanced Reporting", "Priority Support", "Book a Demo", "Corporate learning departments"],
-    ["Enterprise", "From SGD 499", "/ Month", "Unlimited Issuers", "Unlimited Templates", "Unlimited Certificates", "Dedicated Organization Portal", "Self-Managed DID", "Multi-Issuer DID Management", "DID Document Generator", "Verification Key Management", "Custom Branding", "API Access", "Bulk Issuance", "Priority Support", "Dedicated Onboarding", "Universities", "Regulatory bodies", "Enterprises", "Government projects", "Professional licensing authorities", "Contact Sales"],
+    ["Professional", "SGD 299", "/ Month", "★ Most Popular", "Up to 5 Issuers", "Unlimited Certificate Templates", "1,000 Certificates Per Month", "accumulate throughout the subscription year", "resets upon annual renewal", "Managed DID", "Advanced Reporting", "Priority Support", "Book a Demo", "Corporate learning departments"],
+    ["Enterprise", "From SGD 899", "/ Month", "Unlimited Issuers", "Unlimited Templates", "Unlimited Certificates", "Dedicated Organization Portal", "Self-Managed DID", "Multi-Issuer DID Management", "DID Document Generator", "Verification Key Management", "Custom Branding", "API Access", "Bulk Issuance", "Priority Support", "Dedicated Onboarding", "Universities", "Regulatory bodies", "Enterprises", "Government projects", "Professional licensing authorities", "Contact Sales"],
   ];
   cards.forEach((card, index) => {
     for (const text of expected[index]) assert.ok(card.includes(text), `Missing ${text}`);
@@ -55,7 +55,7 @@ test("final comparison, benefits, custom contact and metadata match enterprise c
     "Open Standards Compatible", "Need a Custom Solution?", "mailto:support@verifiable.sg",
     "All plans include certificate verification, revocation support, and secure digital credential hosting.",
     "100 Certificates/Month", "1,000 Certificates/Month", "Monthly Credit Carry Forward",
-    "SGD 49/month", "SGD 199/month", "From SGD 499/month", "3 Templates", "Dedicated Support",
+    "SGD 49/month", "SGD 299/month", "From SGD 899/month", "3 Templates", "Dedicated Support",
   ]) assert.ok(html.includes(text), `Missing content: ${text}`);
   assert.match(html, /<table/);
   assert.equal((html.match(/scope="col"/g) ?? []).length, 4);
@@ -63,4 +63,25 @@ test("final comparison, benefits, custom contact and metadata match enterprise c
   assert.match(html, /md:grid-cols-2 xl:grid-cols-3/);
   assert.equal(metadata.title, "Enterprise Pricing | Verifiable.sg");
   assert.equal(metadata.description, "Affordable digital credential infrastructure for organizations of all sizes. Issue, verify and manage trusted credentials with managed or self-managed digital identities.");
+});
+
+test("annual subscriptions appear under each monthly price with an exact 15 percent discount", () => {
+  const { html } = render();
+  const cards = html.split('aria-labelledby="comparison-heading"')[0].split('<h3 class="text-lg font-semibold">').slice(1);
+  for (const [index, monthly] of [49, 299, 899].entries()) {
+    const annual = (monthly * 12 * 0.85).toLocaleString("en-SG", {
+      minimumFractionDigits: 2, maximumFractionDigits: 2,
+    });
+    const price = `${index === 2 ? "From " : ""}SGD ${annual}`;
+    assert.ok(cards[index].includes(`${price} / Year`));
+    assert.ok(cards[index].indexOf(`${price} / Year`) > cards[index].indexOf("/ Month"));
+    assert.ok(cards[index].includes("Billed annually. Save 15% compared with 12 monthly payments."));
+    assert.ok(html.includes(`${price}/year, billed annually`));
+    const savings = (monthly * 12 * 0.15).toLocaleString("en-SG", {
+      minimumFractionDigits: 2, maximumFractionDigits: 2,
+    });
+    const savingsLabel = `Save ${index === 2 ? "from " : ""}SGD ${savings}/year`;
+    assert.ok(cards[index].includes(`${price} / Year — ${savingsLabel}`));
+    assert.ok(html.includes(`${price}/year, billed annually. ${savingsLabel}`));
+  }
 });

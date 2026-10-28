@@ -11,6 +11,8 @@ const plans = [
   {
     name: "Starter",
     price: "SGD 49",
+    annualPrice: "SGD 499.80",
+    annualSavings: "Save SGD 88.20/year",
     billing: "/ Month",
     description: "Perfect for trainers, coaches, consultants and small training providers.",
     features: ["1 Issuer", "3 Certificate Templates", "100 Certificates Per Month", "Managed DID", "Certificate Verification Portal", "Certificate Revocation", "Basic Reporting", "Standard Support"],
@@ -21,10 +23,12 @@ const plans = [
   },
   {
     name: "Professional",
-    price: "SGD 199",
+    price: "SGD 299",
+    annualPrice: "SGD 3,049.80",
+    annualSavings: "Save SGD 538.20/year",
     billing: "/ Month",
     description: "Designed for schools, academies, certification bodies and growing organizations.",
-    features: ["Unlimited Issuers", "Unlimited Certificate Templates", "1,000 Certificates Per Month", "Annual Certificate Credit Carry Forward", "Managed DID", "Organization Branding", "Certificate Verification Portal", "Certificate Revocation", "Advanced Reporting", "Priority Support"],
+    features: ["Up to 5 Issuers", "Unlimited Certificate Templates", "1,000 Certificates Per Month", "Annual Certificate Credit Carry Forward", "Managed DID", "Organization Branding", "Certificate Verification Portal", "Certificate Revocation", "Advanced Reporting", "Priority Support"],
     note: "Unused certificate credits accumulate throughout the subscription year. Certificate balance resets upon annual renewal.",
     idealFor: ["Private schools", "Training academies", "Certification providers", "Professional associations", "Corporate learning departments"],
     cta: "Book a Demo",
@@ -32,7 +36,9 @@ const plans = [
   },
   {
     name: "Enterprise",
-    price: "From SGD 499",
+    price: "From SGD 899",
+    annualPrice: "From SGD 9,169.80",
+    annualSavings: "Save from SGD 1,618.20/year",
     billing: "/ Month",
     description: "For universities, enterprises, regulators and large-scale credential programmes.",
     features: ["Unlimited Issuers", "Unlimited Templates", "Unlimited Certificates", "Dedicated Organization Portal", "Self-Managed DID", "Multi-Issuer DID Management", "DID Document Generator", "Verification Key Management", "Custom Branding", "API Access", "Bulk Issuance", "Priority Support", "Dedicated Onboarding"],
@@ -50,7 +56,7 @@ const benefits = [
 ];
 
 const comparison = [
-  ["Issuers", "1 Issuer", "Unlimited Issuers", "Unlimited Issuers"],
+  ["Issuers", "1 Issuer", "Up to 5 Issuers", "Unlimited Issuers"],
   ["Templates", "3 Templates", "Unlimited Templates", "Unlimited Templates"],
   ["Certificates", "100 Certificates/Month", "1,000 Certificates/Month", "Unlimited Certificates"],
   ["Credit Carry Forward", "Monthly reset", "Monthly Credit Carry Forward", "Unlimited Certificates"],
@@ -59,7 +65,8 @@ const comparison = [
   ["DID Management", "Managed DID", "Managed DID", "Multi-Issuer DID Management"],
   ["API Access", "Contact us", "Contact us", "API Access"],
   ["Support", "Standard Support", "Priority Support", "Dedicated Support"],
-  ["Price", "SGD 49/month", "SGD 199/month", "From SGD 499/month"],
+  ["Price", "SGD 49/month", "SGD 299/month", "From SGD 899/month"],
+  ["Annual Subscription (15% off)", ...plans.map((plan) => `${plan.annualPrice}/year, billed annually. ${plan.annualSavings}`)],
 ];
 
 export default function EnterprisePage() {
@@ -89,6 +96,8 @@ export default function EnterprisePage() {
               </div>
               <div className="mt-4 text-3xl font-bold">{plan.price}</div>
               <p className="mt-1 text-sm">{plan.billing}</p>
+              <p className="mt-2 text-sm font-semibold">{plan.annualPrice} / Year — {plan.annualSavings}</p>
+              <p className="mt-1 text-sm">Billed annually. Save 15% compared with 12 monthly payments.</p>
               <p className="mt-4 text-sm leading-6">{plan.description}</p>
               <ul className="mt-4 space-y-3 text-sm">
                 {plan.features.map((feature) => (
