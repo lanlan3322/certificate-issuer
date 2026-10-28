@@ -430,13 +430,14 @@ test("dashboard headers match every cell and revoked rows hide Revoke but retain
       error: null,
       SendCertificateButton: () => null,
       mapVcToCertEntry: mapper.mapVcToCertEntry,
+      TEMPLATE_OPTIONS,
       handleViewCredential() {}, handleRevoke() {}, selectedCredential: null,
     });
     const html = renderToStaticMarkup(render());
     const headers = [...html.matchAll(/<th\b[^>]*>(.*?)<\/th>/g)].map((match) => match[1]);
-    assert.deepEqual(headers, ["Recipient", "Email", "Cert Type", "Status", "Blockchain verified", "DID verified", "Issued", "View", "Actions", "Send"]);
+    assert.deepEqual(headers, ["Recipient", "Email", "Template", "Status", "Blockchain verified", "DID verified", "Issued", "View", "Actions", "Send"]);
     assert.equal((html.match(/<td\b/g) ?? []).length, headers.length);
-    assert.match(html, />Training<\/td>/);
+    assert.match(html, />FTA Academy<\/td>/);
     assert.match(html, /title="View certificate details"/);
     assert.equal(html.includes('title="Revoke certificate"'), status === "issued");
   }
@@ -450,7 +451,7 @@ test("shared table shows loading, errors, empty states and explicit verification
   const render = (overrides) => renderToStaticMarkup(evaluate(`() => (${returned.expression.getText(source)})`, {
     credentialLoading: false, error: null, allCredentials: [], selectedCredential: null,
     revokeLoading: null, verificationResults: {}, SendCertificateButton: () => null,
-    mapVcToCertEntry: mapper.mapVcToCertEntry, handleViewCredential() {}, handleRevoke() {},
+    mapVcToCertEntry: mapper.mapVcToCertEntry, TEMPLATE_OPTIONS, handleViewCredential() {}, handleRevoke() {},
     ...overrides,
   })());
   assert.match(render({}), /No certificates have been issued yet/);
@@ -463,6 +464,24 @@ test("shared table shows loading, errors, empty states and explicit verification
     verificationResults: { [dashboardCredential.id]: { blockchain: "Yes", did: "Yes", message: "Verified" } },
   });
   assert.equal((verified.match(/role="status">Yes</g) ?? []).length, 2);
+  for (const [signedTemplate, savedTemplate, expectedLabel] of [
+    ["fta", "00000000-0000-4000-8000-000000000001", "FTA Academy"],
+    ["modern", "fta", "Modern Gradient"],
+    [undefined, "minimal", "Minimal Mono"],
+    [undefined, "00000000-0000-4000-8000-000000000001", "Not recorded"],
+  ]) {
+    const row = {
+      ...dashboardCredential,
+      templateId: savedTemplate,
+      credential: {
+        ...dashboardCredential.credential,
+        credentialSubject: { ...dashboardCredential.credential.credentialSubject, templateId: signedTemplate },
+      },
+    };
+    const html = render({ allCredentials: [row] });
+    assert.ok(html.includes(`>${expectedLabel}</td>`));
+    assert.doesNotMatch(html, />Training<\/td>/);
+  }
 });
 
 test("dashboard opens shared preview with nested credential data and public certificate ID", () => {

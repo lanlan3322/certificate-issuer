@@ -87,7 +87,7 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
               <tr>
                 <th scope="col" className="px-3 py-3">Recipient</th>
                 <th scope="col" className="px-3 py-3">Email</th>
-                <th scope="col" className="px-3 py-3">Cert Type</th>
+                <th scope="col" className="px-3 py-3">Template</th>
                 <th scope="col" className="px-3 py-3">Status</th>
                 <th scope="col" className="px-3 py-3">Blockchain verified</th>
                 <th scope="col" className="px-3 py-3">DID verified</th>
@@ -99,7 +99,10 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
             </thead>
             <tbody>
               {allCredentials.map((cred) => {
-                const certType = mapVcToCertEntry(cred.credential)?.certificateType || "Certificate";
+                const certificate = mapVcToCertEntry(cred.credential);
+                const template = TEMPLATE_OPTIONS.find((option) => option.id === certificate?.templateId)
+                  ?? TEMPLATE_OPTIONS.find((option) => option.id === cred.templateId);
+                const templateLabel = template?.label ?? "Not recorded";
                 const isRevoked = cred.status.toLowerCase() === "revoked";
                 return (
                   <tr
@@ -113,7 +116,7 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
                   >
                     <td className={`px-3 py-3 font-medium ${isRevoked ? "text-gray-400 italic" : "text-slate-800 dark:text-slate-200"}`}>{cred.recipientName}</td>
                     <td className={`px-3 py-3 ${isRevoked ? "text-gray-400 italic" : "text-slate-600 dark:text-slate-400"}`}>{cred.recipientEmail}</td>
-                    <td className={`px-3 py-3 font-medium ${isRevoked ? "text-gray-400 italic" : "text-slate-700 dark:text-slate-300"}`}>{certType}</td>
+                    <td className={`px-3 py-3 font-medium ${isRevoked ? "text-gray-400 italic" : "text-slate-700 dark:text-slate-300"}`}>{templateLabel}</td>
                     <td className={`px-3 py-3 uppercase text-xs ${isRevoked ? "text-gray-400 italic" : ""}`}>{cred.status}</td>
                     <td className="px-3 py-3" title={verificationResults[cred.id]?.message}>
                       <span role="status">{verificationResults[cred.id]?.blockchain ?? "Checking..."}</span>
