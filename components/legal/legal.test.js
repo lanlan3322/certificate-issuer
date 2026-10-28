@@ -31,7 +31,8 @@ test("public legal pages have metadata, semantic sections, contacts and related 
     assert.match(html, /<main/);
     assert.match(html, /<h1/);
     assert.match(html, /On this page/);
-    assert.match(html, /mailto:dpo@verifiable.sg/);
+    assert.match(html, /mailto:support@verifiable\.sg/);
+    assert.doesNotMatch(html, /(?:dpo|privacy|contact)@verifiable\.sg/);
     for (const href of ["/privacy", "/terms", "/contact"]) assert.ok(html.includes(`href="${href}"`));
   }
 });
