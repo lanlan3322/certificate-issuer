@@ -57,9 +57,9 @@ const benefits = [
 
 const comparison = [
   ["Issuers", "1 Issuer", "Up to 5 Issuers", "Unlimited Issuers"],
-  ["Templates", "3 Templates", "Unlimited Templates", "Unlimited Templates"],
+  ["Templates", "3 Templates", "Up to 10 Templates", "Unlimited Templates"],
   ["Certificates", "100 Certificates/Month", "1,000 Certificates/Month", "Unlimited Certificates"],
-  ["Credit Carry Forward", "Monthly reset", "Monthly Credit Carry Forward", "Unlimited Certificates"],
+  ["Credit Carry Forward", "Monthly reset", "Monthly reset", "Unlimited Certificates"],
   ["Digital Identity", "Managed DID", "Managed DID", "Self-Managed DID"],
   ["Reporting", "Basic Reporting", "Advanced Reporting", "Contact Sales"],
   ["DID Management", "Managed DID", "Managed DID", "Multi-Issuer DID Management"],
