@@ -25,8 +25,8 @@ replace its file list with `node_modules/**/*`. Update its entry points if a new
 runtime SDK is loaded through a wrapper, then run:
 
 ```bash
-node --test scripts/trace-credential-runtime.test.js scripts/runtime-interop.test.js
 npm run build
+node --test scripts/trace-credential-runtime.test.js scripts/runtime-interop.test.js
 ```
 
 The BBS SDK's optional `@mattrglobal/node-bbs-signatures` package may be absent on
@@ -34,6 +34,13 @@ Vercel. Its own loader falls back to WASM; tracing permits this specific missing
 package/binary but still rejects unknown dependency failures. The isolated runtime
 test omits the native package and exercises WASM key generation plus credential
 signing, verification and status encoding.
+
+Next 16.3's compiled production page/API runtimes also need an explicit traced
+dependency closure on every server route. Individual route traces can omit
+framework files such as `tags-manifest.external.js` and
+`memory-cache.external.js` even though the global server trace includes them.
+The packaged-runtime regression copies only a homepage/API trace into isolation
+and loads both compiled runtimes, so a successful build alone is not the check.
 
 `.vercelignore` omits source-only reports, fixtures, migrations and development
 scripts from deployment uploads; `outputFileTracingExcludes` guards non-runtime

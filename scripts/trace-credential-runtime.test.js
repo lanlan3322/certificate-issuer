@@ -80,6 +80,7 @@ test("isolated traced dependencies use BBS WASM without the optional native pack
           id: controller, verificationMethod: [publicKey], assertionMethod: [id]
         }
       });
+
       const credential = {
         '@context': ['https://www.w3.org/ns/credentials/v2', { name: 'https://schema.org/name' }],
         type: ['VerifiableCredential'], issuer: controller,
@@ -102,4 +103,30 @@ test("isolated traced dependencies use BBS WASM without the optional native pack
     })().catch(error => { console.error(error); process.exitCode = 1; });
   `], { cwd: directory, env: { ...process.env, NODE_PATH: "" }, encoding: "utf8", timeout: 60000 });
   assert.match(output, /Isolated SDK signing, verification, tampering and status checks passed/);
+});
+
+test("page and API traces package loadable Next production runtimes without global node_modules", (t) => {
+  const fs = require("node:fs");
+  const root = path.resolve(__dirname, "..");
+  for (const [traceName, runtime] of [
+    [".next/server/app/page.js.nft.json", "app-page-turbo.runtime.prod.js"],
+    [".next/server/app/api/.well-known/jwks/route.js.nft.json", "app-route-turbo.runtime.prod.js"],
+  ]) {
+    const tracePath = path.join(root, traceName);
+    assert.ok(fs.existsSync(tracePath), "Run npm run build before the packaged Next runtime regression");
+    const directory = mkdtempSync(path.join(tmpdir(), "next-runtime-trace-"));
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    const files = new Set(JSON.parse(fs.readFileSync(tracePath, "utf8")).files
+      .map((file) => path.relative(root, path.resolve(path.dirname(tracePath), file))));
+    assert.ok(files.has("node_modules/next/dist/server/lib/incremental-cache/tags-manifest.external.js"));
+    for (const file of files) {
+      const destination = path.join(directory, file);
+      mkdirSync(path.dirname(destination), { recursive: true });
+      copyFileSync(path.join(root, file), destination);
+    }
+    execFileSync(process.execPath, ["-e", `globalThis.AsyncLocalStorage = require('node:async_hooks').AsyncLocalStorage; require('next/dist/compiled/next-server/${runtime}'); console.log('Runtime loaded');`], {
+      cwd: directory, env: { ...process.env, NODE_PATH: "", NODE_ENV: "production" },
+      encoding: "utf8", timeout: 30000,
+    });
+  }
 });

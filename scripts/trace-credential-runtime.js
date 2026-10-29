@@ -34,4 +34,18 @@ async function traceCredentialRuntime() {
   return [...trace.fileList].sort().map((file) => file.replaceAll("\\", "/"));
 }
 
-module.exports = { runtimeModules, traceCredentialRuntime };
+async function traceNextRuntime() {
+  const path = require("node:path");
+  const root = path.resolve(__dirname, "..");
+  const trace = await nodeFileTrace([
+    require.resolve("next/dist/compiled/next-server/app-page-turbo.runtime.prod.js"),
+    require.resolve("next/dist/compiled/next-server/app-route-turbo.runtime.prod.js"),
+  ], { base: root, processCwd: root, conditions: ["node"] });
+  for (const warning of trace.warnings) {
+    // Next falls back to its bundled OpenTelemetry API when the optional peer is absent.
+    if (!warning.message.startsWith('Failed to resolve dependency "@opentelemetry/api":')) throw warning;
+  }
+  return [...trace.fileList].sort().map((file) => file.replaceAll("\\", "/"));
+}
+
+module.exports = { runtimeModules, traceCredentialRuntime, traceNextRuntime };

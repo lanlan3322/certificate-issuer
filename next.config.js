@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const path = require("path");
-const { traceCredentialRuntime } = require("./scripts/trace-credential-runtime");
+const { traceCredentialRuntime, traceNextRuntime } = require("./scripts/trace-credential-runtime");
 
 const deployTarget = process.env.DEPLOY_TARGET || "vercel";
 const isGitHubPages = deployTarget === "github-pages";
@@ -83,9 +83,12 @@ const nextConfig = {
 
 module.exports = async () => {
   const runtimeFiles = await traceCredentialRuntime();
+  const nextRuntimeFiles = await traceNextRuntime();
   return {
     ...nextConfig,
     outputFileTracingIncludes: {
+      // Next 16.3's per-route traces omit dependencies of its external runtimes.
+      "/*": nextRuntimeFiles,
       "/api/issue": runtimeFiles,
       "/api/verify": runtimeFiles,
       "/api/status-list/*/*": runtimeFiles,
