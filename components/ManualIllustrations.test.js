@@ -64,7 +64,7 @@ test("admin keeps operational cautions and sign-off status visible outside colla
   for (const phrase of [
     "not certification", "within 30 days", "three calendar days after that determination",
     "attestation recorded, overall approval pending", "Operator identity: not confirmed",
-    "RESEND_API_KEY", "EMAIL_FROM", "20 attempts per user per 15 minutes",
+    "SMTP_HOST", "SMTP_PASS", "EMAIL_FROM", "20 attempts per user per 15 minutes",
   ]) assert.ok(overview.includes(phrase), phrase);
   assert.match(html, /without undue delay/);
   assert.match(html, /Significant scale alone does not automatically require individual notification/);

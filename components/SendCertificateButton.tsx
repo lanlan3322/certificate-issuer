@@ -64,6 +64,7 @@ export default function SendCertificateButton({ credential }: Props) {
       <h2 id={headingId} className="text-xl font-bold">Send certificate?</h2>
       <p className="mt-4 break-words text-sm">Email the signed .json certificate to {credential.recipientName} at <strong>{credential.recipientEmail}</strong>?</p>
       <p className="mt-3 text-sm">Confirm this is the intended recipient. The certificate may contain personal data. The recipient address cannot be changed here.</p>
+      <p className="mt-3 text-sm">If a send times out, check with the recipient or administrator before retrying. SMTP retries may send duplicate emails.</p>
       {error && <p role="alert" className="mt-4 text-sm text-red-700 dark:text-red-300">{error}</p>}
       <div className="mt-5 flex gap-3">
         <button type="button" disabled={sending} onClick={() => void send()} className="rounded-lg bg-cyan-800 px-4 py-2 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">{sending ? "Sending..." : "Confirm Send"}</button>

@@ -409,7 +409,7 @@ test("unexpected verification failures return a generic error", async (t) => {
 });
 
 test("security headers allow embedding only for the external credential renderer", async () => {
-  const config = require("../../next.config.js");
+  const config = await require("../../next.config.js")();
   const { tryToParsePath } = require("next/dist/lib/try-to-parse-path");
   const rules = await config.headers();
   const baselineHeaders = new Map(rules[0].headers.map(({ key, value }) => [key.toLowerCase(), value]));

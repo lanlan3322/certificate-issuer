@@ -16,6 +16,50 @@ A modern web application for issuing **W3C Verifiable Credentials** certificates
 - [Operator Manual](docs/OPERATOR_MANUAL.md)
 - [Developer Onboarding Guide](docs/DEVELOPER_ONBOARDING.md)
 
+### Vercel function storage
+
+The three credential API traces include only the dependency closure of the SDK
+entry points loaded dynamically by `lib/trustvc.ts`. The build-time helper
+`scripts/trace-credential-runtime.js` uses Next's installed file tracer; do not
+replace its file list with `node_modules/**/*`. Update its entry points if a new
+runtime SDK is loaded through a wrapper, then run:
+
+```bash
+node --test scripts/trace-credential-runtime.test.js scripts/runtime-interop.test.js
+npm run build
+```
+
+`.vercelignore` omits source-only reports, fixtures, migrations and development
+scripts from deployment uploads; `outputFileTracingExcludes` guards non-runtime
+directories. Live manuals in `app/docs`, public assets, email templates, SDK
+patches and the build-time trace helper remain available. No database migration
+is run by the deployment build.
+
+Vercel handles Next.js function packaging from trace manifests; `output:
+"standalone"` is for self-hosting and does not reduce retained Vercel function
+storage. Local `.next/cache` size is not a function-bundle measurement. Actual
+usage also depends on retained deployments and deployment regions. Review
+project retention in Vercel Settings → Security and preserve the rollback history
+you need; changing retention or deleting deployments requires operator approval.
+See [Vercel's storage guidance](https://vercel.com/docs/deployment-storage/optimize).
+
+### Certificate email: reuse password-reset SMTP settings
+
+The Issued certificates **Send** action uses SMTP, not Supabase Auth's email API.
+In Vercel, set server-only `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and
+`EMAIL_FROM` to match **Supabase Auth → Email → SMTP settings**, including its
+sender address. Supabase does not expose these settings to the app automatically.
+Keep credentials out of source code and `NEXT_PUBLIC_*` variables, then redeploy.
+If the SMTP password is rotated, update both Supabase and Vercel.
+
+Port 465 uses implicit TLS; other ports require STARTTLS with normal certificate
+validation. The app emails only the stored signed JSON to the recorded recipient;
+password reset still uses Supabase unchanged. SMTP acceptance is not inbox
+delivery. Retried requests reuse a Message-ID for tracing, but SMTP does not
+guarantee deduplication: confirm provider/recipient status before retrying an
+ambiguous timeout. `RESEND_API_KEY` is no longer used by the certificate sender;
+do not remove it from other services that may still need it.
+
 ## Features
 
 - 📜 **Issue DID Certificates** — Sign W3C Verifiable Credentials with real `ecdsa-sd-2023` Data Integrity Proofs using a configured `did:web` key pair

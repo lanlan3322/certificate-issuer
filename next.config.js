@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const path = require("path");
-const { readdirSync } = require("fs");
+const { traceCredentialRuntime } = require("./scripts/trace-credential-runtime");
 
 const deployTarget = process.env.DEPLOY_TARGET || "vercel";
 const isGitHubPages = deployTarget === "github-pages";
@@ -18,11 +18,6 @@ const stubbedModules = [
   // rdf-canonize-native is an optional C++ accelerator; pure-JS fallback is used
   "rdf-canonize-native",
 ];
-
-// Keep the embedded PostgreSQL test engine out of serverless function bundles.
-const trustvcRuntimeTraceIncludes = readdirSync(path.join(__dirname, "node_modules"))
-  .filter((name) => name !== "@electric-sql")
-  .map((name) => `./node_modules/${name}/**/*`);
 
 const baselineSecurityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=31536000" },
@@ -60,10 +55,10 @@ const nextConfig = {
     "@digitalbazaar/ecdsa-multikey",
     "@digitalbazaar/bls12-381-multikey",
   ],
-  outputFileTracingIncludes: {
-    "/api/issue": trustvcRuntimeTraceIncludes,
-    "/api/verify": trustvcRuntimeTraceIncludes,
-    "/api/status-list/*/*": trustvcRuntimeTraceIncludes,
+  outputFileTracingExcludes: {
+    "/*": ["./docs/**/*", "./audits/**/*", "./output/**/*", "./broadcast/**/*",
+      "./out/**/*", "./cache/**/*", "./test-data/**/*", "./samples/**/*",
+      "./memory/**/*"],
   },
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
@@ -86,4 +81,14 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = async () => {
+  const runtimeFiles = await traceCredentialRuntime();
+  return {
+    ...nextConfig,
+    outputFileTracingIncludes: {
+      "/api/issue": runtimeFiles,
+      "/api/verify": runtimeFiles,
+      "/api/status-list/*/*": runtimeFiles,
+    },
+  };
+};

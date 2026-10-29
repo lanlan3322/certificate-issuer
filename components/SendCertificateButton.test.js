@@ -77,7 +77,7 @@ test("confirmation sends only the credential identifier and reports provider acc
   assert.ok(find(app.render(), (node) => node.props?.role === "status"));
 });
 
-test("failed sends stay open, expose errors, and reuse the same idempotency key on retry", async () => {
+test("failed sends stay open, expose errors, and reuse the same request identifier on retry", async () => {
   const app = setup("issued", true);
   button(app.render(), "Send").props.onClick();
   button(app.render(), "Confirm Send").props.onClick();

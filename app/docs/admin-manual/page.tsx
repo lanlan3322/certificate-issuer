@@ -109,13 +109,13 @@ export default function AdminManualPage() {
               <li>Respond to <code>verifiable-cookie-consent-changed</code> and browser storage changes. Stop collection and clear optional cookies on withdrawal. No SDK is installed by this release.</li>
             </ul>
           </details>
-          <ManualFlow label="Certificate Send: server → Resend → recorded recipient" steps={[
-            ["Configure server", "Set RESEND_API_KEY and EMAIL_FROM to a Resend-verified sender. Never use browser-exposed variables."],
+          <ManualFlow label="Certificate Send: server → shared SMTP provider → recorded recipient" steps={[
+            ["Configure server", "Copy Supabase Auth's SMTP settings into Vercel: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and EMAIL_FROM (same sender). Supabase does not share these automatically. Never use browser-exposed variables."],
             ["Confirm recipient", "Send attaches stored signed JSON plus the legal footer to the recorded address."],
             ["Check eligibility", "Session issuer's issued, unexpired credentials only. Limit: 20 attempts per user per 15 minutes."],
             ["Review acceptance", "Audit records provider acceptance, not delivery. Confirm recipient/provider status before another send."],
           ]} />
-          <aside className={noteStyle}><strong>Retry carefully.</strong> The same confirmation reuses its Resend idempotency key (24-hour provider retention). After that window, confirm provider status before retrying an ambiguous request.</aside>
+          <aside className={noteStyle}><strong>Retry carefully.</strong> SMTP does not guarantee deduplication. The same confirmation reuses its Message-ID for tracing, but retries can send duplicates. Confirm recipient/provider status before retrying an ambiguous request. Port 465 uses implicit TLS; other ports require STARTTLS. Password reset continues through Supabase Auth unchanged.</aside>
           <details className={detailStyle}>
             <summary className="cursor-pointer font-semibold">Deploy provider email notices</summary>
             <ol className="mt-3 list-decimal space-y-2 pl-5">

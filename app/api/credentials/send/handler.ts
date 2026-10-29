@@ -4,6 +4,7 @@ import { enforceRateLimit, RateLimitError } from "../../../../lib/auth";
 import { CredentialService } from "../../../../services/CredentialService";
 import { AuditService } from "../../../../services/AuditService";
 import { randomUUID } from "node:crypto";
+import { createTransport } from "nodemailer";
 
 export async function POST(request: Request) {
   const { user, response } = await authorize();
@@ -38,9 +39,14 @@ export async function POST(request: Request) {
     if (!/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(credential.recipientEmail)) {
       return NextResponse.json({ error: "The stored recipient email is invalid. Contact your administrator." }, { status: 422 });
     }
-    const apiKey = process.env.RESEND_API_KEY;
+    const host = process.env.SMTP_HOST;
+    const portText = process.env.SMTP_PORT;
+    const port = Number(portText);
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPassword = process.env.SMTP_PASS;
     const from = process.env.EMAIL_FROM;
-    if (!apiKey || !from) {
+    if (!host || !portText || !/^\d+$/.test(portText) || !Number.isInteger(port) ||
+        port < 1 || port > 65535 || !smtpUser || !smtpPassword || !from) {
       return NextResponse.json({ error: "Certificate email delivery is not configured. Contact your administrator." }, { status: 503 });
     }
     const content = Buffer.from(JSON.stringify(credential.credential, null, 2));
@@ -48,35 +54,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "The certificate exceeds the email attachment size limit." }, { status: 413 });
     }
     const filename = `${(credential.externalId || credential.id).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 100)}.json`;
-    const result = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "Idempotency-Key": `certificate-${credential.id}-${body.requestId}`,
-      },
-      signal: AbortSignal.timeout(15000),
-      body: JSON.stringify({
+    const transport = createTransport({
+      host, port,
+      secure: port === 465,
+      requireTLS: port !== 465,
+      auth: { user: smtpUser, pass: smtpPassword },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
+      disableFileAccess: true,
+      disableUrlAccess: true,
+      logger: false,
+      debug: false,
+    });
+    const delivery = await transport.sendMail({
         from,
         to: [credential.recipientEmail],
+        messageId: `<certificate-${credential.id}-${body.requestId}@verifiable.sg>`,
         subject: "Your digital certificate from Verifiable.sg",
         text: `Your issued digital certificate is attached as a JSON file. Keep this file unchanged to preserve its signature and use it with a compatible credential verifier.\n\nFor assistance, contact support@verifiable.sg.\n\n----------------------------------------\nThis email was sent by Verifiable.sg\nPrivacy Policy: https://verifiable.sg/privacy\nTerms of Service: https://verifiable.sg/terms\n----------------------------------------`,
-        attachments: [{ filename, content: content.toString("base64"), content_type: "application/json" }],
-      }),
+        attachments: [{ filename, content, contentType: "application/json" }],
     });
-    if (!result.ok) {
-      // Do not log provider bodies, which may contain recipient or credential data.
-      console.error("Certificate email provider rejected request", { status: result.status });
+    if (delivery.rejected.length || !delivery.accepted.length || !delivery.messageId) {
+      console.error("Certificate SMTP server did not confirm recipient acceptance.");
       return NextResponse.json({ error: "The email provider did not accept the request. Please try again later." }, { status: 502 });
-    }
-    const delivery: unknown = await result.json();
-    if (!delivery || typeof delivery !== "object" || !("id" in delivery) || typeof delivery.id !== "string") {
-      throw new Error("Email provider response missing message identifier.");
     }
     await AuditService.record({
       organizationId: user.organizationId, issuerId: user.issuerId, userId: user.id,
       action: "credential.email.accepted", entityType: "credential", entityId: credential.id,
-      metadata: { messageId: delivery.id, requestId: body.requestId },
+      metadata: { messageId: delivery.messageId, requestId: body.requestId },
     });
     return NextResponse.json({ message: "Email accepted for delivery. Inbox delivery is not yet confirmed." });
   } catch (error) {
@@ -85,7 +91,7 @@ export async function POST(request: Request) {
     const incidentId = randomUUID();
     console.error("Certificate email request failed", { incidentId });
     return NextResponse.json({
-      error: `Unable to confirm email acceptance. Retry this request or contact support (reference ${incidentId}).`,
+      error: `Unable to confirm email acceptance. Check with the recipient or your administrator before retrying to avoid duplicate emails (reference ${incidentId}).`,
     }, { status: 502 });
   }
 }
