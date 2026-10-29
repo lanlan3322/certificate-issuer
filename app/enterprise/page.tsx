@@ -28,7 +28,7 @@ const plans = [
     annualSavings: "Save SGD 538.20/year",
     billing: "/ Month",
     description: "Designed for schools, academies, certification bodies and growing organizations.",
-    features: ["Up to 5 Issuers", "Unlimited Certificate Templates", "1,000 Certificates Per Month", "Annual Certificate Credit Carry Forward", "Managed DID", "Organization Branding", "Certificate Verification Portal", "Certificate Revocation", "Advanced Reporting", "Priority Support"],
+    features: ["Up to 5 Issuers", "Up to 10 Certificate Templates", "1,000 Certificates Per Month", "Annual Certificate Credit Carry Forward", "Managed DID", "Organization Branding", "Certificate Verification Portal", "Certificate Revocation", "Advanced Reporting", "Priority Support"],
     note: "Unused certificate credits accumulate throughout the subscription year. Certificate balance resets upon annual renewal.",
     idealFor: ["Private schools", "Training academies", "Certification providers", "Professional associations", "Corporate learning departments"],
     cta: "Book a Demo",
@@ -41,7 +41,7 @@ const plans = [
     annualSavings: "Save from SGD 1,618.20/year",
     billing: "/ Month",
     description: "For universities, enterprises, regulators and large-scale credential programmes.",
-    features: ["Unlimited Issuers", "Unlimited Templates", "Unlimited Certificates", "Dedicated Organization Portal", "Self-Managed DID", "Multi-Issuer DID Management", "DID Document Generator", "Verification Key Management", "Custom Branding", "API Access", "Bulk Issuance", "Priority Support", "Dedicated Onboarding"],
+    features: ["Unlimited Issuers", "Unlimited Templates", "Unlimited Certificates", "Dedicated Organization Portal", "Self-Managed DID", "Multi-Issuer DID Management", "DID Document Generator", "Verification Key Management", "Custom Branding", "Bulk Issuance", "Priority Support", "Dedicated Onboarding"],
     note: "",
     idealFor: ["Universities", "Regulatory bodies", "Enterprises", "Government projects", "Professional licensing authorities"],
     cta: "Contact Sales",
@@ -63,7 +63,6 @@ const comparison = [
   ["Digital Identity", "Managed DID", "Managed DID", "Self-Managed DID"],
   ["Reporting", "Basic Reporting", "Advanced Reporting", "Contact Sales"],
   ["DID Management", "Managed DID", "Managed DID", "Multi-Issuer DID Management"],
-  ["API Access", "Contact us", "Contact us", "API Access"],
   ["Support", "Standard Support", "Priority Support", "Dedicated Support"],
   ["Price", "SGD 49/month", "SGD 299/month", "From SGD 899/month"],
   ["Annual Subscription (15% off)", ...plans.map((plan) => `${plan.annualPrice}/year, billed annually. ${plan.annualSavings}`)],
@@ -154,7 +153,7 @@ export default function EnterprisePage() {
 
       <section aria-labelledby="custom-heading" className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <h2 id="custom-heading" className="text-xl font-semibold text-slate-900">Need a Custom Solution?</h2>
-        <p className="mt-3 text-sm leading-6 text-slate-600">For high-volume issuance, white-label deployments, API integrations, organization onboarding, or custom workflows, contact our team for a tailored enterprise proposal.</p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">For high-volume issuance, custom DID domain setup, white-label deployments, migration services, API integrations, LMS integration, or custom workflows, contact our team for a tailored enterprise proposal.</p>
         <a href="mailto:support@verifiable.sg" className="mt-4 inline-block text-sm font-semibold text-cyan-700 underline underline-offset-4 focus-visible:outline focus-visible:outline-2">support@verifiable.sg</a>
       </section>
       <p className="mt-8 text-center text-sm text-slate-600">All plans include certificate verification, revocation support, and secure digital credential hosting.</p>
