@@ -6,6 +6,28 @@ const path = require("node:path");
 const { tmpdir } = require("node:os");
 const { runtimeModules, traceCredentialRuntime } = require("./trace-credential-runtime");
 
+test("tracing permits the optional BBS native package to be absent but rejects unknown missing dependencies", async () => {
+  const source = require("node:fs").readFileSync(path.join(__dirname, "trace-credential-runtime.js"), "utf8");
+  const run = (dependency) => {
+    const module = { exports: {} };
+    const mockRequire = (name) => {
+      if (name === "next/dist/compiled/@vercel/nft") return {
+        nodeFileTrace: async () => ({
+          fileList: new Set(),
+          warnings: new Set([new Error(`Failed to resolve dependency "${dependency}":\nCannot find module '${dependency}' loaded from /vercel/path0/node_modules/@mattrglobal/bbs-signatures/lib/index.js`)]),
+        }),
+      };
+      return require(name);
+    };
+    mockRequire.resolve = require.resolve;
+    new Function("require", "module", "exports", "__dirname", source)(mockRequire, module, module.exports, __dirname);
+    return module.exports.traceCredentialRuntime();
+  };
+  await run("@mattrglobal/node-bbs-signatures");
+  await run("/vercel/path0/node_modules/@mattrglobal/node-bbs-signatures/native/index.node");
+  await assert.rejects(run("unexpected-required-module"), /unexpected-required-module/);
+});
+
 test("runtime tracing includes dynamic SDK entry points, not build tools or PDF assets", async () => {
   const files = await traceCredentialRuntime();
   for (const name of runtimeModules) {
@@ -22,11 +44,12 @@ test("runtime tracing includes dynamic SDK entry points, not build tools or PDF 
   }
 });
 
-test("isolated traced dependencies sign, verify, detect tampering and encode status without network", async (t) => {
+test("isolated traced dependencies use BBS WASM without the optional native package and preserve signing and verification", async (t) => {
   const directory = mkdtempSync(path.join(tmpdir(), "credential-runtime-trace-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const files = await traceCredentialRuntime();
   for (const file of files) {
+    if (file.replaceAll("\\", "/").includes("/@mattrglobal/node-bbs-signatures/")) continue;
     const destination = path.join(directory, file);
     mkdirSync(path.dirname(destination), { recursive: true });
     copyFileSync(file, destination);
@@ -36,6 +59,10 @@ test("isolated traced dependencies sign, verify, detect tampering and encode sta
     const { pathToFileURL } = require('node:url');
     global.fetch = () => { throw new Error('Unexpected network request'); };
     (async () => {
+      assert.throws(() => require.resolve('@mattrglobal/node-bbs-signatures'), { code: 'MODULE_NOT_FOUND' });
+      const bbs = require('@mattrglobal/bbs-signatures');
+      const bbsKey = await bbs.generateBls12381G2KeyPair();
+      assert.ok(bbsKey.publicKey.length);
       require('@trustvc/trustvc');
       const { getDocumentLoader } = require('@trustvc/w3c-context');
       const { signCredential, deriveCredential, verifyCredential } = require('@trustvc/w3c-vc');

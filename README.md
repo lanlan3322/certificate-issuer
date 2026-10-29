@@ -29,6 +29,12 @@ node --test scripts/trace-credential-runtime.test.js scripts/runtime-interop.tes
 npm run build
 ```
 
+The BBS SDK's optional `@mattrglobal/node-bbs-signatures` package may be absent on
+Vercel. Its own loader falls back to WASM; tracing permits this specific missing
+package/binary but still rejects unknown dependency failures. The isolated runtime
+test omits the native package and exercises WASM key generation plus credential
+signing, verification and status encoding.
+
 `.vercelignore` omits source-only reports, fixtures, migrations and development
 scripts from deployment uploads; `outputFileTracingExcludes` guards non-runtime
 directories. Live manuals in `app/docs`, public assets, email templates, SDK

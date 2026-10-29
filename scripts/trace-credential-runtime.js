@@ -20,8 +20,9 @@ async function traceCredentialRuntime() {
     processCwd: root,
     conditions: ["node"],
   });
-  // These optional dependencies are already absent from the installed SDKs.
-  const optionalDependency = /^(?:core-js\/fn\/object\/entries|rdf-canonize-native|encoding)$|\/@mattrglobal\/node-bbs-signatures\/native\/index\.node$/;
+  // BBS explicitly falls back to WASM when its optional native package or binary
+  // is unavailable; Linux installs can omit the entire optional package.
+  const optionalDependency = /^(?:core-js\/fn\/object\/entries|rdf-canonize-native|encoding|@mattrglobal\/node-bbs-signatures)$|\/@mattrglobal\/node-bbs-signatures\/native\/index\.node$/;
   for (const warning of trace.warnings) {
     const dependency = /^Failed to resolve dependency "([^"]+)":/.exec(warning.message)?.[1];
     if (!dependency || !optionalDependency.test(dependency.replaceAll("\\", "/"))) throw warning;
