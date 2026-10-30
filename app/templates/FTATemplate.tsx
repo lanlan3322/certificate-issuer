@@ -56,8 +56,11 @@ export default function FTATemplate({ certificate, theme }: TemplateProps) {
         </p>
 
         <p className={`mt-6 text-2xl font-medium ${subtextColor}`}>(<span style={{ color: accentColor }}>{certificate.certificateType}</span>)</p>
+        <p className="mt-3 text-xl text-gray-600">
+          ({certificate.courseLength && <> · {certificate.courseLength}</>} hours)
+        </p>
         <p className="mt-3 text-xl text-gray-600">Accredited by IBF</p>
-        <p className={`mt-6 text-lg font-semibold ${subtextColor}`}>({certificate.id})</p>
+        {certificate.certificateNo && <p className={`mt-2 text-lg ${t === "dark" ? "text-gray-400" : "text-gray-500"}`}>( {certificate.certificateNo} )</p>}
         <p className={`mt-4 text-lg ${t === "dark" ? "text-gray-400" : "text-gray-500"}`}>{formatDate(certificate.issueDate)}</p>
 
         <div className={`mt-10 grid shrink-0 grid-cols-[128px_minmax(0,1fr)_160px] items-end gap-6 border-t-2 ${t === "dark" ? "border-slate-700" : "border-gray-200"} pt-8 sm:gap-8`}>

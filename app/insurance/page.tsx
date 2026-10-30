@@ -85,6 +85,8 @@ interface IssueFormState {
   hasValidity: boolean;
   validFrom: string;
   validUntil: string | null;
+  certificateNo: string;
+  courseLength: string;
 }
 
 function getTodayDateInputValue(): string {
@@ -152,6 +154,8 @@ export default function InsurancePage() {
       hasValidity: true,
       validFrom,
       validUntil: getNextYearSameDateInputValue(validFrom),
+      certificateNo: "",
+      courseLength: "",
     };
   });
   const [issuedCert, setIssuedCert] = useState<CertificateData | null>(null);
@@ -259,6 +263,7 @@ export default function InsurancePage() {
     const validation = validateCertificateData({
       ...formData,
       validUntil: formData.validUntil ?? undefined,
+      courseLength: Number(formData.courseLength) || undefined,
     });
     const issuingMethodValidation = validateIssuingMethods(issuingMethods);
     if (!validation.valid) {
@@ -317,6 +322,8 @@ export default function InsurancePage() {
         recipientEmail: formData.recipientEmail,
         certificateType: formData.certificateType,
         templateId: availableTemplates.find((template) => template.id === formData.templateId)?.slug,
+        certificateNo: formData.certificateNo || undefined,
+        courseLength: formData.courseLength ? parseInt(formData.courseLength) : undefined,
         issuerName: "Certificate Issuer",
         issueDate: now,
         description: formData.description,
@@ -686,6 +693,30 @@ export default function InsurancePage() {
                   </div>
 
                   <div>
+                    <label className="label text-sm md:text-base">Certificate No.</label>
+                    <input
+                      type="text"
+                      name="certificateNo"
+                      value={formData.certificateNo}
+                      onChange={handleInputChange}
+                      className="input-field text-sm md:text-base"
+                      placeholder="e.g., FTA-2024-00123"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label text-sm md:text-base">Course Length</label>
+                    <input
+                      type="text"
+                      name="courseLength"
+                      value={formData.courseLength}
+                      onChange={handleInputChange}
+                      className="input-field text-sm md:text-base"
+                      placeholder="e.g., 40 hours, 3 months"
+                    />
+                  </div>
+
+                  <div>
                     <label className="inline-flex items-center gap-2 text-sm md:text-base font-medium text-gray-700">
                       <input
                         type="checkbox"
@@ -986,6 +1017,8 @@ export default function InsurancePage() {
                           {TEMPLATE_OPTIONS.find((t) => t.id === issuedCert.templateId)?.label ||
                             TEMPLATE_OPTIONS.find((t) => t.id === DEFAULT_TEMPLATE_ID)?.label}
                         </p>
+                        {issuedCert.certificateNo && <p>Certificate No.: {issuedCert.certificateNo}</p>}
+                        {issuedCert.courseLength && <p>Course Length: {issuedCert.courseLength}</p>}
                       </div>
                       <div className="mt-4 border-t border-gray-200 pt-3 text-center">
                         <p className="text-xs text-gray-500">

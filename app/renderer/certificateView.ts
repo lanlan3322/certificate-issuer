@@ -54,5 +54,11 @@ export function toCertificateTemplateData(document: unknown, origin: string): Ce
     validUntil: typeof doc.validUntil === "string" ? doc.validUntil : undefined,
     templateId: getRendererTemplateId(document),
     verificationUrl: buildVerificationUrl(origin, id),
+    certificateNo: text(subject.certificateNo ?? subject.certification_no),
+    courseLength: typeof subject.courseLength === "number"
+      ? subject.courseLength
+      : typeof subject.courseLength === "string" && subject.courseLength.trim() !== ""
+        ? Number(subject.courseLength)
+        : undefined,
   };
 }

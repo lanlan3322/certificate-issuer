@@ -345,6 +345,8 @@ export interface CertificateData {
   recipientEmail: string;
   certificateType: string;
   templateId?: string;
+  certificateNo?: string;
+  courseLength?: number;
   issuerName: string;
   issuerDid?: string;
   issuerDisplayName?: string;

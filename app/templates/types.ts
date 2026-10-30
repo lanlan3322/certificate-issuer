@@ -5,6 +5,8 @@ export interface CertificateTemplateData {
   recipientName: string;
   recipientEmail: string;
   certificateType: string;
+  certificateNo?: string;
+  courseLength?: number;
   issuerName: string;
   issueDate: string;
   description: string;
