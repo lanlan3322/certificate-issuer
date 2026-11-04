@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { withBasePath } from "../../../lib/site";
+import CertificatePaper from "../CertificatePaper";
 import {
   createTemplateDefinition,
   renderTemplateText,
@@ -399,25 +400,27 @@ export default function TemplateBuilderPage() {
               </span>
             </div>
 
-            <div
-              className="certificate-paper rounded-xl border p-5 text-center shadow-inner"
+            <CertificatePaper
+              className="flex flex-col items-center justify-center rounded-xl border p-5 text-center shadow-inner"
               style={{ borderColor: accentColor, background: `linear-gradient(135deg, ${accentColor}08, white)` }}
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Certificate Issuer</p>
-              <h3 className="mt-4 text-2xl font-bold" style={{ color: accentColor }}>
-                {preview.title}
-              </h3>
-              <p className="mt-3 text-lg text-slate-700">{preview.subtitle}</p>
-              <p className="mt-4 text-sm italic text-slate-600">“{preview.description}”</p>
-              <div className="mt-5 space-y-2 text-left text-sm text-slate-700">
-                {preview.fields.map((field) => (
-                  <div key={field.key} className="flex justify-between gap-3 rounded bg-slate-100 px-2 py-1">
-                    <span className="font-medium text-slate-600">{field.label}</span>
-                    <span>{field.value || "—"}</span>
-                  </div>
-                ))}
+              <div className="certificate-main w-full break-words">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Certificate Issuer</p>
+                <h3 className="mt-4 text-2xl font-bold" style={{ color: accentColor }}>
+                  {preview.title}
+                </h3>
+                <p className="mt-3 text-lg text-slate-700">{preview.subtitle}</p>
+                <p className="mt-4 text-sm italic text-slate-600">“{preview.description}”</p>
+                <div className="mt-5 space-y-2 text-left text-sm text-slate-700">
+                  {preview.fields.map((field) => (
+                    <div key={field.key} className="flex justify-between gap-3 rounded bg-slate-100 px-2 py-1">
+                      <span className="font-medium text-slate-600">{field.label}</span>
+                      <span>{field.value || "—"}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            </CertificatePaper>
 
             {savedTemplates.length > 0 && (
               <div className="mt-6">

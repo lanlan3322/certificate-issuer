@@ -1,16 +1,20 @@
 "use client";
 
+import { QRCodeSVG } from "qrcode.react";
+import CertificatePaper from "./CertificatePaper";
 import ClassicTemplate from "./ClassicTemplate";
 import FTATemplate from "./FTATemplate";
 import MinimalTemplate from "./MinimalTemplate";
 import ModernTemplate from "./ModernTemplate";
 import { resolveTemplateId, resolveTemplateIssuer } from "./registry";
+import { getCertificateTextDensity } from "./text-density";
 import { CertificateTemplateData, Theme } from "./types";
 
 interface RendererProps {
   certificate: CertificateTemplateData;
   theme?: Theme;
   footerIssuerName?: string;
+  verificationFooterUrl?: string;
 }
 
 const DEFAULT_THEME: Theme = "light";
@@ -64,6 +68,7 @@ export default function CertificateTemplateRenderer({
   certificate,
   theme,
   footerIssuerName: footerIssuerNameOverride,
+  verificationFooterUrl,
 }: RendererProps) {
   const templateId = resolveTemplateId(certificate.templateId);
   const t = theme ?? DEFAULT_THEME;
@@ -86,15 +91,53 @@ export default function CertificateTemplateRenderer({
   const footerIssuerName = footerIssuerNameOverride ??
     resolveIssuerDisplayName(certificate) ??
     resolveTemplateIssuer(certificate.templateId);
+  const footerIsDense = getCertificateTextDensity(
+    certificate.recipientName, certificate.issuerName, certificate.id, verificationFooterUrl
+  ).dense;
 
   return (
-    <div className="certificate-paper flex min-h-[297mm] w-full flex-col">
-      <div className="flex-1">{content}</div>
-      {templateId !== "fta" && (
-        <div className="mt-8 flex items-end gap-6 border-t border-gray-200 pt-5 sm:gap-8">
-          <div className="ml-auto text-xs text-gray-400">Certificate Issued By: {footerIssuerName}</div>
-        </div>
+    <CertificatePaper
+      className={templateId === "fta"
+        ? "fta-certificate-paper flex flex-col p-[8mm]"
+        : "grid grid-rows-[minmax(min-content,1fr)_auto_minmax(min-content,1fr)] p-[14mm] text-gray-900"}
+    >
+      {templateId === "fta" ? (
+        <div className="flex flex-1 flex-col">{content}</div>
+      ) : (
+        <>
+          <div className="certificate-main col-start-1 row-start-2 min-w-0 text-center">{content}</div>
+          <div className="certificate-footer col-start-1 row-start-3 min-w-0 self-end">
+            <div className={`flex items-end gap-8 border-t border-gray-200 ${verificationFooterUrl === undefined ? "mt-8 pt-5" : "mt-4 pt-3"}`}>
+              <div className="ml-auto break-words text-xs text-gray-400">Certificate Issued By: {footerIssuerName}</div>
+            </div>
+            {verificationFooterUrl !== undefined && (
+              <div className="mt-3 flex items-end gap-6">
+                <div className="flex shrink-0 flex-col items-center gap-2">
+                  <QRCodeSVG
+                    value={verificationFooterUrl}
+                    size={86}
+                    level="M"
+                    includeMargin
+                    role="img"
+                    aria-label="Certificate verification QR code"
+                  />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Scan to verify</span>
+                </div>
+                <div className={`min-w-0 flex-1 break-words text-gray-500 ${footerIsDense ? "text-[9px] leading-tight" : "text-xs"}`}>
+                  <p className="font-semibold text-gray-700">Digital signature and verification</p>
+                  <div className={`max-w-xs border-b border-gray-500 pb-1 italic text-gray-800 ${footerIsDense ? "mt-2 text-sm" : "mt-5 text-base"}`}>
+                    {certificate.issuerName}
+                  </div>
+                  <p className={`${footerIsDense ? "" : "mt-1"} font-medium text-gray-700`}>{certificate.issuerName}</p>
+                  <p className={footerIsDense ? "" : "mt-1"}>Issued to {certificate.recipientName}</p>
+                  <p className={`${footerIsDense ? "" : "mt-1"} break-all`}>ID: {certificate.id || "N/A"}</p>
+                  <p className={`${footerIsDense ? "" : "mt-1"} break-all`}>{verificationFooterUrl}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
-    </div>
+    </CertificatePaper>
   );
 }

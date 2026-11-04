@@ -137,6 +137,8 @@ test("FTA certificate displays date-only values in both date positions", () => {
   });
   const Template = load("app/templates/FTATemplate.tsx", {
     "../../lib/certificate": certificateUtils,
+    "../../lib/site": load("lib/site.ts"),
+    "./text-density": load("app/templates/text-density.ts"),
   }).default;
   const html = renderToStaticMarkup(React.createElement(Template, {
     certificate: {
@@ -164,7 +166,7 @@ function findNode(source, predicate) {
   return found;
 }
 
-test("Certificate Preview passes its verification URL to the QR code left of the signature", () => {
+test("Certificate Preview passes its verification URL to the A4 QR code beside the signature", () => {
   const source = sourceFile("app/insurance/page.tsx");
   const preview = findNode(source, (node) => ts.isJsxSelfClosingElement(node) &&
     node.tagName.getText(source) === "CertificateTemplateRenderer");
@@ -174,6 +176,8 @@ test("Certificate Preview passes its verification URL to the QR code left of the
   });
   const Template = load("app/templates/FTATemplate.tsx", {
     "../../lib/certificate": certificateUtils,
+    "../../lib/site": load("lib/site.ts"),
+    "./text-density": load("app/templates/text-density.ts"),
   }).default;
   const { buildVerificationUrl } = load("lib/site.ts");
   const javascript = ts.transpileModule(`const render = () => (${preview.getText(source)});`, {
@@ -194,10 +198,10 @@ test("Certificate Preview passes its verification URL to the QR code left of the
   const html = renderToStaticMarkup(render());
   assert.equal(previewCertificate.verificationUrl,
     buildVerificationUrl("https://issuer.example", "urn:uuid:preview-test"));
-  assert.match(html, /grid-cols-\[128px_minmax\(0,1fr\)_160px\]/);
+  assert.match(html, /grid-cols-\[minmax\(0,1fr\)_minmax\(0,1\.4fr\)_minmax\(0,1fr\)\]/);
   assert.match(html, /<svg/);
-  assert.ok(html.indexOf("<svg") < html.indexOf("L. Koh"));
-  assert.ok(html.indexOf("Scan to verify") < html.indexOf("L. Koh"));
+  assert.ok(html.indexOf("<svg") < html.indexOf("Dr. Lillian Koh"));
+  assert.ok(html.indexOf("Scan to verify") < html.indexOf("Dr. Lillian Koh"));
 });
 
 test("Details rows use a wider non-shrinking label column and stack on mobile", () => {
@@ -329,7 +333,7 @@ test("PDF export fits certificates proportionally on A4 and sanitizes download n
       [1200, 600, [0, 96, 210, 105]],
       [600, 1200, [30.75, 0, 148.5, 297]],
     ]) {
-      const element = {};
+      const element = { matches: () => false, querySelector: () => null };
       let savedName;
       let imageArgs;
       let clonedThemeRemoved = false;
@@ -358,6 +362,162 @@ test("PDF export fits certificates proportionally on A4 and sanitizes download n
   }
 });
 
+test("A4 preview scales to the available width and updates when its size changes", () => {
+  const originalObserver = global.ResizeObserver;
+  const originalWindow = global.window;
+  const viewport = { clientWidth: 397 };
+  const paper = { offsetWidth: 794, offsetHeight: 1123 };
+  const refs = [{ current: viewport }, { current: paper }];
+  const observed = [];
+  let resize;
+  let cleanup;
+  let windowResize;
+  let resizeRemoved = false;
+  let disconnected = false;
+  let layout;
+
+  global.ResizeObserver = class {
+    constructor(callback) { resize = callback; }
+    observe(element) { observed.push(element); }
+    disconnect() { disconnected = true; }
+  };
+  global.window = {
+    addEventListener(event, callback) {
+      assert.equal(event, "resize");
+      windowResize = callback;
+    },
+    removeEventListener(event, callback) {
+      assert.equal(event, "resize");
+      assert.strictEqual(callback, windowResize);
+      resizeRemoved = true;
+    },
+  };
+
+  try {
+    const Paper = load("app/templates/CertificatePaper.tsx", {
+      react: {
+        ...React,
+        useRef: () => refs.shift(),
+        useState(initial) {
+          layout = initial;
+          return [initial, (update) => { layout = update(layout); }];
+        },
+        useEffect(effect) { cleanup = effect(); },
+      },
+    }).default;
+    const tree = Paper({ children: "Certificate" });
+    assert.match(tree.props.className, /aspect-\[210\/297\]/);
+    assert.match(tree.props.children.props.className, /absolute/);
+    assert.deepEqual(observed, [viewport, paper]);
+    assert.deepEqual(layout, { scale: 0.5, height: 562 });
+
+    viewport.clientWidth = 794;
+    paper.offsetHeight = 1400;
+    windowResize();
+    assert.deepEqual(layout, { scale: 1, height: 1400 });
+
+    viewport.clientWidth = 0;
+    resize();
+    assert.deepEqual(layout, { scale: 1, height: 1400 });
+    cleanup();
+    assert.equal(disconnected, true);
+    assert.equal(resizeRemoved, true);
+  } finally {
+    global.ResizeObserver = originalObserver;
+    global.window = originalWindow;
+  }
+});
+
+test("A4 preview still fits the window without ResizeObserver", () => {
+  const originalObserver = global.ResizeObserver;
+  const originalWindow = global.window;
+  const viewport = { clientWidth: 300 };
+  const paper = { offsetWidth: 600, offsetHeight: 900 };
+  const refs = [{ current: viewport }, { current: paper }];
+  let resize;
+  let cleanup;
+  let layout;
+
+  global.ResizeObserver = undefined;
+  global.window = {
+    addEventListener(_event, callback) { resize = callback; },
+    removeEventListener() {},
+  };
+  try {
+    const Paper = load("app/templates/CertificatePaper.tsx", {
+      react: {
+        ...React,
+        useRef: () => refs.shift(),
+        useState(initial) {
+          layout = initial;
+          return [initial, (update) => { layout = update(layout); }];
+        },
+        useEffect(effect) { cleanup = effect(); },
+      },
+    }).default;
+    Paper({ children: "Certificate" });
+    assert.deepEqual(layout, { scale: 0.5, height: 450 });
+    viewport.clientWidth = 450;
+    resize();
+    assert.deepEqual(layout, { scale: 0.75, height: 675 });
+    cleanup();
+  } finally {
+    global.ResizeObserver = originalObserver;
+    global.window = originalWindow;
+  }
+});
+
+test("PDF export captures every A4 template at full size even from a narrow preview", async () => {
+  const originalDocument = global.document;
+  global.document = { fonts: { ready: Promise.resolve() } };
+  try {
+    for (const [templateId, direct] of ["classic", "modern", "minimal", "fta"]
+      .flatMap((name) => [[name, false], [name, true]])) {
+      const paper = { templateId, matches: (selector) => selector === ".certificate-a4-paper" };
+      const element = direct ? paper : {
+        matches: () => false,
+        querySelector: (selector) => selector === ".certificate-a4-paper" ? paper : null,
+      };
+      const viewport = { style: {} };
+      const clone = {
+        style: { transform: "scale(0.5)" },
+        closest(selector) {
+          assert.equal(selector, ".certificate-a4-viewport");
+          return viewport;
+        },
+      };
+      let imageArgs;
+      const { downloadCertificatePdf } = load("components/CertificatePdfDownload.tsx", {
+        html2canvas: async (target, options) => {
+          assert.strictEqual(target, paper);
+          assert.equal(options.windowWidth, 794);
+          options.onclone({ documentElement: { classList: { remove() {} } } }, clone);
+          assert.equal(clone.style.width, "210mm");
+          assert.equal(clone.style.maxWidth, "none");
+          assert.equal(clone.style.position, "static");
+          assert.equal(clone.style.transform, "none");
+          assert.deepEqual(viewport.style, {
+            width: "210mm", maxWidth: "none", height: "auto", overflow: "visible",
+          });
+          return { width: 1588, height: 2246, toDataURL: () => "data:image/png;base64,test" };
+        },
+        jspdf: { jsPDF: class {
+          internal = { pageSize: { getWidth: () => 210, getHeight: () => 297 } };
+          addImage(...args) { imageArgs = args; }
+          save() {}
+        } },
+      });
+      await downloadCertificatePdf(element, "Recipient");
+      assert.ok(imageArgs[2] < 0.1);
+      assert.equal(imageArgs[3], 0);
+      assert.ok(imageArgs[4] > 209.9);
+      assert.equal(imageArgs[5], 297);
+    }
+  } finally {
+    global.document = originalDocument;
+  }
+});
+
 test("PDF download control reports capture failures and always clears its busy state", async () => {
   const originalDocument = global.document;
   global.document = { fonts: { ready: Promise.resolve() } };
@@ -372,7 +532,10 @@ test("PDF download control reports capture failures and always clears its busy s
       html2canvas: async () => { throw new Error("Capture failed"); },
       jspdf: { jsPDF: class {} },
     }).default;
-    const tree = Button({ certificateRef: { current: {} }, recipientName: "Recipient" });
+    const tree = Button({
+      certificateRef: { current: { matches: () => false, querySelector: () => null } },
+      recipientName: "Recipient",
+    });
     await tree.props.children[0].props.onClick();
     assert.equal(state[0], false);
     assert.equal(state[1], "Unable to download PDF: Capture failed");
@@ -389,6 +552,16 @@ test("all certificate views wire PDF download to their certificate capture eleme
     assert.match(button.getText(source), /certificateRef=\{certificatePreviewRef\}/);
     findNode(source, (node) => ts.isJsxAttribute(node) &&
       node.getText(source) === "ref={certificatePreviewRef}");
+  }
+});
+
+test("verification views pass their QR footer into the A4 certificate renderer", () => {
+  for (const file of ["app/renderer/page.tsx", "app/verify/page.tsx", "components/CertificatePreviewModal.tsx"]) {
+    const source = sourceFile(file);
+    const renderer = findNode(source, (node) => ts.isJsxSelfClosingElement(node) &&
+      node.tagName.getText(source) === "CertificateTemplateRenderer");
+    assert.match(renderer.getText(source), /verificationFooterUrl=\{verificationUrl\}/, file);
+    assert.doesNotMatch(source.text, /<QRCodeSVG/, file);
   }
 });
 
@@ -658,10 +831,12 @@ test("dashboard revocation retains the row after success and reports server fail
 test("shared popup preserves gallery layout, PDF capture, verification URL and accurate status", () => {
   const site = load("lib/site.ts");
   let renderedCertificate;
+  let renderedFooterUrl;
   const Modal = load("components/CertificatePreviewModal.tsx", {
     "../app/templates": {
-      CertificateTemplateRenderer({ certificate }) {
+      CertificateTemplateRenderer({ certificate, verificationFooterUrl }) {
         renderedCertificate = certificate;
+        renderedFooterUrl = verificationFooterUrl;
         return React.createElement("div", null, certificate.description);
       },
       resolveTemplateId: (id) => id,
@@ -684,5 +859,6 @@ test("shared popup preserves gallery layout, PDF capture, verification URL and a
     assert.equal(html.includes(">Valid</span>"), status === "issued");
     assert.equal(html.includes(">Revoked</span>"), status !== "issued");
     assert.equal(renderedCertificate.verificationUrl, site.buildVerificationUrl("", "certificate-id"));
+    assert.equal(renderedFooterUrl, renderedCertificate.verificationUrl);
   }
 });

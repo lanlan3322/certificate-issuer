@@ -9,12 +9,29 @@ export async function downloadCertificatePdf(element: HTMLElement, recipientName
     import("html2canvas"),
     import("jspdf"),
   ]);
-  const canvas = await html2canvas(element, {
+  const paper = element.matches(".certificate-a4-paper")
+    ? element
+    : element.querySelector<HTMLElement>(".certificate-a4-paper");
+  const canvas = await html2canvas(paper ?? element, {
     scale: 2,
     useCORS: true,
     backgroundColor: "#ffffff",
-    onclone: (clonedDocument) => {
+    ...(paper ? { windowWidth: Math.ceil((210 / 25.4) * 96) } : {}),
+    onclone: (clonedDocument, clonedElement) => {
       clonedDocument.documentElement.classList.remove("dark");
+      if (paper) {
+        clonedElement.style.width = "210mm";
+        clonedElement.style.maxWidth = "none";
+        clonedElement.style.position = "static";
+        clonedElement.style.transform = "none";
+        const viewport = clonedElement.closest<HTMLElement>(".certificate-a4-viewport");
+        if (viewport) {
+          viewport.style.width = "210mm";
+          viewport.style.maxWidth = "none";
+          viewport.style.height = "auto";
+          viewport.style.overflow = "visible";
+        }
+      }
     },
   });
   if (!canvas.width || !canvas.height) {

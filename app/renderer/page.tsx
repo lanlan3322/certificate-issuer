@@ -1,7 +1,6 @@
 "use client";
 
 import { connectToParent } from "penpal";
-import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import CertificateTemplateRenderer from "../templates/CertificateTemplateRenderer";
 import { resolveTemplateIssuer } from "../templates/registry";
@@ -87,33 +86,12 @@ export default function EmbeddedRendererPage() {
   return (
     <div ref={container} className="bg-white text-gray-900" id="rendered-certificate">
       {certificate ? (
-        <div className="certificate-paper mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm]">
-          <div className="flex-1">
-            <CertificateTemplateRenderer
-              certificate={certificate}
-              footerIssuerName={resolveTemplateIssuer(certificate.templateId)}
-            />
-          </div>
-          {certificate.templateId !== "fta" && (
-            <div className="mt-8 flex items-end gap-6 border-t border-gray-200 pt-5">
-              <div className="flex shrink-0 flex-col items-center gap-2">
-                <QRCodeSVG value={verificationUrl} size={86} level="M" includeMargin />
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                  Scan to verify
-                </span>
-              </div>
-              <div className="min-w-0 flex-1 text-xs text-gray-500">
-                <p className="font-semibold text-gray-700">Digital signature and verification</p>
-                <div className="mt-5 max-w-xs border-b border-gray-500 pb-1 text-base italic text-gray-800">
-                  {certificate.issuerName}
-                </div>
-                <p className="mt-1 font-medium text-gray-700">{certificate.issuerName}</p>
-                <p className="mt-1">Issued to {certificate.recipientName}</p>
-                <p className="mt-1 break-all">ID: {certificate.id}</p>
-                <p className="mt-1 break-all">{verificationUrl}</p>
-              </div>
-            </div>
-          )}
+        <div className="certificate-paper mx-auto w-full max-w-[210mm] bg-white">
+          <CertificateTemplateRenderer
+            certificate={certificate}
+            footerIssuerName={resolveTemplateIssuer(certificate.templateId)}
+            verificationFooterUrl={verificationUrl}
+          />
         </div>
       ) : !embedded ? (
         <p className="p-8 text-sm text-gray-600">

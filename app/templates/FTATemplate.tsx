@@ -1,7 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import { QRCodeSVG } from "qrcode.react";
 import { formatDate } from "../../lib/certificate";
+import { withBasePath } from "../../lib/site";
+import { getCertificateTextDensity } from "./text-density";
 import { CertificateTemplateData, Theme } from "./types";
 
 interface TemplateProps {
@@ -10,67 +13,99 @@ interface TemplateProps {
 }
 
 export default function FTATemplate({ certificate }: TemplateProps) {
+  const { compact, dense, veryDense, extremelyDense } = getCertificateTextDensity(
+    certificate.recipientName, certificate.description, certificate.certificateNo
+  );
+  const nameSize = extremelyDense ? "text-xs" : veryDense ? "text-sm" : dense ? "text-lg" : compact
+    ? "text-3xl"
+    : "text-4xl";
+  const courseSize = extremelyDense ? "text-[10px]" : veryDense ? "text-xs" : dense ? "text-base" : compact
+    ? "text-xl"
+    : "text-3xl";
+  const footerSpacing = dense ? "pt-4" : compact ? "pt-8" : "pt-16";
+
   return (
-    <div className="box-border flex h-full min-h-0 flex-col border-2 border-[#d9c46a] bg-white px-6 py-8 text-center shadow-sm sm:px-12 sm:py-10">
-      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
-        <div className="mt-4 mb-20 flex h-20 shrink-0 items-center justify-center gap-5 sm:mb-24 sm:gap-7">
-          <p className="font-sans text-7xl font-extrabold leading-[0.82] tracking-[-0.06em] text-[#c8102e] sm:text-8xl">
+    <div className="box-border flex flex-1 flex-col border-2 border-[#d9c46a] bg-white px-12 py-10 text-center shadow-sm">
+      <div className="mx-auto grid w-full max-w-3xl flex-1 grid-rows-[minmax(min-content,1fr)_auto_minmax(min-content,1fr)]">
+        <div className="certificate-header mt-4 flex h-20 items-center justify-center gap-7 self-start">
+          <p className="font-sans text-8xl font-extrabold leading-[0.82] tracking-[-0.06em] text-[#c8102e]">
             FTA
           </p>
           <div className="h-14 w-px bg-[#c9c9c9]" />
           <div className="text-left font-sans uppercase leading-[1.02]">
-            <p className="text-2xl font-medium tracking-[0.2em] text-[#c8102e] sm:text-3xl">
+            <p className="text-3xl font-medium tracking-[0.2em] text-[#c8102e]">
               FINTECH
             </p>
-            <p className="mt-1 text-2xl font-light tracking-[0.2em] text-[#929292] sm:text-3xl">
+            <p className="mt-1 text-3xl font-light tracking-[0.2em] text-[#929292]">
               ACADEMY
             </p>
           </div>
         </div>
 
-        <div className="flex flex-col items-center text-[#242424]">
-          <p className="text-xl italic sm:text-2xl">This is to certify that</p>
-          <p className="mt-2 text-3xl font-bold italic leading-tight sm:text-4xl">
+        <div className="certificate-main flex min-w-0 flex-col items-center text-[#242424]">
+          <p className="text-2xl italic">This is to certify that</p>
+          <p className={`mt-2 max-w-full break-words font-bold italic leading-tight ${nameSize}`}>
             {certificate.recipientName}
           </p>
 
-          <p className="mt-5 text-lg italic text-[#4a4a4a] sm:mt-6 sm:text-2xl">
+          <p className="mt-6 text-2xl italic text-[#4a4a4a]">
             has successfully completed the course
           </p>
-          <p className="mx-auto mt-3 max-w-2xl text-2xl font-bold leading-tight sm:text-3xl">
+          <p className={`mx-auto mt-3 max-w-2xl break-words font-bold leading-tight ${courseSize}`}>
             {certificate.description}
           </p>
 
           {certificate.courseLength != null && (
-            <p className="mt-2 text-lg sm:text-xl">({certificate.courseLength} hours)</p>
+            <p className="mt-2 text-xl">({certificate.courseLength} hours)</p>
           )}
-          <p className="mt-1 text-lg sm:text-xl">Accredited by IBF</p>
+          <p className="mt-1 text-xl">Accredited by IBF</p>
           {certificate.certificateNo && (
-            <p className="mt-4 text-sm font-semibold sm:text-base">({certificate.certificateNo})</p>
+            <p className={`mt-4 max-w-full break-all font-semibold ${extremelyDense ? "text-[10px] leading-tight" : veryDense ? "text-xs" : "text-base"}`}>
+              ({certificate.certificateNo})
+            </p>
           )}
-          <p className="mt-3 text-sm sm:text-base">{formatDate(certificate.issueDate)}</p>
+          <p className="mt-3 text-base">{formatDate(certificate.issueDate)}</p>
         </div>
 
-        <div className="mt-auto grid shrink-0 grid-cols-[minmax(0,1.2fr)_minmax(112px,0.8fr)] items-end gap-3 pt-16 sm:gap-6">
+        <div className={`certificate-footer grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)] items-end gap-4 self-end ${footerSpacing}`}>
+          <div className="flex min-w-0 flex-col items-center gap-2">
+            {certificate.verificationUrl && (
+              <>
+                <QRCodeSVG
+                  value={certificate.verificationUrl}
+                  size={128}
+                  level="M"
+                  includeMargin
+                  role="img"
+                  aria-label="Certificate verification QR code"
+                  className="h-auto w-full max-w-[128px]"
+                />
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-600">
+                  Scan to verify
+                </p>
+              </>
+            )}
+          </div>
+
           <div className="min-w-0 text-center">
             <Image
-              src="/fta-signature.png"
+              src={withBasePath("/fta-signature.png")}
               alt="Dr. Lillian Koh's signature"
               width={200}
               height={68}
-              className="mx-auto h-14 w-44 object-contain sm:h-16 sm:w-48"
+              className="mx-auto h-16 w-48 max-w-full object-contain"
             />
             <div className="mx-auto mt-1 h-0.5 w-48 max-w-full bg-gray-400" />
-            <p className="mt-2 text-base font-medium leading-tight sm:text-lg">
+            <p className="mt-2 text-lg font-medium leading-tight">
               Dr. Lillian Koh, Ph.D
             </p>
-            <p className="text-sm leading-tight sm:text-base">CEO, Fintech Academy</p>
-            <p className="mt-1 text-sm font-bold sm:text-base">{formatDate(certificate.issueDate)}</p>
+            <p className="text-base leading-tight">CEO, Fintech Academy</p>
+            <p className="mt-1 text-base font-bold">{formatDate(certificate.issueDate)}</p>
           </div>
 
-          <div className="relative mx-auto flex aspect-square w-28 items-center justify-center rounded-full border-[9px] border-[#a70814] bg-[radial-gradient(circle_at_35%_30%,#ee4142,#c8102e_58%,#a00813)] text-center text-[#f4a1a1] shadow-[inset_0_2px_8px_rgba(80,0,0,0.45)] sm:w-36 sm:border-[11px]">
+          <div className="relative mx-auto flex aspect-square w-36 max-w-full items-center justify-center rounded-full border-[11px] border-[#a70814] bg-[radial-gradient(circle_at_35%_30%,#ee4142,#c8102e_58%,#a00813)] text-center text-[#f4a1a1] shadow-[inset_0_2px_8px_rgba(80,0,0,0.45)]">
             <div className="absolute inset-2 rounded-full border border-[#8f0711]/60" />
-            <p className="relative px-2 text-[9px] font-semibold uppercase leading-relaxed tracking-[0.12em] sm:text-[10px]">
+            <p className="relative px-2 text-[10px] font-semibold uppercase leading-relaxed tracking-[0.12em]">
               Fintech
               <br />
               Academy

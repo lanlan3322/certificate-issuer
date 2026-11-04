@@ -399,6 +399,56 @@ html.dark body {
 }
 
 /* Certificate specific styles */
+@page certificate {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  html:has(.certificate-a4-paper) {
+    overflow: visible;
+  }
+
+  body:has(.certificate-a4-paper) {
+    min-height: 0;
+    margin: 0;
+    overflow: visible;
+    background: white;
+  }
+
+  body:has(.certificate-a4-paper) :not(:has(.certificate-a4-paper)):not(.certificate-a4-paper):not(.certificate-a4-paper *) {
+    display: none !important;
+  }
+
+  body:has(.certificate-a4-paper) :has(.certificate-a4-paper) {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .certificate-a4-paper {
+    page: certificate;
+    position: static !important;
+    width: 210mm !important;
+    max-width: none !important;
+    min-height: 297mm;
+    transform: none !important;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 .certificate-border {
   border: 3px solid var(--secondary);
 }

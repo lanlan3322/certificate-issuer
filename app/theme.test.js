@@ -46,12 +46,14 @@ test("global dark theme never restyles certificate paper", () => {
 });
 
 test("certificate previews are marked as certificate paper", () => {
+  assert.match(read("app/templates/CertificatePaper.tsx"), /certificate-paper/);
+  for (const file of ["app/templates/CertificateTemplateRenderer.tsx", "app/templates/builder/page.tsx"]) {
+    assert.match(read(file), /<CertificatePaper/, file);
+  }
   for (const file of [
-    "app/templates/CertificateTemplateRenderer.tsx",
     "app/verify/page.tsx",
     "app/insurance/page.tsx",
     "app/renderer/page.tsx",
-    "app/templates/builder/page.tsx",
     "components/CertificatePreviewModal.tsx",
   ]) {
     assert.match(read(file), /certificate-paper/, file);

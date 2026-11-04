@@ -93,6 +93,10 @@ PDF downloads are available in the insurance certificate preview, dashboard and
 gallery popups, and verification preview. The dashboard and gallery share the
 same certificate popup. Revoked dashboard certificates remain viewable, but their
 Revoke action is hidden. Exports fit the certificate proportionally on A4.
+Certificate templates use an A4 portrait layout with centered main text. Previews
+scale to fit narrow screens while PDF downloads and browser printing use the
+full-size page. Longer names and course descriptions use smaller type to help keep
+the content and verification details on the page.
 
 ## Tech Stack
 

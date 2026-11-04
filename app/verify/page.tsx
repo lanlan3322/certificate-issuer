@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import { CheckCircle, Upload, FileJson, AlertCircle, ShieldCheck, XCircle, X } from "lucide-react";
 import CertificateTemplateRenderer from "../templates/CertificateTemplateRenderer";
 import CertificatePdfDownload from "../../components/CertificatePdfDownload";
@@ -431,29 +430,9 @@ export default function VerifyPage() {
             <div className="overflow-y-auto bg-gray-100 p-4 sm:p-8">
               <div
                 ref={certificatePreviewRef}
-                className="certificate-paper mx-auto flex min-h-[297mm] w-full max-w-[210mm] flex-col bg-white p-[14mm] text-gray-900 shadow-lg"
+                className="certificate-paper mx-auto w-full max-w-[210mm] bg-white text-gray-900 shadow-lg"
               >
-                <div className="flex-1">
-                  <CertificateTemplateRenderer certificate={certificateForView} />
-                </div>
-                <div className={`${certificateForView.templateId === "fta" ? "hidden" : "mt-8 flex"} items-end gap-6 border-t border-gray-200 pt-5`}>
-                  <div className="flex shrink-0 flex-col items-center gap-2">
-                    <QRCodeSVG value={verificationUrl} size={86} level="M" includeMargin />
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                      Scan to verify
-                    </span>
-                  </div>
-                  <div className="min-w-0 flex-1 text-xs text-gray-500">
-                    <p className="font-semibold text-gray-700">Digital signature and verification</p>
-                    <div className="mt-5 max-w-xs border-b border-gray-500 pb-1 text-base italic text-gray-800">
-                      {certificateForView.issuerName}
-                    </div>
-                    <p className="mt-1 font-medium text-gray-700">{certificateForView.issuerName}</p>
-                    <p className="mt-1">Issued to {certificateForView.recipientName}</p>
-                    <p className="mt-1 break-all">ID: {certificateForView.id}</p>
-                    <p className="mt-1 break-all">{verificationUrl}</p>
-                  </div>
-                </div>
+                <CertificateTemplateRenderer certificate={certificateForView} verificationFooterUrl={verificationUrl} />
               </div>
             </div>
           </div>
