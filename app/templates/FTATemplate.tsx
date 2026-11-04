@@ -87,7 +87,7 @@ export default function FTATemplate({ certificate }: TemplateProps) {
             )}
           </div>
 
-          <div className="min-w-0 text-center">
+          <div className="min-w-0 text-center text-[#111827]">
             <Image
               src={withBasePath("/fta-signature.png")}
               alt="Dr. Lillian Koh's signature"
