@@ -37,10 +37,10 @@ BEGIN
     VALUES (
       target_issuer,
       'fta',
-      'FTA Academy',
+      'Fintech Academy',
       'Formal academy-style certificate with signature and seal footer.',
       jsonb_build_object(
-        'name', 'FTA Academy',
+        'name', 'Fintech Academy',
         'description', 'Formal academy-style certificate with signature and seal footer.',
         'renderer', 'fta',
         'organizationName', 'Fintech Academy'
@@ -54,7 +54,7 @@ BEGIN
     INSERT INTO public.audit_logs (organization_id, issuer_id, action, entity_type, entity_id, metadata)
       VALUES (
         target_organization, target_issuer, 'template.saved', 'template', saved_template,
-        jsonb_build_object('slug', 'fta', 'name', 'FTA Academy', 'source', '013_fintech_academy_fta_template')
+        jsonb_build_object('slug', 'fta', 'name', 'Fintech Academy', 'source', '013_fintech_academy_fta_template')
       );
   ELSE
     PERFORM 1 FROM public.templates

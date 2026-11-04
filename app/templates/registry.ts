@@ -18,7 +18,7 @@ export const TEMPLATE_OPTIONS: TemplateOption[] = [
   },
   {
     id: "fta",
-    label: "FTA Academy",
+    label: "Fintech Academy",
     description: "Formal academy-style certificate with signature and seal footer.",
   },
 ];

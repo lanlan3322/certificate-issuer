@@ -41,7 +41,7 @@ test("FTA is linked only to Laurence in Fintech Academy and repeated execution i
   const first = (await db.query("SELECT * FROM templates")).rows[0];
   assert.equal(first.issuer_id, issuer);
   assert.equal(first.slug, "fta");
-  assert.equal(first.name, "FTA Academy");
+  assert.equal(first.name, "Fintech Academy");
   assert.equal(first.is_active, true);
   assert.equal(first.definition.renderer, "fta");
   assert.equal(first.issuer_profile_id, null);

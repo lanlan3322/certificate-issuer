@@ -54,7 +54,7 @@ test("multi-issuer migration creates profile records and enforces tenant/templat
   await db.query(
     `INSERT INTO issuer_profiles
       (id, owner_issuer_id, issuer_name, display_name, did, verification_method, key_reference)
-      VALUES ($1,$2,'FTA Academy','FTA Academy','did:web:fta.verifiable.sg',
+      VALUES ($1,$2,'Fintech Academy','Fintech Academy','did:web:fta.verifiable.sg',
         'did:web:fta.verifiable.sg#key-1','FTA_SIGNING_KEY')`,
     [profile, issuerA]
   );

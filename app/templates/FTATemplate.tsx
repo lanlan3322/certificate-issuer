@@ -58,7 +58,7 @@ export default function FTATemplate({ certificate }: TemplateProps) {
           {certificate.courseLength != null && (
             <p className="mt-1.5 text-xl">({certificate.courseLength} hours)</p>
           )}
-          <p className="mt-0.5 text-xl">Accredited by IBF</p>
+          <p className="mt-0.5 text-2xl">Accredited by <strong className="font-bold">IBF</strong></p>
           {certificate.certificateNo && (
             <p className={`mt-5 max-w-full break-all font-semibold ${extremelyDense ? "text-[10px] leading-tight" : veryDense ? "text-xs" : "text-base"}`}>
               ({certificate.certificateNo})
@@ -103,16 +103,14 @@ export default function FTATemplate({ certificate }: TemplateProps) {
             <p className="mt-1 text-base font-bold">{formatDate(certificate.issueDate)}</p>
           </div>
 
-          <div className="relative mx-auto flex aspect-square w-36 max-w-full items-center justify-center rounded-full border-[11px] border-[#a70814] bg-[radial-gradient(circle_at_35%_30%,#ee4142,#c8102e_58%,#a00813)] text-center text-[#f4a1a1] shadow-[inset_0_2px_8px_rgba(80,0,0,0.45)]">
-            <div className="absolute inset-2 rounded-full border border-[#8f0711]/60" />
-            <p className="relative px-2 text-[10px] font-semibold uppercase leading-relaxed tracking-[0.12em]">
-              Fintech
-              <br />
-              Academy
-              <br />
-              Certified
-            </p>
-          </div>
+          <Image
+            src={withBasePath("/fta-seal.png")}
+            alt="Fintech Academy certificate seal"
+            width={170}
+            height={172}
+            loading="eager"
+            className="mx-auto h-auto w-44 max-w-full object-contain"
+          />
         </div>
       </div>
     </div>

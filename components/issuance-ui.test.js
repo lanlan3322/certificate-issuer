@@ -689,7 +689,7 @@ test("dashboard headers match every cell and revoked rows hide Revoke but retain
       .map((match) => match[1].replace(/<span aria-hidden="true">.*?<\/span>/g, "").replace(/<[^>]+>/g, "").trim());
     assert.deepEqual(headers, ["Recipient", "Email", "Template", "Status", "Issued", "View", "Actions", "Send"]);
     assert.equal((html.match(/<td\b/g) ?? []).length, headers.length);
-    assert.match(html, />FTA Academy<\/td>/);
+    assert.match(html, />Fintech Academy<\/td>/);
     assert.match(html, /title="View certificate details"/);
     assert.equal(html.includes('title="Revoke certificate"'), status === "issued");
   }
@@ -713,7 +713,7 @@ test("shared table shows loading, errors, empty states and template labels", () 
   assert.match(failed, /role="alert"/);
   assert.doesNotMatch(failed, /No certificates have been issued/);
   for (const [signedTemplate, savedTemplate, expectedLabel] of [
-    ["fta", "00000000-0000-4000-8000-000000000001", "FTA Academy"],
+    ["fta", "00000000-0000-4000-8000-000000000001", "Fintech Academy"],
     ["modern", "fta", "Modern Gradient"],
     [undefined, "minimal", "Minimal Mono"],
     [undefined, "00000000-0000-4000-8000-000000000001", "Not recorded"],
@@ -740,7 +740,7 @@ test("certificate search filters displayed fields without mutating records and c
   ];
   const original = JSON.stringify(rows);
   for (const [query, ids] of [
-    ["  ALICE ", ["a"]], ["test@example", ["z", "a", "b"]], ["fta academy", ["z", "a", "b"]],
+    ["  ALICE ", ["a"]], ["test@example", ["z", "a", "b"]], ["fintech academy", ["z", "a", "b"]],
     ["revoked", ["a"]], ["2025-12", ["z"]], ["certificate-id", ["z", "a", "b"]],
     ["nonexistent", []], ["  ", ["z", "a", "b"]],
   ]) {
@@ -805,7 +805,7 @@ test("mounting the shared table never starts realtime verification or network re
   try {
     const html = renderToStaticMarkup(Table({ credentials: [dashboardCredential], onCredentialsChange() {} }));
     assert.doesNotMatch(html, /Blockchain verified|DID verified|Checking/);
-    assert.match(html, /FTA Academy/);
+    assert.match(html, /Fintech Academy/);
     assert.equal((html.match(/<td\b/g) ?? []).length, 8);
   } finally {
     global.fetch = originalFetch;

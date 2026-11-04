@@ -30,8 +30,8 @@ test("issuer profile API scopes callers, redacts key references, and accepts ref
   const roles = [];
   let userRoles = ["issuer-admin"];
   const records = [{
-    id: "profile", ownerIssuerId: "issuer", issuerName: "FTA Academy",
-    displayName: "FTA Academy", did: "did:web:fta.verifiable.sg",
+    id: "profile", ownerIssuerId: "issuer", issuerName: "Fintech Academy",
+    displayName: "Fintech Academy", did: "did:web:fta.verifiable.sg",
     verificationMethod: "did:web:fta.verifiable.sg#key-1", keyReference: "FTA_SIGNING_KEY",
     active: true, createdAt: "now", updatedAt: "now",
   }];
@@ -72,7 +72,7 @@ test("issuer profile API scopes callers, redacts key references, and accepts ref
   const listed = await route.GET(new Request("https://verifiable.sg/api/issuer-profiles"));
   assert.equal(listed.status, 200);
   const listPayload = await listed.json();
-  assert.equal(listPayload.issuerProfiles[0].displayName, "FTA Academy");
+  assert.equal(listPayload.issuerProfiles[0].displayName, "Fintech Academy");
   assert.equal(listPayload.canManage, true);
   assert.equal("keyReference" in listPayload.issuerProfiles[0], false);
   assert.deepEqual(calls[0], ["list", "issuer", { includeInactive: false }]);
@@ -83,8 +83,8 @@ test("issuer profile API scopes callers, redacts key references, and accepts ref
   userRoles = ["issuer-admin"];
 
   const body = {
-    issuerName: "FTA Academy",
-    displayName: "FTA Academy",
+    issuerName: "Fintech Academy",
+    displayName: "Fintech Academy",
     did: "did:web:fta.verifiable.sg",
     verificationMethod: "did:web:fta.verifiable.sg#key-1",
     keyReference: "FTA_SIGNING_KEY",

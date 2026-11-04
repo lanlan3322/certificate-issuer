@@ -10,7 +10,7 @@ const javascript = ts.transpileModule(readFileSync(`${__dirname}/page.tsx`, "utf
 }).outputText;
 
 const templates = [
-  { id: "saved-fta", slug: "fta", name: "FTA Academy", description: "Academy certificate." },
+  { id: "saved-fta", slug: "fta", name: "Fintech Academy", description: "Academy certificate." },
   { id: "saved-modern", slug: "modern", name: "Modern Training", description: "Modern certificate." },
 ];
 
@@ -49,7 +49,7 @@ test("Branding defaults to the first saved template and passes its layout slug t
   const { html, previews } = setup();
   const output = html();
   assert.match(output, /value="saved-fta" selected=""/);
-  assert.match(output, /FTA Academy preview/);
+  assert.match(output, /Fintech Academy preview/);
   assert.match(output, /Academy certificate/);
   assert.equal(previews.length, 1);
   assert.equal(previews[0].templateId, "fta");

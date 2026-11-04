@@ -30,8 +30,8 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
   const profile = {
     id: "profile-id",
     ownerIssuerId: "issuer-id",
-    issuerName: "FTA Academy",
-    displayName: "FTA Academy",
+    issuerName: "Fintech Academy",
+    displayName: "Fintech Academy",
     did: "did:web:fta.verifiable.sg",
     verificationMethod: "did:web:fta.verifiable.sg#key-1",
     documentStoreAddress: "0x0000000000000000000000000000000000000001",
