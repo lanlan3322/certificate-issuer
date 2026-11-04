@@ -1,6 +1,6 @@
 "use client";
 
-import { QRCodeSVG } from "qrcode.react";
+import Image from "next/image";
 import { formatDate } from "../../lib/certificate";
 import { CertificateTemplateData, Theme } from "./types";
 
@@ -9,80 +9,74 @@ interface TemplateProps {
   theme?: Theme;
 }
 
-export default function FTATemplate({ certificate, theme }: TemplateProps) {
-  const t = theme ?? "sepia";
-
-  const bg = t === "dark"
-    ? "box-border flex h-full min-h-0 flex-col border-2 border-[#e8c85a] bg-gradient-to-br from-slate-900 via-slate-800 to-gray-900 px-8 py-10 text-center shadow-xl sm:px-14 sm:py-12"
-    : t === "light"
-      ? "box-border flex h-full min-h-0 flex-col border-2 border-[#a89040] bg-white px-8 py-10 text-center shadow-sm sm:px-14 sm:py-12"
-      : "box-border flex h-full min-h-0 flex-col border-2 border-[#d9c46a] bg-white px-8 py-10 text-center shadow-sm sm:px-14 sm:py-12";
-
-  const accentColor = t === "dark" ? "#f0e68c" : "#d71920";
-  const dividerLine = t === "dark"
-    ? "h-16 w-0.5 self-center bg-slate-600"
-    : t === "sepia"
-      ? "h-16 w-0.5 self-center bg-[#c9c9c9]"
-      : "h-16 w-0.5 self-center bg-gray-300";
-
-  const subtextColor = t === "dark" ? "text-gray-300" : "text-gray-600";
-  const darkText = t === "dark" ? "text-white" : "text-gray-900";
-  const bodyTextColor = t === "dark" ? "text-white" : subtextColor;
-
+export default function FTATemplate({ certificate }: TemplateProps) {
   return (
-    <div className={bg}>
+    <div className="box-border flex h-full min-h-0 flex-col border-2 border-[#d9c46a] bg-white px-6 py-8 text-center shadow-sm sm:px-12 sm:py-10">
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
-        <div className="mb-12 grid h-24 shrink-0 grid-cols-[auto_2px_auto] items-center justify-center gap-8">
-          <p className="relative -top-2 flex h-full items-center font-sans text-8xl font-extrabold leading-[0.82] tracking-[-0.06em]" style={{ color: accentColor }}>
+        <div className="mt-4 mb-20 flex h-20 shrink-0 items-center justify-center gap-5 sm:mb-24 sm:gap-7">
+          <p className="font-sans text-7xl font-extrabold leading-[0.82] tracking-[-0.06em] text-[#c8102e] sm:text-8xl">
             FTA
           </p>
-          <div className={dividerLine} />
-          <div className="relative -top-1 flex h-full flex-col justify-center text-left font-sans uppercase leading-[1.02]">
-            <p className="text-4xl font-medium tracking-[0.24em]" style={{ color: accentColor }}>
+          <div className="h-14 w-px bg-[#c9c9c9]" />
+          <div className="text-left font-sans uppercase leading-[1.02]">
+            <p className="text-2xl font-medium tracking-[0.2em] text-[#c8102e] sm:text-3xl">
               FINTECH
             </p>
-            <p className={`mt-2 text-4xl font-light tracking-[0.24em] ${t === "dark" ? "text-gray-400" : "text-[#929292]"}`}>
+            <p className="mt-1 text-2xl font-light tracking-[0.2em] text-[#929292] sm:text-3xl">
               ACADEMY
             </p>
           </div>
         </div>
 
-        <p className={`text-2xl italic ${subtextColor}`}>This is to certify that</p>
-        <p className={`mt-4 text-5xl font-bold italic leading-tight ${darkText}`}>{certificate.recipientName}</p>
+        <div className="flex flex-col items-center text-[#242424]">
+          <p className="text-xl italic sm:text-2xl">This is to certify that</p>
+          <p className="mt-2 text-3xl font-bold italic leading-tight sm:text-4xl">
+            {certificate.recipientName}
+          </p>
 
-        <p className={`mt-10 text-2xl ${subtextColor}`}>has successfully completed the course</p>
-        <p className={`mx-auto mt-5 max-w-2xl text-4xl font-bold leading-tight ${darkText}`}>
-          {certificate.description}
-        </p>
+          <p className="mt-5 text-lg italic text-[#4a4a4a] sm:mt-6 sm:text-2xl">
+            has successfully completed the course
+          </p>
+          <p className="mx-auto mt-3 max-w-2xl text-2xl font-bold leading-tight sm:text-3xl">
+            {certificate.description}
+          </p>
 
-        <p className={`mt-6 text-2xl font-medium ${subtextColor}`}>(<span style={{ color: accentColor }}>{certificate.certificateType}</span>)</p>
-        <p className="mt-3 text-xl text-gray-600">
-          ({certificate.courseLength && <> · {certificate.courseLength}</>} hours)
-        </p>
-        <p className="mt-3 text-xl text-gray-600">Accredited by IBF</p>
-        {certificate.certificateNo && <p className={`mt-2 text-lg ${t === "dark" ? "text-gray-400" : "text-gray-500"}`}>( {certificate.certificateNo} )</p>}
-        <p className={`mt-4 text-lg ${t === "dark" ? "text-gray-400" : "text-gray-500"}`}>{formatDate(certificate.issueDate)}</p>
+          {certificate.courseLength != null && (
+            <p className="mt-2 text-lg sm:text-xl">({certificate.courseLength} hours)</p>
+          )}
+          <p className="mt-1 text-lg sm:text-xl">Accredited by IBF</p>
+          {certificate.certificateNo && (
+            <p className="mt-4 text-sm font-semibold sm:text-base">({certificate.certificateNo})</p>
+          )}
+          <p className="mt-3 text-sm sm:text-base">{formatDate(certificate.issueDate)}</p>
+        </div>
 
-        <div className={`mt-10 grid shrink-0 grid-cols-[128px_minmax(0,1fr)_160px] items-end gap-6 border-t-2 ${t === "dark" ? "border-slate-700" : "border-gray-200"} pt-8 sm:gap-8`}>
-          <div className="flex flex-col items-center gap-3">
-            {certificate.verificationUrl ? (
-              <QRCodeSVG value={certificate.verificationUrl} size={128} level="M" includeMargin />
-            ) : (
-              <div className="h-[128px] w-[128px]" />
-            )}
-            <p className={`text-xs font-semibold uppercase tracking-wider ${subtextColor}`}>Scan to verify</p>
-          </div>
-
+        <div className="mt-auto grid shrink-0 grid-cols-[minmax(0,1.2fr)_minmax(112px,0.8fr)] items-end gap-3 pt-16 sm:gap-6">
           <div className="min-w-0 text-center">
-            <p className="font-signature text-6xl leading-none text-blue-700">L. Koh</p>
-            <div className={`mx-auto mt-4 h-0.5 w-48 ${t === "dark" ? "bg-slate-500" : "bg-gray-400"}`} />
-            <p className={`mt-3 text-lg font-medium leading-tight ${darkText}`}>Dr. Lillian Koh, Ph.D</p>
-            <p className="text-base text-gray-600">CEO, Fintech Academy</p>
-            <p className={`mt-2 whitespace-nowrap text-base ${subtextColor}`}>{formatDate(certificate.issueDate)}</p>
+            <Image
+              src="/fta-signature.png"
+              alt="Dr. Lillian Koh's signature"
+              width={200}
+              height={68}
+              className="mx-auto h-14 w-44 object-contain sm:h-16 sm:w-48"
+            />
+            <div className="mx-auto mt-1 h-0.5 w-48 max-w-full bg-gray-400" />
+            <p className="mt-2 text-base font-medium leading-tight sm:text-lg">
+              Dr. Lillian Koh, Ph.D
+            </p>
+            <p className="text-sm leading-tight sm:text-base">CEO, Fintech Academy</p>
+            <p className="mt-1 text-sm font-bold sm:text-base">{formatDate(certificate.issueDate)}</p>
           </div>
 
-          <div className={`flex h-40 w-40 items-center justify-center rounded-full border-[12px] ${t === "dark" ? "border-[#f0e68c] bg-gradient-to-br from-[#d4a730] to-[#b8860b] text-slate-900 shadow-inner]" : "border-red-700 bg-red-600/90 text-red-100 shadow-inner"} text-center text-xs font-semibold uppercase tracking-widest`}>
-            Certificate
+          <div className="relative mx-auto flex aspect-square w-28 items-center justify-center rounded-full border-[9px] border-[#a70814] bg-[radial-gradient(circle_at_35%_30%,#ee4142,#c8102e_58%,#a00813)] text-center text-[#f4a1a1] shadow-[inset_0_2px_8px_rgba(80,0,0,0.45)] sm:w-36 sm:border-[11px]">
+            <div className="absolute inset-2 rounded-full border border-[#8f0711]/60" />
+            <p className="relative px-2 text-[9px] font-semibold uppercase leading-relaxed tracking-[0.12em] sm:text-[10px]">
+              Fintech
+              <br />
+              Academy
+              <br />
+              Certified
+            </p>
           </div>
         </div>
       </div>
