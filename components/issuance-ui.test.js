@@ -27,6 +27,30 @@ function load(relativePath, dependencies = {}) {
   return module.exports;
 }
 
+function createPdfCloneDocument() {
+  const removedClasses = [];
+  return {
+    removedClasses,
+    documentElement: { classList: { remove(value) { removedClasses.push(value); } } },
+  };
+}
+
+function createPdfDocument() {
+  const appendedStyles = [];
+  const removedStyles = [];
+  return {
+    fonts: { ready: Promise.resolve() },
+    appendedStyles,
+    removedStyles,
+    createElement(tag) {
+      assert.equal(tag, "style");
+      const style = { textContent: "", remove() { removedStyles.push(style); } };
+      return style;
+    },
+    head: { appendChild(style) { appendedStyles.push(style); } },
+  };
+}
+
 const constants = load("lib/constants.ts");
 const Selector = load("components/IssuingMethodSelector.tsx", {
   "../lib/constants": constants,
@@ -325,9 +349,10 @@ test("Ethereum batches request MetaMask per row and never replace the DID proof"
   }
 });
 
-test("PDF export fits certificates proportionally on A4 and sanitizes download names", async () => {
+test("PDF export fits A4, corrects font metrics, and sanitizes download names", async () => {
   const originalDocument = global.document;
-  global.document = { fonts: { ready: Promise.resolve() } };
+  const pdfDocument = createPdfDocument();
+  global.document = pdfDocument;
   try {
     for (const [width, height, expected] of [
       [1200, 600, [0, 96, 210, 105]],
@@ -341,9 +366,14 @@ test("PDF export fits certificates proportionally on A4 and sanitizes download n
         html2canvas: async (target, options) => {
           assert.strictEqual(target, element);
           assert.equal(options.scale, 2);
-          options.onclone({ documentElement: { classList: {
-            remove(value) { assert.equal(value, "dark"); clonedThemeRemoved = true; },
-          } } });
+          const clonedDocument = createPdfCloneDocument();
+          options.onclone(clonedDocument);
+          assert.deepEqual(clonedDocument.removedClasses, ["dark"]);
+          const fontMetricsStyle = pdfDocument.appendedStyles.at(-1);
+          assert.equal(fontMetricsStyle.textContent,
+            "body > div[style*=\"visibility: hidden\"] > img[width=\"1\"][height=\"1\"] { display: inline; }");
+          assert.equal(pdfDocument.removedStyles.includes(fontMetricsStyle), false);
+          clonedThemeRemoved = true;
           return { width, height, toDataURL: () => "data:image/png;base64,test" };
         },
         jspdf: { jsPDF: class {
@@ -356,6 +386,7 @@ test("PDF export fits certificates proportionally on A4 and sanitizes download n
       assert.deepEqual(imageArgs.slice(2, 6), expected);
       assert.equal(savedName, "certificate-Jane-Doe.pdf");
       assert.equal(clonedThemeRemoved, true);
+      assert.strictEqual(pdfDocument.removedStyles.at(-1), pdfDocument.appendedStyles.at(-1));
     }
   } finally {
     global.document = originalDocument;
@@ -469,7 +500,8 @@ test("A4 preview still fits the window without ResizeObserver", () => {
 
 test("PDF export captures every A4 template at full size even from a narrow preview", async () => {
   const originalDocument = global.document;
-  global.document = { fonts: { ready: Promise.resolve() } };
+  const pdfDocument = createPdfDocument();
+  global.document = pdfDocument;
   try {
     for (const [templateId, direct] of ["classic", "modern", "minimal", "fta"]
       .flatMap((name) => [[name, false], [name, true]])) {
@@ -491,7 +523,10 @@ test("PDF export captures every A4 template at full size even from a narrow prev
         html2canvas: async (target, options) => {
           assert.strictEqual(target, paper);
           assert.equal(options.windowWidth, 794);
-          options.onclone({ documentElement: { classList: { remove() {} } } }, clone);
+          const clonedDocument = createPdfCloneDocument();
+          options.onclone(clonedDocument, clone);
+          assert.deepEqual(clonedDocument.removedClasses, ["dark"]);
+          assert.equal(pdfDocument.removedStyles.includes(pdfDocument.appendedStyles.at(-1)), false);
           assert.equal(clone.style.width, "210mm");
           assert.equal(clone.style.maxWidth, "none");
           assert.equal(clone.style.position, "static");
@@ -512,7 +547,41 @@ test("PDF export captures every A4 template at full size even from a narrow prev
       assert.equal(imageArgs[3], 0);
       assert.ok(imageArgs[4] > 209.9);
       assert.equal(imageArgs[5], 297);
+      assert.strictEqual(pdfDocument.removedStyles.at(-1), pdfDocument.appendedStyles.at(-1));
     }
+  } finally {
+    global.document = originalDocument;
+  }
+});
+
+test("parallel PDF exports retain their font-metrics styles until each capture completes", async () => {
+  const originalDocument = global.document;
+  const pdfDocument = createPdfDocument();
+  global.document = pdfDocument;
+  try {
+    const captures = [];
+    const element = { matches: () => false, querySelector: () => null };
+    const { downloadCertificatePdf } = load("components/CertificatePdfDownload.tsx", {
+      html2canvas: () => new Promise((resolve) => captures.push(resolve)),
+      jspdf: { jsPDF: class {
+        internal = { pageSize: { getWidth: () => 210, getHeight: () => 297 } };
+        addImage() {}
+        save() {}
+      } },
+    });
+    const first = downloadCertificatePdf(element, "First");
+    const second = downloadCertificatePdf(element, "Second");
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(captures.length, 2);
+    assert.equal(pdfDocument.appendedStyles.length, 2);
+    assert.equal(pdfDocument.removedStyles.length, 0);
+    const canvas = { width: 100, height: 100, toDataURL: () => "data:image/png;base64,test" };
+    captures[0](canvas);
+    await first;
+    assert.deepEqual(pdfDocument.removedStyles, [pdfDocument.appendedStyles[0]]);
+    captures[1](canvas);
+    await second;
+    assert.deepEqual(pdfDocument.removedStyles, pdfDocument.appendedStyles);
   } finally {
     global.document = originalDocument;
   }
@@ -520,7 +589,8 @@ test("PDF export captures every A4 template at full size even from a narrow prev
 
 test("PDF download control reports capture failures and always clears its busy state", async () => {
   const originalDocument = global.document;
-  global.document = { fonts: { ready: Promise.resolve() } };
+  const pdfDocument = createPdfDocument();
+  global.document = pdfDocument;
   try {
     const state = [];
     let index = 0;
@@ -539,6 +609,8 @@ test("PDF download control reports capture failures and always clears its busy s
     await tree.props.children[0].props.onClick();
     assert.equal(state[0], false);
     assert.equal(state[1], "Unable to download PDF: Capture failed");
+    assert.equal(pdfDocument.appendedStyles.length, 1);
+    assert.deepEqual(pdfDocument.removedStyles, pdfDocument.appendedStyles);
   } finally {
     global.document = originalDocument;
   }

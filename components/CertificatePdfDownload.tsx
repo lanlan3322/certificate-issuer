@@ -12,28 +12,38 @@ export async function downloadCertificatePdf(element: HTMLElement, recipientName
   const paper = element.matches(".certificate-a4-paper")
     ? element
     : element.querySelector<HTMLElement>(".certificate-a4-paper");
-  const canvas = await html2canvas(paper ?? element, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    ...(paper ? { windowWidth: Math.ceil((210 / 25.4) * 96) } : {}),
-    onclone: (clonedDocument, clonedElement) => {
-      clonedDocument.documentElement.classList.remove("dark");
-      if (paper) {
-        clonedElement.style.width = "210mm";
-        clonedElement.style.maxWidth = "none";
-        clonedElement.style.position = "static";
-        clonedElement.style.transform = "none";
-        const viewport = clonedElement.closest<HTMLElement>(".certificate-a4-viewport");
-        if (viewport) {
-          viewport.style.width = "210mm";
-          viewport.style.maxWidth = "none";
-          viewport.style.height = "auto";
-          viewport.style.overflow = "visible";
+  // html2canvas measures fonts in the original document using an inline image, which Tailwind makes block-level.
+  const fontMetricsStyle = document.createElement("style");
+  fontMetricsStyle.textContent =
+    "body > div[style*=\"visibility: hidden\"] > img[width=\"1\"][height=\"1\"] { display: inline; }";
+  document.head.appendChild(fontMetricsStyle);
+  let canvas: HTMLCanvasElement;
+  try {
+    canvas = await html2canvas(paper ?? element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      ...(paper ? { windowWidth: Math.ceil((210 / 25.4) * 96) } : {}),
+      onclone: (clonedDocument, clonedElement) => {
+        clonedDocument.documentElement.classList.remove("dark");
+        if (paper) {
+          clonedElement.style.width = "210mm";
+          clonedElement.style.maxWidth = "none";
+          clonedElement.style.position = "static";
+          clonedElement.style.transform = "none";
+          const viewport = clonedElement.closest<HTMLElement>(".certificate-a4-viewport");
+          if (viewport) {
+            viewport.style.width = "210mm";
+            viewport.style.maxWidth = "none";
+            viewport.style.height = "auto";
+            viewport.style.overflow = "visible";
+          }
         }
-      }
-    },
-  });
+      },
+    });
+  } finally {
+    fontMetricsStyle.remove();
+  }
   if (!canvas.width || !canvas.height) {
     throw new Error("Certificate preview has no printable content.");
   }

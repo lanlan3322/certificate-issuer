@@ -26,7 +26,7 @@ export default function FTATemplate({ certificate }: TemplateProps) {
 
   return (
     <div className="box-border flex flex-1 flex-col border-2 border-[#d9c46a] bg-white px-12 py-10 text-center shadow-sm">
-      <div className="mx-auto grid w-full max-w-3xl flex-1 grid-rows-[minmax(min-content,1fr)_auto_minmax(min-content,1fr)]">
+      <div className="mx-auto grid w-full max-w-3xl flex-1 grid-rows-[minmax(min-content,0.8fr)_auto_minmax(min-content,1.2fr)]">
         <div className="certificate-header mt-4 flex h-20 items-center justify-center gap-7 self-start">
           <p className="font-sans text-8xl font-extrabold leading-[0.82] tracking-[-0.06em] text-[#c8102e]">
             FTA
@@ -44,27 +44,27 @@ export default function FTATemplate({ certificate }: TemplateProps) {
 
         <div className="certificate-main flex min-w-0 flex-col items-center text-[#242424]">
           <p className="text-2xl italic">This is to certify that</p>
-          <p className={`mt-2 max-w-full break-words font-bold italic leading-tight ${nameSize}`}>
+          <p className={`mt-0.5 max-w-full break-words font-bold italic leading-tight ${nameSize}`}>
             {certificate.recipientName}
           </p>
 
-          <p className="mt-6 text-2xl italic text-[#4a4a4a]">
+          <p className="mt-4 text-2xl italic text-[#4a4a4a]">
             has successfully completed the course
           </p>
-          <p className={`mx-auto mt-3 max-w-2xl break-words font-bold leading-tight ${courseSize}`}>
+          <p className={`mx-auto mt-2 max-w-2xl break-words font-bold ${compact ? "leading-tight" : "leading-[1.17]"} ${courseSize}`}>
             {certificate.description}
           </p>
 
           {certificate.courseLength != null && (
-            <p className="mt-2 text-xl">({certificate.courseLength} hours)</p>
+            <p className="mt-1.5 text-xl">({certificate.courseLength} hours)</p>
           )}
-          <p className="mt-1 text-xl">Accredited by IBF</p>
+          <p className="mt-0.5 text-xl">Accredited by IBF</p>
           {certificate.certificateNo && (
-            <p className={`mt-4 max-w-full break-all font-semibold ${extremelyDense ? "text-[10px] leading-tight" : veryDense ? "text-xs" : "text-base"}`}>
+            <p className={`mt-5 max-w-full break-all font-semibold ${extremelyDense ? "text-[10px] leading-tight" : veryDense ? "text-xs" : "text-base"}`}>
               ({certificate.certificateNo})
             </p>
           )}
-          <p className="mt-3 text-base">{formatDate(certificate.issueDate)}</p>
+          <p className="mt-2 text-base">{formatDate(certificate.issueDate)}</p>
         </div>
 
         <div className={`certificate-footer grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)] items-end gap-4 self-end ${footerSpacing}`}>
