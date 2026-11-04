@@ -182,6 +182,7 @@ const CERTIFICATE_SUBJECT_CONTEXT = {
   certificateType: "https://schemas.tradetrust.io/credentials#certificateType",
   templateId: "https://schemas.tradetrust.io/credentials#templateId",
   issuerDisplayName: "https://verifiable.sg/credentials#issuerDisplayName",
+  certificateNo: "https://verifiable.sg/credentials#certificateNo",
   courseLength: "https://verifiable.sg/credentials#courseLength",
 } as const;
 
@@ -396,6 +397,7 @@ export function toOpenCertsCredentialSubject(
   if (data.templateId) result[OPEN_CERTS_SUBJECT_FIELD_MAP.templateId] = data.templateId;
   if (data.description) result[OPEN_CERTS_SUBJECT_FIELD_MAP.description] = data.description;
   if (data.issuerDisplayName) result.issuerDisplayName = data.issuerDisplayName;
+  if (data.certificateNo) result.certificateNo = data.certificateNo;
   if (data.courseLength != null) result.courseLength = data.courseLength;
 
   return result;

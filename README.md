@@ -99,6 +99,9 @@ text. The FTA body sits slightly above the vertical center to match its referenc
 design. Previews scale to fit narrow screens while PDF downloads and browser
 printing use the full-size page. Longer names and course descriptions use smaller
 type to help keep the content and verification details on the page.
+Certificate numbers and course hours are included in newly issued signed
+credentials and retained in FTA previews and PDFs. Older credentials issued
+without these fields must be reissued; rendering cannot recover missing signed data.
 
 ## Tech Stack
 

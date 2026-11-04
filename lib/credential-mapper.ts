@@ -193,6 +193,11 @@ export function mapVcToCertEntry(
     (vc.credentialSubject as unknown as Record<string, unknown>) ??
     (vc.subject as unknown as Record<string, unknown>);
 
+  const rawCertificateNo = subject?.certificateNo ?? subject?.certification_no ??
+    vc.certificateNo ?? vc.certification_no ?? vc.certificate_no;
+  const certificateNo = typeof rawCertificateNo === "string" || typeof rawCertificateNo === "number"
+    ? String(rawCertificateNo)
+    : undefined;
   const rawCourseLength = subject?.courseLength ?? vc.courseLength;
   const courseLength = typeof rawCourseLength === "number"
     ? rawCourseLength
@@ -218,6 +223,7 @@ export function mapVcToCertEntry(
       issuerName: resolveIssuerName(vc, options?.issuers),
       issueDate: flatCamel.issueDate || flatCamel.created_at || "",
       description: flatCamel.description || "",
+      certificateNo,
       courseLength,
       validFrom: flatCamel.validFrom || "",
       validUntil: flatCamel.validUntil || undefined,
@@ -247,6 +253,7 @@ export function mapVcToCertEntry(
       issuerName: resolveIssuerName(vc, options?.issuers),
       issueDate: String(f.created_at ?? f.issue_date ?? ""),
       description: String(f.description ?? ""),
+      certificateNo,
       courseLength,
       validFrom: String(f.valid_from ?? ""),
       validUntil: f.valid_until ? String(f.valid_until) : undefined,
@@ -344,6 +351,7 @@ export function mapVcToCertEntry(
       issuerName,
       issueDate: extractString([s.issuedOn as string, s.issueDate as string, vc.issueDate as string]) ?? validFrom ?? new Date().toISOString(),
       description,
+      certificateNo,
       courseLength,
       validFrom: validFrom ?? new Date().toISOString(),
       validUntil,
@@ -362,6 +370,7 @@ export function mapVcToCertEntry(
     issuerName: resolveIssuerName(vc, options?.issuers),
     issueDate: (c.issueDate as string) ?? "",
     description: (c.description as string) ?? "",
+    certificateNo,
     courseLength,
     validFrom: (c.validFrom as string) ?? new Date().toISOString(),
     validUntil: c.validUntil ? String(c.validUntil) : undefined,
