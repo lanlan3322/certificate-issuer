@@ -24,9 +24,9 @@ test("pricing page displays exact plan allowances, charges and reset terms", () 
   const cards = html.split('aria-labelledby="comparison-heading"')[0].split('<h3 class="text-lg font-semibold">').slice(1);
   assert.equal(cards.length, 3);
   const expected = [
-    ["Starter", "SGD 49", "/ Month", "1 Issuer", "3 Certificate Templates", "100 Certificates Per Month", "resets each month", "Managed DID", "Basic Reporting", "Standard Support", "Start Free Consultation", "Membership organizations"],
-    ["Professional", "SGD 299", "/ Month", "★ Most Popular", "Up to 5 Issuers", "Unlimited Certificate Templates", "1,000 Certificates Per Month", "accumulate throughout the subscription year", "resets upon annual renewal", "Managed DID", "Advanced Reporting", "Priority Support", "Book a Demo", "Corporate learning departments"],
-    ["Enterprise", "From SGD 899", "/ Month", "Unlimited Issuers", "Unlimited Templates", "Unlimited Certificates", "Dedicated Organization Portal", "Self-Managed DID", "Multi-Issuer DID Management", "DID Document Generator", "Verification Key Management", "Custom Branding", "API Access", "Bulk Issuance", "Priority Support", "Dedicated Onboarding", "Universities", "Regulatory bodies", "Enterprises", "Government projects", "Professional licensing authorities", "Contact Sales"],
+    ["Starter", "SGD 49", "/ Month", "1 Issuer", "3 Credential Templates", "100 Credentials Per Month", "resets each month", "Managed DID", "Basic Reporting", "Standard Support", "Start Free Consultation", "Membership organizations"],
+    ["Professional", "SGD 299", "/ Month", "★ Most Popular", "Up to 5 Issuers", "Up to 10 Credential Templates", "1,000 Credentials Per Month", "accumulate throughout the subscription year", "resets upon annual renewal", "Managed DID", "Advanced Reporting", "Priority Support", "Book a Demo", "Corporate learning departments"],
+    ["Enterprise", "From SGD 899", "/ Month", "Unlimited Issuers", "Unlimited Templates", "Unlimited Credentials", "Dedicated Organization Portal", "Self-Managed DID", "Multi-Issuer DID Management", "DID Document Generator", "Verification Key Management", "Custom Branding", "Bulk Issuance", "Priority Support", "Dedicated Onboarding", "Universities", "Regulatory bodies", "Enterprises", "Government projects", "Professional licensing authorities", "Contact Sales"],
   ];
   cards.forEach((card, index) => {
     for (const text of expected[index]) assert.ok(card.includes(text), `Missing ${text}`);
@@ -36,9 +36,9 @@ test("pricing page displays exact plan allowances, charges and reset terms", () 
   assert.match(html, /All prices are in Singapore dollars/);
   assert.equal((html.match(/href="\/contact"/g) ?? []).length, 3);
   assert.doesNotMatch(html, /Growth|Enterprise Flex|Additional Services|services-heading|One-Time|Onboarding Includes|SGD\s*(?:59|99|249|599|999)\b/);
-  for (const addon of ["Additional template: SGD29", "Additional certificate: SGD0.99", "Self-Managed DID: SGD299"]) {
+  for (const addon of ["Additional template: SGD29", "Additional credential: SGD0.99", "Self-Managed DID: SGD299"]) {
     assert.ok(cards[0].includes(addon));
-    assert.ok(cards[0].indexOf(addon) > cards[0].indexOf("Certificate allowance resets each month."));
+    assert.ok(cards[0].indexOf(addon) > cards[0].indexOf("Credential allowance resets each month."));
     assert.ok(cards[0].indexOf(addon) < cards[0].indexOf("Ideal For"));
     assert.ok(cards.slice(1).every((card) => !card.includes(addon)));
   }
@@ -48,21 +48,21 @@ test("pricing page displays exact plan allowances, charges and reset terms", () 
 test("final comparison, benefits, custom contact and metadata match enterprise copy", () => {
   const { html, metadata } = render();
   for (const text of [
-    "Enterprise Plans", "Simple, Transparent Pricing for Digital Credential Management",
-    "Tamper-Proof Digital Credentials",
-    "Instant Online Verification", "Certificate Revocation &amp; Lifecycle Management", "Organization Branding",
-    "Multi-Issuer Support", "Managed or Self-Managed DID", "No Technical Knowledge Required", "Secure Cloud Platform",
+    "Plans for digital credential programmes", "Credential-as-a-Service plans",
+    "Cryptographically signed digital credentials",
+    "Online credential verification", "Credential revocation and lifecycle management", "Organization branding",
+    "Multi-issuer support", "Managed or self-managed DID", "Guided issuer workflows", "Secure Cloud Platform",
     "Open Standards Compatible", "Need a Custom Solution?", "mailto:support@verifiable.sg",
-    "All plans include certificate verification, revocation support, and secure digital credential hosting.",
-    "100 Certificates/Month", "1,000 Certificates/Month", "Monthly Credit Carry Forward",
+    "All plans include credential verification, revocation support, and secure digital credential hosting.",
+    "100 Credentials/Month", "1,000 Credentials/Month", "Credit Carry Forward",
     "SGD 49/month", "SGD 299/month", "From SGD 899/month", "3 Templates", "Dedicated Support",
   ]) assert.ok(html.includes(text), `Missing content: ${text}`);
   assert.match(html, /<table/);
   assert.equal((html.match(/scope="col"/g) ?? []).length, 4);
   assert.match(html, /overflow-x-auto/);
   assert.match(html, /md:grid-cols-2 xl:grid-cols-3/);
-  assert.equal(metadata.title, "Enterprise Pricing | Verifiable.sg");
-  assert.equal(metadata.description, "Affordable digital credential infrastructure for organizations of all sizes. Issue, verify and manage trusted credentials with managed or self-managed digital identities.");
+  assert.equal(metadata.title, "CaaS Plans | Verifiable.sg");
+  assert.equal(metadata.description, "Credential-as-a-Service plans for organizations to issue, manage, revoke, and verify branded digital credentials.");
 });
 
 test("annual subscriptions appear under each monthly price with an exact 15 percent discount", () => {

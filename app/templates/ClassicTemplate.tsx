@@ -65,7 +65,7 @@ export default function ClassicTemplate({ certificate, theme }: TemplateProps) {
 
   return (
     <div className={`${bg} ${extremelyDense ? "px-5 py-4" : "px-6 py-8"} break-words`}>
-      <p className={`text-xs uppercase tracking-[0.25em] ${accentColor}`}>Certificate Issuer</p>
+      <p className={`text-xs uppercase tracking-[0.25em] ${accentColor}`}>Verifiable Credential</p>
       <h3 className={`mt-3 font-bold ${titleSize} ${titleColor}`}>{certificate.certificateType}</h3>
       <p className={`mt-4 text-sm ${bodyColor}`}>Presented to</p>
       <p className={`mt-2 font-semibold ${nameSize} ${nameColor}`}>{certificate.recipientName}</p>

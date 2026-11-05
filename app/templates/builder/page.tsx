@@ -35,9 +35,9 @@ function slugify(value: string) {
 }
 
 const starterValues = {
-  recipientName: "Alicia Tan",
+  recipientName: "Sample Recipient",
   certificateType: "AI Governance",
-  issuerName: "OpenClaw Academy",
+  issuerName: "Sample Organization",
   description: "Completed the required governance program",
 };
 
@@ -69,7 +69,7 @@ const initialFields: FieldDraft[] = [
 ];
 
 export default function TemplateBuilderPage() {
-  const [name, setName] = useState("OpenClaw Learning Certificate");
+  const [name, setName] = useState("Sample Learning Credential");
   const [title, setTitle] = useState("Certificate of {{certificateType}}");
   const [subtitle, setSubtitle] = useState("Awarded to {{recipientName}}");
   const [description, setDescription] = useState("Issued by {{issuerName}}");
@@ -239,8 +239,9 @@ export default function TemplateBuilderPage() {
       <main className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-8 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">Phase 3</p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-900">Template Builder</h1>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">Organization branding</p>
+            <h1 className="mt-2 text-3xl font-bold text-slate-900">Credential template builder</h1>
+            <p className="mt-2 text-sm text-slate-600">Create reusable credential layouts for your organization&apos;s issuance workflows.</p>
           </div>
           <label className="mb-6 block max-w-xl text-sm font-medium text-slate-700">
             Issuer profile
@@ -405,7 +406,7 @@ export default function TemplateBuilderPage() {
               style={{ borderColor: accentColor, background: `linear-gradient(135deg, ${accentColor}08, white)` }}
             >
               <div className="certificate-main w-full break-words">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Certificate Issuer</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Credential issuer</p>
                 <h3 className="mt-4 text-2xl font-bold" style={{ color: accentColor }}>
                   {preview.title}
                 </h3>

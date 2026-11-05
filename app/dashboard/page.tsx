@@ -28,10 +28,10 @@ export default function DashboardPage() {
             try {
               const credRes = await fetch("/api/credentials");
               const credPayload = await credRes.json() as { credentials?: CredentialItem[]; error?: string };
-              if (!credRes.ok || !Array.isArray(credPayload.credentials)) throw new Error(credPayload.error ?? "Unable to load certificates.");
+              if (!credRes.ok || !Array.isArray(credPayload.credentials)) throw new Error(credPayload.error ?? "Unable to load credentials.");
               setAllCredentials(credPayload.credentials);
             } catch (reason) {
-              setCredentialError(reason instanceof Error ? reason.message : "Unable to load certificates.");
+              setCredentialError(reason instanceof Error ? reason.message : "Unable to load credentials.");
             } finally {
               setCredentialLoading(false);
             }
@@ -74,7 +74,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/profile/" className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">My Profile</Link>
-            <Link href="/insurance/" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 dark:hover:bg-slate-600">Issue certificate</Link>
+            <Link href="/insurance/" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 dark:hover:bg-slate-600">Issue credential</Link>
             <button type="button" onClick={handleLogout} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200">
               <LogOut className="h-4 w-4" /> Log out
             </button>

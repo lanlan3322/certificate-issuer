@@ -11,7 +11,7 @@ export default function AdminManualPage() {
       <header className="mb-8">
         <p className="text-sm font-semibold uppercase tracking-[0.25em] text-cyan-700 dark:text-cyan-300">Documentation</p>
         <h1 className="mt-3 text-3xl font-bold text-slate-900 dark:text-white">Admin Manual</h1>
-        <p className="mt-3 text-slate-600 dark:text-slate-300">Set up → invite → test → operate. Expand technical and compliance details when needed.</p>
+        <p className="mt-3 text-slate-600 dark:text-slate-300">Configure your organization&apos;s CaaS workspace: set up issuer access, test credential workflows, and operate with appropriate controls.</p>
       </header>
       <nav aria-label="Admin manual sections" className="mb-8 flex flex-wrap gap-2 text-sm font-semibold">
         {[["organizations", "Structure"], ["invitations", "Invite"], ["recovery", "Recovery"], ["operations", "Operations"], ["legal", "Legal & email"], ["pdpa", "PDPA procedures"], ["sign-off", "Sign-off status"]].map(([id, title]) => (
@@ -23,7 +23,7 @@ export default function AdminManualPage() {
           <h2 id="organizations-heading" className="text-xl font-bold">1. Understand the structure</h2>
           <ManualFlow label="Organization → issuer → saved template" steps={[
             ["Organization", "Groups issuers and determines available templates."],
-            ["Issuer", "Owns saved templates and issued certificate activity."],
+            ["Issuer", "Owns saved templates and issued credential activity."],
             ["Saved template", "Supplies the selected visual style."],
             ["Certificate", "Remains owned by the issuing login's issuer; sharing style does not transfer identity."],
           ]} />

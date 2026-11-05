@@ -111,14 +111,14 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
 
   return <>
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">Issued certificates</h2>
+      <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">Issued credentials</h2>
       <label className="mb-4 block text-sm font-medium text-slate-700 dark:text-slate-300">
-        Search certificates
+        Search credentials
         <input
           type="search"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search recipient, email, template, status or date"
+          placeholder="Search recipient, email, template, status or issue date"
           className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-slate-600 dark:bg-slate-800 dark:text-white sm:max-w-md"
         />
       </label>
@@ -129,7 +129,7 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
       ) : error ? (
         <p role="alert" className="text-red-700 dark:text-red-300">{error}</p>
       ) : allCredentials.length === 0 ? (
-        <p className="text-slate-500">No certificates have been issued yet.</p>
+        <p className="text-slate-500">No credentials have been issued yet.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[850px] text-left text-sm">
@@ -155,7 +155,7 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
             </thead>
             <tbody>
               {visibleCredentials.length === 0 && (
-                <tr><td colSpan={8} className="px-3 py-6 text-slate-500" role="status">No certificates match your search.</td></tr>
+                <tr><td colSpan={8} className="px-3 py-6 text-slate-500" role="status">No credentials match your search.</td></tr>
               )}
               {visibleCredentials.map((cred) => {
                 const templateLabel = getTemplateLabel(cred);

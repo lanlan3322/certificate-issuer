@@ -342,7 +342,7 @@ export default function DIDPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-violet-700">DID lifecycle</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">Issuer identity management</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            Manage the issuer identities used by your certificate templates. Signing keys remain
+            Manage the issuer identities used by your credential templates. Signing keys remain
             server-managed and are never uploaded or displayed here.
           </p>
         </div>
@@ -370,7 +370,7 @@ export default function DIDPage() {
             <KeyRound className="h-5 w-5 text-violet-700" />
             <div>
               <h2 className="text-xl font-semibold text-slate-900">Create issuer profile</h2>
-              <p className="text-sm text-slate-600">Create one identity for a certificate issuer; select it on that issuer&apos;s templates.</p>
+              <p className="text-sm text-slate-600">Create an identity for a credential issuer and select it on that issuer&apos;s templates.</p>
             </div>
           </div>
           <form onSubmit={submitCreate} className="space-y-5">
@@ -420,7 +420,7 @@ export default function DIDPage() {
             <Building2 className="mx-auto h-8 w-8 text-slate-400" />
             <h3 className="mt-3 font-semibold text-slate-900">No issuer profiles yet</h3>
             <p className="mt-1 text-sm text-slate-600">
-              {canManage ? "Add a profile to assign a dedicated DID and signing configuration to a certificate template." : "An issuer administrator can create profiles for this issuer."}
+              {canManage ? "Add a profile to assign a dedicated DID and signing configuration to a credential template." : "An issuer administrator can create profiles for this issuer."}
             </p>
           </div>
         ) : (
@@ -509,7 +509,7 @@ export default function DIDPage() {
                       </div>
                     )}
                     <p className="mt-4 text-xs text-slate-500">
-                      Choose this issuer profile when creating or editing a certificate template in the{" "}
+                      Choose this issuer profile when creating or editing a credential template in the{" "}
                       <a href={withBasePath("/templates/builder/")} className="font-medium text-violet-700 hover:underline">Template Builder</a>.
                       Issued credentials keep their saved DID, verification method, and Document Store.
                     </p>

@@ -44,7 +44,7 @@ export default function RevocationManagementPage() {
     <div className="min-h-screen bg-slate-50">
       <main className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700">Phase 3</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700">Credential lifecycle</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">Revocation Management</h1>
           <p className="mt-2 text-slate-600">
             Revoke, suspend, or reinstate credentials with an auditable status transition log.

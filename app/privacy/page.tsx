@@ -3,7 +3,7 @@ import LegalPage from "../../components/legal/LegalPage";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | Verifiable.sg",
-  description: "How Verifiable.sg handles account and certificate information, verification activity, cookies, privacy rights, and Singapore PDPA requests.",
+  description: "How Verifiable.sg's Credential-as-a-Service platform handles account and credential information, verification activity, cookies, and Singapore PDPA requests.",
 };
 
 export default function PrivacyPage() {
@@ -12,31 +12,31 @@ export default function PrivacyPage() {
     introduction="This policy explains how personal data is handled when you use Verifiable.sg to manage, issue, view, or verify digital credentials."
     sections={[
       { id: "introduction", title: "Introduction", content: <>
-        <p>Verifiable.sg provides a digital credential platform. Your issuing organization determines much of the information included in a certificate and why it is issued. We operate the platform and process information needed to deliver it.</p>
+        <p>Verifiable.sg provides a Credential-as-a-Service (CaaS) platform. Your issuing organization determines much of the information included in a credential and why it is issued. We operate the platform and process information needed to deliver it.</p>
         <p>Responsibilities depend on the actual processing arrangement. Where we process personal data on an organization&apos;s behalf under a written contract, we may act as its data intermediary. We remain responsible for obligations that apply to us in that role and for processing we undertake for our own purposes, such as platform account administration. An issuer&apos;s responsibilities do not remove our own obligations.</p>
-        <p>For issuer-controlled certificate information, contact your issuing organization first. For platform account, security, or privacy questions, contact our data protection contact at <a href="mailto:support@verifiable.sg">support@verifiable.sg</a>.</p>
+        <p>For issuer-controlled credential information, contact your issuing organization first. For platform account, security, or privacy questions, contact our data protection contact at <a href="mailto:support@verifiable.sg">support@verifiable.sg</a>.</p>
       </> },
       { id: "information", title: "Information We Collect", content: <ul>
         <li>Account details and organization/issuer assignments provided during account setup.</li>
-        <li>Certificate details submitted by authorized issuers and credentials submitted for verification.</li>
+        <li>Credential details submitted by authorized issuers and credentials submitted for verification.</li>
         <li>Technical activity needed for delivery, security, audit, and troubleshooting.</li>
         <li>Enquiries you send us, and optional usage analytics only when you agree.</li>
       </ul> },
       { id: "accounts", title: "Account Information", content: <p>This includes your email, display name, account identifiers, assigned roles, and organization/issuer membership. Authentication is provided through Supabase. Passwords are handled by the authentication service; do not send passwords, invitation links, or reset tokens in support requests.</p> },
-      { id: "certificates", title: "Certificate Information", content: <>
+      { id: "certificates", title: "Credential Information", content: <>
         <ul><li>Credentials can include recipient names, email addresses, course or achievement details, identifiers, dates, and issuer information.</li>
           <li>The issuer is responsible for having appropriate authority to submit recipient information and for providing required notices.</li>
           <li>Downloaded or shared credentials may be retained by recipients and third-party verifiers outside our control.</li>
           <li>Blockchain anchoring publishes hashes and transaction information, not a mechanism for deleting personal data. Public DID documents contain issuer identifiers and public verification keys. Public blockchain records may be permanent and cannot simply be erased.</li></ul>
         <p>Do not put unnecessary sensitive personal data into credentials or public identifiers.</p>
       </> },
-      { id: "verification", title: "Verification Activity", content: <p>Verification can process a credential or identifier, verification outcome, certificate status, time, and technical information such as IP addresses. Verification logs support security and audit. Verifying a credential may require resolving public issuer DID documents, status lists, and blockchain information through network providers. Only share credentials with parties you trust.</p> },
+      { id: "verification", title: "Verification Activity", content: <p>Verification can process a credential or identifier, verification outcome, credential status, time, and technical information such as IP addresses. Verification logs support security and audit. Verifying a credential may require resolving public issuer DID documents, status lists, and blockchain information through network providers. Only share credentials with parties you trust.</p> },
       { id: "cookies", title: "Cookie Usage", content: <>
         <ul><li><strong>Necessary:</strong> authentication/session cookies, security, service features, and browser storage for preferences. These are not controlled by optional analytics consent.</li>
           <li><strong>Analytics:</strong> optional usage measurement, including assistant interaction analytics. It is off before consent and after rejection.</li>
           <li><strong>Marketing:</strong> not enabled. Any future introduction needs a separate consent choice.</li></ul>
         <p>Your cookie choice is stored in this browser&apos;s localStorage under <code>verifiable-cookie-consent</code>, with necessary/analytics choices, a disabled marketing category, a date, and a policy version. It is not a server-side consent record. Clearing browser storage removes this choice.</p>
-        <p>Use <strong>Cookie Preferences</strong> in the footer to change your choice or withdraw analytics consent anytime. Rejection does not block account or certificate features. A saved choice does not automatically expire; a consent-version change can require a new choice.</p>
+        <p>Use <strong>Cookie Preferences</strong> in the footer to change your choice or withdraw analytics consent anytime. Rejection does not block account or credential features. A saved choice does not automatically expire; a consent-version change can require a new choice.</p>
         <p>Other service storage may remember your theme, assistant conversation, or workflow state. Do not enter sensitive personal data into an assistant conversation. No Google Analytics, Plausible, or PostHog SDK is enabled by this release.</p>
         <p>The PDPA applies to cookies and similar technologies where personal data is collected, used, or disclosed; it does not impose a blanket opt-in rule for every cookie. The applicable consent, deemed-consent, or statutory-exception basis must be assessed for each purpose. Calling storage &quot;necessary&quot; does not itself exempt it from the PDPA. This platform separately asks for optional analytics consent.</p>
       </> },
@@ -67,7 +67,7 @@ export default function PrivacyPage() {
           <li><strong>Correction:</strong> request correction of errors or omissions. Applicable duties can include communicating corrections to organizations to which the data was disclosed in the preceding year, subject to the PDPA&apos;s conditions and exceptions.</li>
           <li><strong>Withdrawal:</strong> withdraw consent for specified collection, use, or disclosure by giving reasonable notice to <a href="mailto:support@verifiable.sg">support@verifiable.sg</a>. We will explain likely consequences. After withdrawal takes effect, collection, use, and disclosure based on that consent must cease, including by relevant data intermediaries and agents, unless otherwise required or authorised by law. Existing records remain subject to retention obligations; withdrawal is not an automatic instruction to erase every record.</li>
           <li><strong>Deletion requests:</strong> you may ask us to delete data. Singapore&apos;s PDPA does not provide an unconditional general right to erasure. We assess the request against retention obligations, applicable law, and the actual processing arrangement, and explain applicable limitations.</li>
-          <li>Change optional analytics choices immediately through Cookie Preferences without losing necessary platform functionality. Contact your issuer about inaccurate certificates; revocation does not erase downloaded credentials or blockchain records.</li>
+          <li>Change optional analytics choices immediately through Cookie Preferences without losing necessary platform functionality. Contact your issuer about inaccurate credential information; revocation does not erase downloaded credentials or blockchain records.</li>
           <li>Where GDPR applies, additional rights may include erasure, restriction, objection, portability, and a complaint to the relevant supervisory authority, subject to applicable conditions. These are not presented as unconditional Singapore PDPA rights.</li>
         </ul>
         <p>Send access or correction requests to <a href="mailto:support@verifiable.sg">support@verifiable.sg</a>. Requests must be handled as soon as reasonably possible. If we cannot respond within 30 days after receiving a request, we must notify you in writing within that period of when a response can be expected, in accordance with applicable requirements. We may seek proportionate clarification or identity verification and explain applicable exceptions or any permitted access fee before charging it.</p>
@@ -75,7 +75,7 @@ export default function PrivacyPage() {
       </> },
       { id: "consent", title: "Notification and Consent", content: <p>Collection, use, and disclosure must be for reasonable purposes notified at or before collection, or otherwise as required by the PDPA, with valid consent, deemed consent where applicable, or an applicable legal exception. Accepting account terms or acknowledging this policy is not blanket consent to unrelated processing. New purposes require the applicable notification and consent assessment; optional analytics remains a separate choice.</p> },
       { id: "pdpa", title: "Singapore PDPA Compliance", content: <p>We aim to handle personal data in line with Singapore&apos;s Personal Data Protection Act (PDPA), including notification, consent or applicable exceptions, purpose limitation, protection, accuracy, retention limitation, access/correction, transfer safeguards, and accountability. We assess suspected breaches and applicable notification duties. This policy and cookie controls alone are not a certification of compliance; organizational practices and contracts must also meet applicable requirements.</p> },
-      { id: "contact", title: "Contact Information", content: <p>Send privacy, correction, deletion, or data-protection enquiries to <a href="mailto:support@verifiable.sg">support@verifiable.sg</a>. Include enough information to identify your request, but do not send passwords, private keys, reset links, or unnecessary certificate data. Operator company information is listed on the <a href="/contact">Contact page</a> and must be completed before production legal sign-off.</p> },
+      { id: "contact", title: "Contact Information", content: <p>Send privacy, correction, deletion, or data-protection enquiries to <a href="mailto:support@verifiable.sg">support@verifiable.sg</a>. Include enough information to identify your request, but do not send passwords, private keys, reset links, or unnecessary credential data. Operator company information is listed on the <a href="/contact">Contact page</a> and must be completed before production legal sign-off.</p> },
     ]}
   />;
 }

@@ -143,7 +143,7 @@ export function BatchIssuedCertificatesPanel({
 
         {!issuing && issuedCertificates.length === 0 && (
           <div className="px-3 py-4 text-xs text-gray-500">
-            No certificates yet. Issue a batch to see downloadable files here.
+            No credentials yet. Issue a batch to see downloadable files here.
           </div>
         )}
 
@@ -734,7 +734,7 @@ export default function BatchIssuePanel({
 
           {walletRequired && !connected && rows.length > 0 && (
             <p className="text-xs text-gray-500 mt-2 text-center">
-              Connect your wallet above to issue certificates.
+              Connect your wallet above to issue credentials.
             </p>
           )}
         </div>

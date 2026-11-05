@@ -9,33 +9,34 @@ export default function HomePage() {
             <div>
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200">
                 <Shield className="h-3.5 w-3.5" />
-                TrustVC platform
+                Verifiable.sg · Credential-as-a-Service
               </div>
               <h1 className="max-w-xl text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
-                Trusted credentials.<br />One connected workflow.
+                Branded digital credentials.<br />One connected service.
               </h1>
               <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-200 sm:text-base md:text-lg">
-                Issue, verify, and manage verifiable credentials with enterprise controls,
-                DID-backed identity, and secure wallet-ready delivery workflows.
+                Verifiable.sg helps organizations issue, manage, revoke, and verify digital
+                credentials under their own brand, with issuer identity and verification tools
+                in one service.
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <a
                   href="/insurance"
                   className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100 min-h-[48px]"
                 >
-                  Issue Certificate
+                  Issue a credential
                   <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                 </a>
                 <a
                   href="/verify"
                   className="inline-flex min-h-[48px] items-center justify-center rounded-xl border border-white/25 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
                 >
-                  Verify Certificate
+                  Verify a credential
                 </a>
               </div>
               <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-300 sm:text-base">
-                <div><span className="font-semibold text-white">W3C</span> native</div>
-                <div><span className="font-semibold text-white">DID</span> ready</div>
+                <div><span className="font-semibold text-white">W3C VC</span> data model</div>
+                <div><span className="font-semibold text-white">DID-based</span> issuer identity</div>
                 <div><span className="font-semibold text-white">Multi-issuer</span> support</div>
               </div>
             </div>
@@ -44,9 +45,9 @@ export default function HomePage() {
               <h2 id="workflow-heading" className="mt-2 text-xl font-bold text-white">Your credential workflow</h2>
               <ol className="mt-5 space-y-4">
                 {[
-                  ["01", "Create & sign", "Choose a template and issue a signed credential."],
-                  ["02", "Share & deliver", "Download certificates or deliver them to recipients."],
-                  ["03", "Verify & manage", "Check authenticity and manage credential status."],
+                  ["01", "Create & sign", "Choose an organization template and issue a signed credential."],
+                  ["02", "Share & deliver", "Download a credential or email it to its recipient."],
+                  ["03", "Verify & manage", "Check credential authenticity and manage its status."],
                 ].map(([step, title, description]) => (
                   <li key={step} className="flex items-start gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-300/10 text-xs font-bold text-cyan-200">{step}</span>
@@ -68,9 +69,9 @@ export default function HomePage() {
           <h2 id="standards-heading" className="text-lg font-bold text-slate-900 dark:text-slate-100">Built on open standards</h2>
           <div className="mt-4 grid gap-5 md:grid-cols-3">
             {[
-              { title: "W3C credentials", description: "Verifiable Credentials following international W3C standards.", icon: ShieldCheck },
-              { title: "Ethereum anchoring", description: "Optional on-chain document hashes for tamper-proof verification.", icon: CheckCircle },
-              { title: "TradeTrust compatibility", description: "OpenAttestation-compatible workflows for credential verification.", icon: FileText },
+              { title: "W3C Verifiable Credentials", description: "Issue credentials using the W3C Verifiable Credentials data model.", icon: ShieldCheck },
+              { title: "Optional Ethereum anchoring", description: "Anchor document hashes on Ethereum to support integrity checks.", icon: CheckCircle },
+              { title: "TradeTrust compatibility", description: "Support OpenAttestation-compatible credential workflows and verification.", icon: FileText },
             ].map(({ title, description, icon: Icon }) => (
               <div key={title} className="flex items-start gap-3">
                 <Icon className="mt-0.5 h-5 w-5 shrink-0 text-cyan-700 dark:text-cyan-400" aria-hidden="true" />
@@ -85,10 +86,10 @@ export default function HomePage() {
           <h2 id="faq-heading" className="mt-2 text-xl font-bold text-slate-900 dark:text-slate-100">Common questions</h2>
           <div className="mt-4 grid gap-3 sm:gap-4 md:grid-cols-2">
             {[
-              ["What is TrustVC?", "A verifiable credentials platform for issuing and validating trusted digital certificates across multiple institutional scenarios."],
-              ["Can it support multiple issuers?", "Yes. The platform is designed to support multi-issuer operations with role-based governance and controlled issuance flows."],
-              ["Does it support verification?", "Yes. Recipients and institutions can inspect credential authenticity and revocation status using a public verification experience."],
-              ["Can it integrate with wallets?", "Coming soon. The platform is designed for wallet-ready delivery and compatibility with modern verifiable credential ecosystems."],
+              ["What is Credential-as-a-Service?", "Verifiable.sg provides the infrastructure for organizations to issue, manage, revoke, and verify branded digital credentials."],
+              ["Can organizations manage multiple issuers?", "Yes. Organization administrators can manage issuer accounts and access to saved templates."],
+              ["How can recipients access credentials?", "Issuers can download credential files, share PDFs, or email signed credential JSON. Recipients can check credentials through the public verification service."],
+              ["Are wallet integrations available?", "Wallet import and mobile wallet delivery are not currently available. Credentials can be downloaded, emailed, and independently checked through the verification service."],
             ].map(([question, answer]) => (
               <div key={question} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm dark:border-slate-600 dark:bg-slate-700 sm:p-4">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 sm:text-base">{question}</h3>

@@ -51,7 +51,7 @@ export default function DeploymentGuide({
           <span>Deployment Steps</span>
         </h3>
         <p className="text-gray-600 mt-2 text-sm">
-          Follow these steps to deploy your TradeTrust-compliant certificate issuer
+          Follow these steps to configure TradeTrust-compatible credential issuance for your organization
         </p>
       </div>
 
@@ -176,7 +176,7 @@ export default function DeploymentGuide({
                     </div>
                   )}
 
-                  {/* Step 3: Issue Certificates */}
+                  {/* Step 3: Issue credentials */}
                   {step.step === 3 && (
                     <div className="space-y-3">
                       <div className="p-4 bg-green-50 border border-green-200 rounded-lg">

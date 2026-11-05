@@ -56,8 +56,8 @@ export default function BrandingPage() {
             <ShieldCheck className="h-5 w-5 text-emerald-700" aria-hidden="true" />
             <h2 id="preview-heading" className="text-xl font-semibold text-slate-900">{selectedTemplate.name} preview</h2>
           </div>
-          <p className="mb-4 text-sm text-slate-600">Sample data only. This preview does not issue or sign a certificate.</p>
-          <div className="overflow-x-auto rounded-xl bg-slate-100 p-4 sm:p-6" role="region" aria-label="Certificate template preview" tabIndex={0}>
+          <p className="mb-4 text-sm text-slate-600">Sample data only. This preview does not issue or sign a credential.</p>
+          <div className="overflow-x-auto rounded-xl bg-slate-100 p-4 sm:p-6" role="region" aria-label="Credential template preview" tabIndex={0}>
             <div className="mx-auto w-full max-w-[210mm] bg-white text-slate-900 shadow-lg">
               <CertificateTemplateRenderer
                 key={selectedTemplate.id}

@@ -9,14 +9,15 @@ import { getCurrentIssuerUser } from "@/lib/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Verifiable | Verifiable Credentials Platform",
+  title: "Verifiable.sg | Credential-as-a-Service",
   description:
-    "TrustVC is a secure credential platform for issuing, verifying, and governing W3C verifiable credentials across enterprise and public sector workflows.",
+    "Verifiable.sg is a Credential-as-a-Service (CaaS) platform that helps organizations issue, manage, revoke, and verify branded digital credentials.",
   keywords: [
-    "Verifiable",
-    "TrustVC",
+    "Verifiable.sg",
+    "Credential-as-a-Service",
+    "CaaS",
     "verifiable credentials",
-    "certificate platform",
+    "digital credentials",
     "DID",
     "digital trust",
     "W3C",

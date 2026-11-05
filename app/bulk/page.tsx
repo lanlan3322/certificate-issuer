@@ -4,9 +4,9 @@ import { useState } from "react";
 import { buildBulkIssuanceJob, validateBulkRows, type BulkRow } from "../../lib/phase5";
 
 const sampleRows: BulkRow[] = [
-  { recipientName: "Alicia Tan", recipientEmail: "alicia@example.com", certificateType: "AI Governance" },
-  { recipientName: "Ben Lee", recipientEmail: "ben@example.com", certificateType: "Data Ethics" },
-  { recipientName: "Cara Ng", recipientEmail: "invalid-email", certificateType: "Privacy" },
+  { recipientName: "Sample Recipient One", recipientEmail: "one@example.com", certificateType: "AI Governance" },
+  { recipientName: "Sample Recipient Two", recipientEmail: "two@example.com", certificateType: "Data Ethics" },
+  { recipientName: "Sample Recipient Three", recipientEmail: "invalid-email", certificateType: "Privacy" },
 ];
 
 export default function BulkIssuePage() {
@@ -33,7 +33,7 @@ export default function BulkIssuePage() {
 
     const validation = validateBulkRows(parsedRows);
     const job = buildBulkIssuanceJob({
-      issuerName: "OpenClaw Academy",
+      issuerName: "Sample Organization",
       rows: parsedRows,
       templateId: "modern",
     });
@@ -49,13 +49,14 @@ export default function BulkIssuePage() {
     <div className="min-h-screen bg-slate-50">
       <main className="mx-auto max-w-5xl px-4 py-8">
         <div className="mb-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-700">Phase 5</p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-900">Bulk Issuance</h1>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-700">Batch workflow preview</p>
+          <h1 className="mt-2 text-3xl font-bold text-slate-900">Preview batch validation</h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600">This page checks sample CSV rows only. It does not issue credentials or add records to your organization.</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">CSV input preview</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Sample CSV rows</h2>
             <textarea
               value={rowsText}
               onChange={(event) => setRowsText(event.target.value)}
@@ -67,17 +68,17 @@ export default function BulkIssuePage() {
               onClick={handlePreview}
               className="mt-4 w-full rounded-lg bg-amber-600 px-4 py-2.5 font-medium text-white hover:bg-amber-500"
             >
-              Preview bulk issuance
+              Preview row validation
             </button>
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Summary</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Validation preview</h2>
 
             {summary ? (
               <div className="mt-4 space-y-4">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Preview status — not issued</p>
                   <p className="mt-1 text-lg font-bold text-slate-900">{String((summary as any).job?.status ?? "n/a")}</p>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -100,7 +101,7 @@ export default function BulkIssuePage() {
                 </div>
               </div>
             ) : (
-              <p className="mt-4 text-sm text-slate-500">Preview a CSV batch to review validations and issuance readiness.</p>
+              <p className="mt-4 text-sm text-slate-500">Preview the row checks before using your organization&apos;s supported issuance workflow.</p>
             )}
           </section>
         </div>

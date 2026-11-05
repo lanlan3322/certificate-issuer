@@ -770,7 +770,7 @@ test("shared table shows loading, errors, empty states and template labels", () 
     mapVcToCertEntry: mapper.mapVcToCertEntry, TEMPLATE_OPTIONS, handleViewCredential() {}, handleRevoke() {},
     ...overrides,
   })());
-  assert.match(render({}), /No certificates have been issued yet/);
+  assert.match(render({}), /No credentials have been issued yet/);
   assert.match(render({ credentialLoading: true }), /animate-spin/);
   const failed = render({ error: "Certificate service unavailable" });
   assert.match(failed, /role="alert"/);
@@ -845,7 +845,7 @@ test("sortable headers toggle direction, reset new column ascending, and expose 
   const html = render([dashboardCredential]);
   assert.match(html, /aria-sort="descending"/);
   assert.match(html, /type="search"/);
-  assert.match(render([]), /No certificates match your search/);
+  assert.match(render([]), /No credentials match your search/);
   assert.match(render([]), /colSpan="8"/i);
 });
 

@@ -10,7 +10,7 @@ export default function UserManualPage() {
       <header className="mb-8">
         <p className="text-sm font-semibold uppercase tracking-[0.25em] text-cyan-700 dark:text-cyan-300">Documentation</p>
         <h1 className="mt-3 text-3xl font-bold text-slate-900 dark:text-white">User Manual</h1>
-        <p className="mt-3 text-slate-600 dark:text-slate-300">Choose a template. Issue a credential. Share and verify.</p>
+        <p className="mt-3 text-slate-600 dark:text-slate-300">Verifiable.sg CaaS helps your organization issue, manage, share, and verify branded credentials.</p>
       </header>
       <nav aria-label="User manual sections" className="mb-8 flex flex-wrap gap-2 text-sm font-semibold">
         {[["getting-started", "Start here"], ["templates", "Templates"], ["issuance", "Issue"], ["dashboard", "Manage & share"], ["profile", "My Profile"]].map(([id, title]) => (
@@ -36,7 +36,7 @@ export default function UserManualPage() {
             ["Template Style", "Choose an active saved template from your organization for single or batch issuance. Platform admins can select across organizations."],
             ["Nothing listed?", "Ask an administrator to save an active template under an issuer in your organization. Issuance stays disabled until one is available."],
           ]} />
-          <aside className={noteStyle}><strong>Shared style ≠ shared identity.</strong> A shared template does not transfer signing identity, Document Store or certificate permissions. Certificates belong to your logged-in issuer.</aside>
+          <aside className={noteStyle}><strong>Shared style ≠ shared identity.</strong> A shared template does not transfer signing identity, Document Store or credential permissions. Credentials belong to your logged-in issuer.</aside>
           <details className="mt-4 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
             <summary className="cursor-pointer font-semibold">Layout and signing details</summary>
             <ul className="mt-3 list-disc space-y-2 pl-5">
@@ -48,11 +48,11 @@ export default function UserManualPage() {
         </section>
 
         <section id="issuance" aria-labelledby="issuance-heading" className={sectionStyle}>
-          <h2 id="issuance-heading" className="text-xl font-bold">3. Issue a certificate</h2>
+          <h2 id="issuance-heading" className="text-xl font-bold">3. Issue a credential</h2>
           <ManualFlow label="Review before you sign" steps={[
             ["Choose", "Open Issue. Select single or batch, then an available template."],
             ["Fill", "Enter recipient details or upload the batch. Check names and email addresses."],
-            ["Review", "Check validity dates and select issuance methods."],
+            ["Review", "Check the issuing date, signed date, validity dates, and issuance methods."],
             ["Issue", "Sign, review the result and download the credential."],
           ]} />
           <ManualReference caption="Choose your issuance method" headings={["Method", "Before issuing"]} rows={[
@@ -67,7 +67,7 @@ export default function UserManualPage() {
           <p className="mt-3">Dashboard and Issuer Portal use the same table.</p>
           <figure className="mt-4 rounded-xl border border-dashed border-cyan-500 p-4">
             <figcaption className="font-semibold">Table controls at a glance (illustration)</figcaption>
-            <div className="mt-3 rounded-lg bg-slate-100 p-3 dark:bg-slate-800">Search certificates: <span className="font-mono">name / email / template / status / ID / date</span></div>
+            <div className="mt-3 rounded-lg bg-slate-100 p-3 dark:bg-slate-800">Search credentials: <span className="font-mono">name / email / template / status / ID / date</span></div>
             <div className="mt-3 flex flex-wrap gap-2">
               {["Recipient ↕", "Template", "Issued ↕", "View", "Revoke", "Send"].map((label) => <span key={label} className="rounded border border-slate-300 px-3 py-1 dark:border-slate-600">{label}</span>)}
             </div>
@@ -88,7 +88,7 @@ export default function UserManualPage() {
 
         <section id="profile" aria-labelledby="profile-heading" className={sectionStyle}>
           <h2 id="profile-heading" className="text-xl font-bold">5. My Profile</h2>
-          <ManualReference caption="Dashboard → My Profile (beside Issue certificate)" headings={["Setting", "Can I change it?"]} rows={[
+          <ManualReference caption="Dashboard → My Profile (beside Issue credential)" headings={["Setting", "Can I change it?"]} rows={[
             ["Display name", "Yes — edit and save."],
             ["Email, roles, organization, issuer", "Read-only. Contact your administrator."],
             ["Password", "Choose Reset password; follow the email sent to your registered address."],

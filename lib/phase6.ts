@@ -22,7 +22,7 @@ export function parseVerificationInput(input: string): Record<string, unknown> {
   const parsed = JSON.parse(input);
 
   if (!parsed || typeof parsed !== "object") {
-    throw new Error("Verification input must be a JSON object.");
+    throw new Error("Credential input must be a JSON object.");
   }
 
   return parsed as Record<string, unknown>;

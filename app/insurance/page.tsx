@@ -565,10 +565,10 @@ export default function InsurancePage() {
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-3 py-8 sm:px-4 sm:py-10 lg:px-8">
         <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700 sm:text-sm">Issue Certificates</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Issue trusted certificates</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700 sm:text-sm">Credential issuance</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Issue a digital credential</h1>
           <p className="mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
-            Launch a verifiable credential workflow from a dedicated insurance operations console.
+            Issue an organization-branded credential for a recipient, then download or share it for verification.
           </p>
         </div>
 
@@ -599,7 +599,7 @@ export default function InsurancePage() {
             <div className="flex items-center space-x-3 mb-4 md:mb-6">
               <FileText className="w-5 h-5 md:w-6 md:h-6 text-primary" />
               <h2 className="text-xl md:text-2xl font-bold text-gray-800">
-                Issue New Certificate
+                Issue a new credential
               </h2>
             </div>
 
@@ -844,7 +844,7 @@ export default function InsurancePage() {
                     ) : (
                       <Shield className="w-4 h-4" />
                     )}
-                    <span>{issuing ? "Issuing..." : "Issue Certificate"}</span>
+                    <span>{issuing ? "Issuing..." : "Issue credential"}</span>
                   </button>
 
                   {errors.length > 0 && (
@@ -1117,18 +1117,18 @@ export default function InsurancePage() {
             <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
               <ShieldCheck className="w-5 h-5 md:w-6 md:h-6 text-primary" />
             </div>
-            <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">W3C Standard</h3>
+            <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">W3C Verifiable Credentials</h3>
             <p className="text-xs md:text-sm text-gray-600">
-              Verifiable Credentials following international W3C standards
+              Credentials follow the W3C Verifiable Credentials data model.
             </p>
           </div>
           <div className="card text-center">
             <div className="w-10 h-10 md:w-12 md:h-12 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
               <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-secondary" />
             </div>
-            <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">On-Chain</h3>
+            <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">Optional Ethereum anchoring</h3>
             <p className="text-xs md:text-sm text-gray-600">
-              Document hashes stored on Ethereum for tamper-proof verification
+              Optional document-hash anchoring supports credential integrity checks.
             </p>
           </div>
           <div className="card text-center">
@@ -1137,7 +1137,7 @@ export default function InsurancePage() {
             </div>
             <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">TradeTrust</h3>
             <p className="text-xs md:text-sm text-gray-600">
-              OpenAttestation-compatible for universal verification
+              Supports OpenAttestation-compatible credential workflows.
             </p>
           </div>
         </div>

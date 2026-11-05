@@ -1,17 +1,17 @@
 "use client";
 
 const highlights = [
-  "DID-based certificate issuance with signed proof support",
-  "Ethereum wallet issuance with Sepolia document-store integration",
-  "Certificate verification and revocation status checks",
-  "Template, gallery, and bulk issuance capabilities",
-  "Admin and compliance-oriented issuer lifecycle management",
+  "DID-based credential issuance with signed proof support",
+  "Optional Ethereum anchoring through a Sepolia Document Store",
+  "Credential verification and revocation status checks",
+  "Organization templates and single or batch issuance workflows",
+  "Issuer administration and credential lifecycle management",
 ];
 
 const changeLog = [
   {
     label: "Issuance",
-    detail: "Expanded support for DID and Ethereum certificate issuance with cleaner validation and form handling.",
+    detail: "Expanded support for DID credential issuance and optional Ethereum anchoring, with clearer validation.",
   },
   {
     label: "Verification",
@@ -32,7 +32,7 @@ export default function ReleaseNotesPage() {
     <main className="min-h-screen bg-slate-100 p-6 text-slate-800 print:bg-white print:p-0">
       <div className="mx-auto max-w-4xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm print:border-0 print:shadow-none">
         <div className="mb-8 border-b border-slate-200 pb-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-700">Certificate Issuer</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-700">Verifiable.sg · CaaS</p>
           <h1 className="mt-3 text-3xl font-bold text-slate-900">Release Notes</h1>
           <p className="mt-3 text-sm text-slate-600">Version 1.0 · Updated 2026-08-12</p>
         </div>
@@ -64,7 +64,7 @@ export default function ReleaseNotesPage() {
         <section className="mb-8">
           <h2 className="text-xl font-semibold text-slate-900">How to use</h2>
           <ol className="mt-4 list-decimal space-y-2 pl-6 text-sm leading-6 text-slate-700">
-            <li>Open the main issuance view and complete the certificate form.</li>
+            <li>Open credential issuance and complete the recipient and credential details.</li>
             <li>Select the DID or Ethereum method based on your intended trust model.</li>
             <li>Review the generated payload, proof status, and revocation metadata.</li>
             <li>Use the verification page to confirm the credential before sharing it.</li>

@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { ArrowRight, Check, CreditCard, Sparkles } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Enterprise Pricing | Verifiable.sg",
-  description: "Affordable digital credential infrastructure for organizations of all sizes. Issue, verify and manage trusted credentials with managed or self-managed digital identities.",
+  title: "CaaS Plans | Verifiable.sg",
+  description: "Credential-as-a-Service plans for organizations to issue, manage, revoke, and verify branded digital credentials.",
 };
 
 const plans = [
@@ -15,8 +15,8 @@ const plans = [
     annualSavings: "Save SGD 88.20/year",
     billing: "/ Month",
     description: "Perfect for trainers, coaches, consultants and small training providers.",
-    features: ["1 Issuer", "3 Certificate Templates", "100 Certificates Per Month", "Managed DID", "Certificate Verification Portal", "Certificate Revocation", "Basic Reporting", "Standard Support"],
-    note: "Certificate allowance resets each month.",
+    features: ["1 Issuer", "3 Credential Templates", "100 Credentials Per Month", "Managed DID", "Credential Verification Portal", "Credential Revocation", "Basic Reporting", "Standard Support"],
+    note: "Credential allowance resets each month.",
     idealFor: ["Training providers", "Coaches", "Professional trainers", "Small academies", "Membership organizations"],
     cta: "Start Free Consultation",
     featured: false,
@@ -28,8 +28,8 @@ const plans = [
     annualSavings: "Save SGD 538.20/year",
     billing: "/ Month",
     description: "Designed for schools, academies, certification bodies and growing organizations.",
-    features: ["Up to 5 Issuers", "Up to 10 Certificate Templates", "1,000 Certificates Per Month", "Annual Certificate Credit Carry Forward", "Managed DID", "Organization Branding", "Certificate Verification Portal", "Certificate Revocation", "Advanced Reporting", "Priority Support"],
-    note: "Unused certificate credits accumulate throughout the subscription year. Certificate balance resets upon annual renewal.",
+    features: ["Up to 5 Issuers", "Up to 10 Credential Templates", "1,000 Credentials Per Month", "Annual Credential Credit Carry Forward", "Managed DID", "Organization Branding", "Credential Verification Portal", "Credential Revocation", "Advanced Reporting", "Priority Support"],
+    note: "Unused credential credits accumulate throughout the subscription year. Credential balance resets upon annual renewal.",
     idealFor: ["Private schools", "Training academies", "Certification providers", "Professional associations", "Corporate learning departments"],
     cta: "Book a Demo",
     featured: true,
@@ -41,7 +41,7 @@ const plans = [
     annualSavings: "Save from SGD 1,618.20/year",
     billing: "/ Month",
     description: "For universities, enterprises, regulators and large-scale credential programmes.",
-    features: ["Unlimited Issuers", "Unlimited Templates", "Unlimited Certificates", "Dedicated Organization Portal", "Self-Managed DID", "Multi-Issuer DID Management", "DID Document Generator", "Verification Key Management", "Custom Branding", "Bulk Issuance", "Priority Support", "Dedicated Onboarding"],
+    features: ["Unlimited Issuers", "Unlimited Templates", "Unlimited Credentials", "Dedicated Organization Portal", "Self-Managed DID", "Multi-Issuer DID Management", "DID Document Generator", "Verification Key Management", "Custom Branding", "Bulk Issuance", "Priority Support", "Dedicated Onboarding"],
     note: "",
     idealFor: ["Universities", "Regulatory bodies", "Enterprises", "Government projects", "Professional licensing authorities"],
     cta: "Contact Sales",
@@ -50,16 +50,16 @@ const plans = [
 ];
 
 const benefits = [
-  "Tamper-Proof Digital Credentials", "Instant Online Verification", "Certificate Revocation & Lifecycle Management",
-  "Organization Branding", "Multi-Issuer Support", "Managed or Self-Managed DID", "No Technical Knowledge Required",
+  "Cryptographically signed digital credentials", "Online credential verification", "Credential revocation and lifecycle management",
+  "Organization branding", "Multi-issuer support", "Managed or self-managed DID", "Guided issuer workflows",
   "Secure Cloud Platform", "Open Standards Compatible",
 ];
 
 const comparison = [
   ["Issuers", "1 Issuer", "Up to 5 Issuers", "Unlimited Issuers"],
-  ["Templates", "3 Templates", "Up to 10 Templates", "Unlimited Templates"],
-  ["Certificates", "100 Certificates/Month", "1,000 Certificates/Month", "Unlimited Certificates"],
-  ["Credit Carry Forward", "Monthly reset", "Monthly reset", "Unlimited Certificates"],
+  ["Credential Templates", "3 Templates", "Up to 10 Templates", "Unlimited Templates"],
+  ["Credentials", "100 Credentials/Month", "1,000 Credentials/Month", "Unlimited Credentials"],
+  ["Credit Carry Forward", "Monthly reset", "Monthly reset", "Unlimited Credentials"],
   ["Digital Identity", "Managed DID", "Managed DID", "Self-Managed DID"],
   ["Reporting", "Basic Reporting", "Advanced Reporting", "Contact Sales"],
   ["DID Management", "Managed DID", "Managed DID", "Multi-Issuer DID Management"],
@@ -72,9 +72,9 @@ export default function EnterprisePage() {
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <div className="mb-8 text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700 sm:text-sm">Simple, Transparent Pricing for Digital Credential Management</p>
-        <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">Enterprise Plans</h1>
-        <p className="mt-3 text-sm text-slate-600">Issue, verify and manage trusted digital credentials with your own organization branding. Start small and scale as your credentialing needs grow.</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700 sm:text-sm">Credential-as-a-Service plans</p>
+        <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">Plans for digital credential programmes</h1>
+        <p className="mt-3 text-sm text-slate-600">Issue, verify, and manage digital credentials under your organization&apos;s brand. Choose a plan based on your issuer, template, and credential volumes.</p>
         <p className="mt-3 text-sm text-slate-600">All prices are in Singapore dollars (SGD).</p>
       </div>
 
@@ -111,7 +111,7 @@ export default function EnterprisePage() {
                 <h4 className="font-semibold">Optional Add-ons</h4>
                 <ol className="mt-2 list-decimal space-y-1 pl-5">
                   <li>Additional template: SGD29</li>
-                  <li>Additional certificate: SGD0.99</li>
+                  <li>Additional credential: SGD0.99</li>
                   <li>Self-Managed DID: SGD299</li>
                 </ol>
               </div>}
@@ -156,7 +156,7 @@ export default function EnterprisePage() {
         <p className="mt-3 text-sm leading-6 text-slate-600">For high-volume issuance, custom DID domain setup, white-label deployments, migration services, API integrations, LMS integration, or custom workflows, contact our team for a tailored enterprise proposal.</p>
         <a href="mailto:support@verifiable.sg" className="mt-4 inline-block text-sm font-semibold text-cyan-700 underline underline-offset-4 focus-visible:outline focus-visible:outline-2">support@verifiable.sg</a>
       </section>
-      <p className="mt-8 text-center text-sm text-slate-600">All plans include certificate verification, revocation support, and secure digital credential hosting.</p>
+      <p className="mt-8 text-center text-sm text-slate-600">All plans include credential verification, revocation support, and secure digital credential hosting.</p>
     </main>
   );
 }

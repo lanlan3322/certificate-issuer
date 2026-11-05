@@ -3,13 +3,13 @@ import LegalPage from "../../components/legal/LegalPage";
 
 export const metadata: Metadata = {
   title: "Terms of Service | Verifiable.sg",
-  description: "Terms for accounts, credential issuance, verification, revocation, permitted use, and availability of Verifiable.sg.",
+  description: "Terms for using Verifiable.sg's Credential-as-a-Service platform, including accounts, credential issuance, verification, revocation, and availability.",
 };
 
 export default function TermsPage() {
   return <LegalPage
     title="Terms of Service"
-    introduction="These terms describe the conditions for using Verifiable.sg. Read them alongside the Privacy Policy and any agreement with your issuing organization."
+    introduction="These terms describe the conditions for using Verifiable.sg's Credential-as-a-Service (CaaS) platform. Read them alongside the Privacy Policy and any agreement with your issuing organization."
     sections={[
       { id: "acceptance", title: "Acceptance of Terms", content: <p>By creating an account or using the platform, you agree to these terms. If you act for an organization, you must have authority to do so. If you do not agree, do not create an account or use the service. Additional written agreements may govern your organization&apos;s service; mandatory applicable law is not excluded. Operator identification on the <a href="/contact">Contact page</a> must be completed before production legal sign-off.</p> },
       { id: "use", title: "Permitted Use", content: <ul><li>Use the platform only for lawful credential-related activities you are authorized to perform.</li><li>Do not issue fraudulent or misleading credentials, upload unlawfully obtained personal data, impersonate issuers, bypass tenant controls, or disrupt the service.</li><li>Do not use the platform to distribute malicious content or violate others&apos; rights.</li></ul> },

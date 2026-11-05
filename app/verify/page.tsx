@@ -48,7 +48,7 @@ export default function VerifyPage() {
       setResult({
         valid: Boolean(body.valid),
         message: body.valid
-          ? "Certificate verified against the issuer's record."
+          ? "Credential verified against the issuer's record."
           : describeIdFailure(body.reason, body.message),
         details: body.details,
       });
@@ -168,7 +168,7 @@ export default function VerifyPage() {
           <div className="flex items-center space-x-3">
             <ShieldCheck className="w-8 h-8 text-secondary" />
             <div>
-              <h1 className="text-3xl font-bold">Verify Certificate</h1>
+              <h1 className="text-3xl font-bold">Verify a credential</h1>
               <p className="text-white/80">
                 Check the authenticity of any W3C Verifiable Credential
               </p>

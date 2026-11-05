@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Building2, FileCheck2, KeyRound, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
 import { getPlatformStats } from "@/lib/platform";
 import { getCurrentIssuerUser } from "@/lib/auth";
 
@@ -8,20 +8,12 @@ export default async function PlatformPage() {
   const user = await getCurrentIssuerUser();
   const hasIssuerAdminRole = user?.roles.includes("issuer-admin") ?? false;
 
-  const issuerQueue = [
-    { name: "IMDA Academy", status: "Active", org: "Government", lead: "Alicia" },
-    { name: "OpenClaw Labs", status: "Pending", org: "Training", lead: "Marcus" },
-    { name: "Northstar Health", status: "Review", org: "Healthcare", lead: "Sofia" },
-  ];
-
   const didStages = [
     "Generate DID",
     "Publish DID document",
     "Rotate keys",
     "Verify revocation status",
   ];
-
-  const authProviders = ["Microsoft Entra ID", "Google Workspace", "GitHub", "Custom SSO"];
 
   const metrics = [
     {
@@ -30,14 +22,14 @@ export default async function PlatformPage() {
       tone: "bg-slate-900 text-white",
     },
     {
-      label: "Verified Credentials",
+      label: "Issued Credentials",
       value: stats.totalCredentials >= 1000
         ? `${(stats.totalCredentials / 1000).toFixed(1)}k`
         : String(stats.totalCredentials),
       tone: "bg-cyan-100 text-cyan-800",
     },
     {
-      label: "DID Documents",
+      label: "Organizations",
       value: String(stats.totalOrganizations),
       tone: "bg-emerald-100 text-emerald-800",
     },
@@ -52,8 +44,9 @@ export default async function PlatformPage() {
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700 sm:text-sm">Platform</p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">Multi-issuer operations dashboard</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700 sm:text-sm">Credential-as-a-Service</p>
+          <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">Organization operations</h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600">Manage organizations and issuer access for branded credential programmes.</p>
         </div>
         {hasIssuerAdminRole && (
           <Link href="/admin" className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700 sm:w-auto">
@@ -78,7 +71,7 @@ export default async function PlatformPage() {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">DID lifecycle</p>
-              <h2 className="mt-2 text-xl font-semibold text-slate-900">Operational flow</h2>
+              <h2 className="mt-2 text-xl font-semibold text-slate-900">Issuer identity lifecycle</h2>
             </div>
             <Sparkles className="h-5 w-5 text-violet-700" />
           </div>
@@ -98,22 +91,16 @@ export default async function PlatformPage() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Enterprise auth (Coming Soon)</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Enterprise sign-on</p>
               <h2 className="mt-2 text-xl font-semibold text-slate-900">SSO and access</h2>
             </div>
             <ShieldCheck className="h-5 w-5 text-cyan-700" />
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {authProviders.map((provider) => (
-              <span key={provider} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700">
-                {provider}
-              </span>
-            ))}
-          </div>
+          <p className="text-sm leading-6 text-slate-600">Enterprise single sign-on integrations are not available in this workspace.</p>
 
           <div className="mt-5 rounded-xl bg-slate-900 p-4 text-slate-100">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">SaaS readiness</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">CaaS plans</div>
             <div className="mt-2 text-xl font-semibold">Starter, Professional, and Enterprise tiers</div>
             <Link href="/enterprise" className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-cyan-300">
               Review plan tiers <ArrowRight className="h-4 w-4" />

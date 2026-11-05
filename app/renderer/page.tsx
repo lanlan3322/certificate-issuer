@@ -95,7 +95,7 @@ export default function EmbeddedRendererPage() {
         </div>
       ) : !embedded ? (
         <p className="p-8 text-sm text-gray-600">
-          This page renders Verifiable certificates inside TradeTrust and OpenCerts. Open a certificate
+          This page renders Verifiable credentials inside TradeTrust and OpenCerts. Open a credential
           in a compatible viewer, or use the <a className="underline" href={withBasePath("/verify/")}>verify page</a>.
         </p>
       ) : null}
