@@ -31,6 +31,7 @@ export default function AdminManualPage() {
             ["Open Issuer Management", "Loads available issuers and active organizations."],
             ["Organization view", "Filter issuers by organization; switching back preserves the full list."],
             ["Organization directory", "Requires platform-admin. Loading and permission errors appear on the page."],
+            ["Issued credentials", "Platform admins can view credentials from all issuers on Dashboard and Issuer Portal. Other users see only their own issuer's credentials. Revoke and Send remain available only for the logged-in issuer's records."],
             ["Before invitation", "Check issuer record, organization assignment and intended role."],
           ]} />
         </section>

@@ -81,7 +81,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <IssuedCertificatesTable credentials={allCredentials} onCredentialsChange={setAllCredentials} loading={credentialLoading} error={credentialError} />
+        <IssuedCertificatesTable credentials={allCredentials} onCredentialsChange={setAllCredentials} loading={credentialLoading} error={credentialError} currentIssuerId={user.issuerId} />
       </main>
     );
   }

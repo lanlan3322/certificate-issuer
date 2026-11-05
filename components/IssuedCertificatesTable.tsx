@@ -8,13 +8,14 @@ import { TEMPLATE_OPTIONS } from "../app/templates/registry";
 import type { CertEntry } from "../lib/certificate-types";
 import { withBasePath } from "../lib/site";
 
-export interface CredentialItem { id: string; externalId: string; recipientName: string; recipientEmail: string; status: string; issuedAt: string; credential: Record<string, unknown>; templateId: string | null }
+export interface CredentialItem { id: string; issuerId?: string; externalId: string; recipientName: string; recipientEmail: string; status: string; issuedAt: string; credential: Record<string, unknown>; templateId: string | null }
 
 interface Props {
   credentials: CredentialItem[];
   onCredentialsChange: Dispatch<SetStateAction<CredentialItem[]>>;
   loading?: boolean;
   error?: string | null;
+  currentIssuerId?: string;
 }
 
 type Sort = { column: "recipientName" | "issuedAt"; direction: "ascending" | "descending" };
@@ -49,7 +50,7 @@ function getVisibleCredentials(credentials: CredentialItem[], query: string, sor
   });
 }
 
-export default function IssuedCertificatesTable({ credentials: allCredentials, onCredentialsChange: setAllCredentials, loading: credentialLoading = false, error }: Props) {
+export default function IssuedCertificatesTable({ credentials: allCredentials, onCredentialsChange: setAllCredentials, loading: credentialLoading = false, error, currentIssuerId }: Props) {
   const [revokeLoading, setRevokeLoading] = useState<string | null>(null);
   const [selectedCredential, setSelectedCredential] = useState<CertEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -160,6 +161,7 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
               {visibleCredentials.map((cred) => {
                 const templateLabel = getTemplateLabel(cred);
                 const isRevoked = cred.status.toLowerCase() === "revoked";
+                const canManage = !currentIssuerId || cred.issuerId === currentIssuerId;
                 return (
                   <tr
                     key={cred.id}
@@ -186,7 +188,7 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
                       </button>
                     </td>
                     <td className="px-3 py-3 text-right">
-                      {!isRevoked && (revokeLoading === cred.id ? (
+                      {canManage && !isRevoked && (revokeLoading === cred.id ? (
                         <div className="inline-flex items-center justify-end gap-2">
                           <div className="h-4 w-4 animate-spin border-[2] border-cyan-500 border-t-transparent rounded-full" />
                         </div>
@@ -201,7 +203,7 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
                         </button>
                       ))}
                     </td>
-                    <td className="px-3 py-3 text-right"><SendCertificateButton credential={cred} /></td>
+                    <td className="px-3 py-3 text-right">{canManage && <SendCertificateButton credential={cred} />}</td>
                   </tr>
                 );
               })}

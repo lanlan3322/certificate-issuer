@@ -742,7 +742,7 @@ test("dashboard headers match every cell and revoked rows hide Revoke but retain
       visibleCredentials: [{ ...dashboardCredential, status }],
       searchQuery: "", setSearchQuery() {}, sort: null, toggleSort() {}, getTemplateLabel,
       error: null,
-      SendCertificateButton: () => null,
+      SendCertificateButton: () => null, currentIssuerId: undefined,
       mapVcToCertEntry: mapper.mapVcToCertEntry,
       TEMPLATE_OPTIONS,
       handleViewCredential() {}, handleRevoke() {}, selectedCredential: null,
@@ -766,7 +766,7 @@ test("shared table shows loading, errors, empty states and template labels", () 
   const render = (overrides) => renderToStaticMarkup(evaluate(`() => (${returned.expression.getText(source)})`, {
     credentialLoading: false, error: null, allCredentials: [], selectedCredential: null,
     visibleCredentials: overrides.allCredentials ?? [], searchQuery: "", setSearchQuery() {}, sort: null, toggleSort() {}, getTemplateLabel,
-    revokeLoading: null, SendCertificateButton: () => null,
+    revokeLoading: null, SendCertificateButton: () => null, currentIssuerId: undefined,
     mapVcToCertEntry: mapper.mapVcToCertEntry, TEMPLATE_OPTIONS, handleViewCredential() {}, handleRevoke() {},
     ...overrides,
   })());
@@ -838,7 +838,7 @@ test("sortable headers toggle direction, reset new column ascending, and expose 
   const returned = component.body.statements.find(ts.isReturnStatement);
   const render = (rows) => renderToStaticMarkup(evaluate(`() => (${returned.expression.getText(source)})`, {
     allCredentials: [dashboardCredential], visibleCredentials: rows, credentialLoading: false, error: null,
-    selectedCredential: null, revokeLoading: null, SendCertificateButton: () => null,
+    selectedCredential: null, revokeLoading: null, SendCertificateButton: () => null, currentIssuerId: undefined,
     searchQuery: "none", setSearchQuery() {}, sort, toggleSort, getTemplateLabel,
     handleViewCredential() {}, handleRevoke() {},
   })());
@@ -874,6 +874,39 @@ test("mounting the shared table never starts realtime verification or network re
     global.fetch = originalFetch;
   }
   assert.doesNotMatch(readFileSync(path.join(root, "components/IssuedCertificatesTable.tsx"), "utf8"), /useCredentialVerification|\/api\/verify/);
+});
+
+test("platform-wide rows remain viewable but only the logged-in issuer's rows expose management actions", () => {
+  const Table = load("components/IssuedCertificatesTable.tsx", {
+    react: { useState: (initial) => [initial, () => {}] },
+    "./CertificatePreviewModal": () => null,
+    "./SendCertificateButton": () => React.createElement("button", null, "Send credential"),
+    "../lib/credential-mapper": mapper,
+    "../app/templates/registry": { TEMPLATE_OPTIONS },
+    "../lib/site": { withBasePath: (url) => url },
+  }).default;
+  for (const [issuerId, status, canManage] of [
+    ["own-issuer", "issued", true],
+    ["other-issuer", "issued", false],
+    ["other-issuer", "revoked", false],
+    [undefined, "issued", false],
+  ]) {
+    const html = renderToStaticMarkup(Table({
+      credentials: [{ ...dashboardCredential, issuerId, status }],
+      currentIssuerId: "own-issuer",
+      onCredentialsChange() {},
+    }));
+    assert.match(html, /title="View certificate details"/);
+    assert.equal(html.includes('title="Revoke certificate"'), canManage);
+    assert.equal(html.includes("Send credential"), canManage);
+    assert.equal((html.match(/<td\b/g) ?? []).length, 8);
+  }
+  for (const filename of ["app/dashboard/page.tsx", "app/issuer/page.tsx"]) {
+    const source = sourceFile(filename);
+    const table = findNode(source, (node) => ts.isJsxSelfClosingElement(node) &&
+      node.tagName.getText(source) === "IssuedCertificatesTable");
+    assert.match(table.getText(source), /currentIssuerId=\{user.issuerId\}/);
+  }
 });
 
 test("dashboard opens shared preview with nested credential data and public certificate ID", () => {

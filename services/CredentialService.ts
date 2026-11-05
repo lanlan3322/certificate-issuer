@@ -64,24 +64,29 @@ const mapRow = (row: Record<string, unknown>): CredentialRecord => ({
 });
 
 export const CredentialService = {
-  async list(issuerId: string, options: { limit?: number; status?: string } = {}) {
-    const supabase = await getSupabaseServerClient();
-    const limit = Math.min(Math.max(options.limit ?? 100, 1), 500);
+  async list(issuerId: string, options: { limit?: number; status?: string; platformAdmin?: boolean } = {}) {
+    const supabase = options.platformAdmin ? getSupabaseAdmin() : await getSupabaseServerClient();
+    const limit = options.platformAdmin && options.limit === undefined
+      ? undefined
+      : Math.min(Math.max(options.limit ?? 100, 1), 500);
+    const credentials: CredentialRecord[] = [];
+    const pageSize = limit ?? 500;
 
-    let queryBuilder = supabase
-      .from("credentials")
-      .select("*")
-      .eq("issuer_id", issuerId)
-      .order("issued_at", { ascending: false })
-      .limit(limit);
+    for (let offset = 0; ; offset += pageSize) {
+      let query = supabase
+        .from("credentials")
+        .select("*")
+        .order("issued_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(offset, offset + pageSize - 1);
+      if (!options.platformAdmin) query = query.eq("issuer_id", issuerId);
+      if (options.status) query = query.eq("status", options.status);
 
-    if (options.status) {
-      queryBuilder = queryBuilder.eq("status", options.status);
+      const { data, error } = await query;
+      if (error) throw error;
+      credentials.push(...(data ?? []).map(mapRow));
+      if (limit !== undefined || !data || data.length < pageSize) return credentials;
     }
-
-    const { data, error } = await queryBuilder;
-    if (error) throw error;
-    return (data ?? []).map(mapRow);
   },
 
   async get(id: string, issuerId: string) {

@@ -16,6 +16,7 @@ export async function GET(request: Request) {
       credentials: await CredentialService.list(user.issuerId, {
         status: params.get("status") ?? undefined,
         limit: params.get("limit") ? Number(params.get("limit")) : undefined,
+        platformAdmin: user.roles.includes("platform-admin"),
       }),
     });
   } catch (error) {
