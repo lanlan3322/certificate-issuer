@@ -1,6 +1,7 @@
 "use client";
 
 import { getCertificateTextDensity } from "./text-density";
+import { formatDate } from "../../lib/certificate";
 import { CertificateTemplateData, Theme } from "./types";
 
 interface TemplateProps {
@@ -55,6 +56,7 @@ export default function MinimalTemplate({ certificate, theme }: TemplateProps) {
         <h2 className={`font-light tracking-wide ${descriptionSize} ${mainTextColor}`}>{certificate.description}</h2>
         <p className={`mt-4 font-medium ${typeSize} ${t === "dark" ? "text-gray-300" : "text-gray-700"}`}>({certificate.certificateType})</p>
         <p className={`${subtextColor} break-all ${dense ? "text-sm" : "text-lg"}`}>ID: {certificate.id}</p>
+        <p className={subtextColor}>{formatDate(certificate.issueDate)}</p>
       </div>
 
       {/* Bottom accent line */}

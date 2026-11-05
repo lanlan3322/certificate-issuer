@@ -82,6 +82,8 @@ interface IssueFormState {
   certificateType: string;
   templateId: string;
   description: string;
+  issueDate: string;
+  signedDate: string;
   hasValidity: boolean;
   validFrom: string;
   validUntil: string | null;
@@ -151,6 +153,8 @@ export default function InsurancePage() {
       certificateType: Object.keys(CERTIFICATE_TEMPLATES)[0],
       templateId: DEFAULT_TEMPLATE_ID,
       description: "",
+      issueDate: validFrom,
+      signedDate: validFrom,
       hasValidity: true,
       validFrom,
       validUntil: getNextYearSameDateInputValue(validFrom),
@@ -275,6 +279,17 @@ export default function InsurancePage() {
       return;
     }
 
+    const issueDateIso = dateInputToISO(formData.issueDate);
+    if (!issueDateIso) {
+      setErrors(["Issuing date is required and must be valid."]);
+      return;
+    }
+    const signedDateIso = dateInputToISO(formData.signedDate);
+    if (!signedDateIso) {
+      setErrors(["Signed date is required and must be valid."]);
+      return;
+    }
+
     if (formData.hasValidity) {
       if (!formData.validFrom || !formData.validUntil) {
         setErrors(["Valid from and valid until dates are required."]);
@@ -325,7 +340,8 @@ export default function InsurancePage() {
         certificateNo: formData.certificateNo || undefined,
         courseLength: formData.courseLength ? parseInt(formData.courseLength) : undefined,
         issuerName: "Certificate Issuer",
-        issueDate: now,
+        issueDate: issueDateIso,
+        signedDate: signedDateIso,
         description: formData.description,
         validFrom: validFromIso ?? now,
         validUntil: validUntilIso,
@@ -689,6 +705,28 @@ export default function InsurancePage() {
                       onChange={handleInputChange}
                       className="input-field text-sm md:text-base"
                       placeholder="e.g., Certified in AI Governance"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label text-sm md:text-base">Issuing Date</label>
+                    <input
+                      type="date"
+                      name="issueDate"
+                      value={formData.issueDate}
+                      onChange={handleInputChange}
+                      className="input-field text-sm md:text-base"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label text-sm md:text-base">Signed Date</label>
+                    <input
+                      type="date"
+                      name="signedDate"
+                      value={formData.signedDate}
+                      onChange={handleInputChange}
+                      className="input-field text-sm md:text-base"
                     />
                   </div>
 

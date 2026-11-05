@@ -9,6 +9,7 @@ export interface CertificateTemplateData {
   courseLength?: number;
   issuerName: string;
   issueDate: string;
+  signedDate?: string;
   description: string;
   validFrom: string;
   validUntil?: string;

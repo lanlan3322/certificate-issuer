@@ -6,6 +6,7 @@ export type CertEntry = {
   certificateType: string;
   issuerName: string;
   issueDate: string;
+  signedDate?: string;
   description: string;
   certificateNo?: string;
   courseLength?: number;

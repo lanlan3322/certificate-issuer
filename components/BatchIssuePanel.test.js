@@ -31,6 +31,8 @@ function setup(overrides = {}) {
     connected: false,
     issuing: false,
     hasValidity: false,
+    issueDate: "2026-10-25",
+    signedDate: "2026-10-25",
     rows: [
       { rowIndex: 1, recipientName: "Alice", recipientEmail: "alice@example.com", certificateType: "Completion", errors: [] },
       { rowIndex: 2, recipientName: "Bob", recipientEmail: "bob@example.com", certificateType: "Completion", errors: [] },
@@ -41,6 +43,7 @@ function setup(overrides = {}) {
     onIssuedCertificatesChange: (value) => { state.certificates = value; },
     setRows: (value) => { state.rows = value; },
     getISODateString: () => "2026-10-25T00:00:00Z",
+    dateInputToISO: (value) => value === "2026-10-25" ? "2026-10-25T00:00:00.000Z" : null,
     generateCertificateId: () => "certificate-id",
     issuingMethods: ["did"],
     certificateFormat: "v1",
@@ -64,12 +67,36 @@ test("batch issuance sends the saved template ID for authorization and its slug 
     assert.equal(request.url, "/base/api/issue");
     assert.equal(request.body.templateId, "saved-fta");
     assert.equal(request.body.data.templateId, "fta");
+    assert.equal(request.body.data.issueDate, "2026-10-25T00:00:00.000Z");
+    assert.equal(request.body.data.signedDate, "2026-10-25T00:00:00.000Z");
   }
   assert.equal(state.error, null);
   assert.equal(state.issuing, false);
   assert.equal(state.rows.every((row) => row.status === "success"), true);
   assert.equal(state.certificates.length, 2);
   assert.strictEqual(state.certificates[0].certificate, credential);
+});
+
+test("batch issuance rejects a missing issue date before processing certificates", async () => {
+  const { run, state, requests } = setup({
+    issueDate: "",
+    dateInputToISO: () => null,
+  });
+  await run();
+  assert.equal(state.error, "Issuing date is required and must be valid.");
+  assert.equal(requests.length, 0);
+  assert.equal(state.certificates, undefined);
+});
+
+test("batch issuance rejects a missing signed date before processing certificates", async () => {
+  const { run, state, requests } = setup({
+    signedDate: "",
+    dateInputToISO: (value) => value === "2026-10-25" ? "2026-10-25T00:00:00.000Z" : null,
+  });
+  await run();
+  assert.equal(state.error, "Signed date is required and must be valid.");
+  assert.equal(requests.length, 0);
+  assert.equal(state.certificates, undefined);
 });
 
 test("batch issuance blocks unavailable templates and surfaces catalog errors", async () => {

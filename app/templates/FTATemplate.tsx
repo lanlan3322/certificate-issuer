@@ -100,7 +100,7 @@ export default function FTATemplate({ certificate }: TemplateProps) {
               Dr. Lillian Koh, Ph.D
             </p>
             <p className="text-base leading-tight">CEO, Fintech Academy</p>
-            <p className="mt-1 text-base font-bold">{formatDate(certificate.issueDate)}</p>
+            <p className="mt-1 text-base font-bold">{formatDate(certificate.signedDate ?? certificate.issueDate)}</p>
           </div>
 
           <Image

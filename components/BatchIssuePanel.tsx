@@ -193,6 +193,8 @@ export default function BatchIssuePanel({
   const [issuing, setIssuing] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [hasValidity, setHasValidity] = useState(true);
+  const [issueDate, setIssueDate] = useState(() => getTodayDateInputValue());
+  const [signedDate, setSignedDate] = useState(() => getTodayDateInputValue());
   const [validFromDate, setValidFromDate] = useState(() => getTodayDateInputValue());
   const [validUntilDate, setValidUntilDate] = useState<string | null>(() => {
     const today = getTodayDateInputValue();
@@ -262,6 +264,17 @@ export default function BatchIssuePanel({
     }
     if ((walletRequired && !connected) || issuing) return;
 
+    const issueDateIso = dateInputToISO(issueDate);
+    if (!issueDateIso) {
+      setParseError("Issuing date is required and must be valid.");
+      return;
+    }
+    const signedDateIso = dateInputToISO(signedDate);
+    if (!signedDateIso) {
+      setParseError("Signed date is required and must be valid.");
+      return;
+    }
+
     if (hasValidity) {
       if (!validFromDate || !validUntilDate) {
         setParseError("Valid from and valid until dates are required.");
@@ -308,7 +321,8 @@ export default function BatchIssuePanel({
           certificateType: row.certificateType,
           templateId: selectedTemplate.slug,
           issuerName: "Certificate Issuer",
-          issueDate: now,
+          issueDate: issueDateIso,
+          signedDate: signedDateIso,
           description: row.description,
           validFrom: validFromIso ?? now,
           validUntil: validUntilIso,
@@ -452,6 +466,26 @@ export default function BatchIssuePanel({
       />
 
       <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-3 sm:p-4">
+        <div>
+          <label className="label text-sm">Issuing Date</label>
+          <input
+            type="date"
+            value={issueDate}
+            onChange={(e) => setIssueDate(e.target.value)}
+            className="input-field text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="label text-sm">Signed Date</label>
+          <input
+            type="date"
+            value={signedDate}
+            onChange={(e) => setSignedDate(e.target.value)}
+            className="input-field text-sm"
+          />
+        </div>
+
         <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
           <input
             type="checkbox"

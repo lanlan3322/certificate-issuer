@@ -110,7 +110,9 @@ test("TrustVC dual issuance registers the unchanged DID credential through MetaM
       availableTemplates: [{ id: "fta", slug: "fta" }],
       withBasePath: (url) => url,
       formData: { recipientName: "Test", recipientEmail: "test@example.com",
-        certificateType: "Course", templateId: "fta", description: "", hasValidity: false },
+        certificateType: "Course", templateId: "fta", description: "", issueDate: "2026-10-20",
+        signedDate: "2026-10-20",
+        hasValidity: false },
       validateCertificateData: () => ({ valid: true, errors: [] }),
       validateIssuingMethods: () => ({ valid: true, errors: [] }),
       setErrors: (value) => { error = value; }, setIssuing() {}, setIssuedCert() {},
@@ -118,7 +120,8 @@ test("TrustVC dual issuance registers the unchanged DID credential through MetaM
         ethereumResult = value;
       },
       getISODateString: () => "2026-10-20T00:00:00Z", generateCertificateId: () => "test",
-      dateInputToISO: () => null, buildVCPayload: () => { throw new Error("Must reuse DID credential"); },
+      dateInputToISO: (value) => value === "2026-10-20" ? "2026-10-20T00:00:00.000Z" : null,
+      buildVCPayload: () => { throw new Error("Must reuse DID credential"); },
       getSigner: async () => ({}), switchToSepolia: async () => {},
       signCredentialWithEthereum: async () => { throw new Error("Must not replace DID proof"); },
       getCredentialDocumentStore: (credential) => { assert.strictEqual(credential, signed); return store; },
@@ -172,6 +175,54 @@ test("FTA certificate displays date-only values in both date positions", () => {
   }));
   assert.equal((html.match(/14 October 2026/g) ?? []).length, 2);
   assert.doesNotMatch(html, /08:30|T08|\.000Z/);
+});
+
+test("FTA signature displays signed date separately from the issuing date", () => {
+  const certificateUtils = load("lib/certificate.ts", {
+    "./trustvc": {},
+    "./constants": constants,
+  });
+  const Template = load("app/templates/FTATemplate.tsx", {
+    "../../lib/certificate": certificateUtils,
+    "../../lib/site": load("lib/site.ts"),
+    "./text-density": load("app/templates/text-density.ts"),
+  }).default;
+  const html = renderToStaticMarkup(React.createElement(Template, {
+    certificate: {
+      id: "test", recipientName: "Recipient", certificateType: "Course",
+      description: "Course description", issueDate: "2026-10-14",
+      signedDate: "2026-11-05",
+    },
+  }));
+  assert.equal((html.match(/14 October 2026/g) ?? []).length, 1);
+  assert.equal((html.match(/5 November 2026/g) ?? []).length, 1);
+});
+
+test("every certificate template displays the selected issuing date", () => {
+  const certificateUtils = load("lib/certificate.ts", {
+    "./trustvc": {},
+    "./constants": constants,
+  });
+  const textDensity = load("app/templates/text-density.ts");
+  const dependencies = {
+    "../../lib/certificate": certificateUtils,
+    "./text-density": textDensity,
+    "../../lib/site": load("lib/site.ts"),
+  };
+  const certificate = {
+    id: "test",
+    recipientName: "Recipient",
+    certificateType: "Course",
+    description: "Course description",
+    issuerName: "Test Issuer",
+    issueDate: "2026-10-14T08:30:45.000Z",
+  };
+
+  for (const template of ["ClassicTemplate", "ModernTemplate", "MinimalTemplate"]) {
+    const Component = load(`app/templates/${template}.tsx`, dependencies).default;
+    const html = renderToStaticMarkup(React.createElement(Component, { certificate }));
+    assert.match(html, /14 October 2026/, `${template} should render the issue date`);
+  }
 });
 
 function sourceFile(relativePath) {
@@ -268,6 +319,8 @@ test("DID-only batches issue without MetaMask using fixed V1, status and renderi
   let issued = [];
   const dependencies = {
     connected: false, walletRequired: false, issuing: false, hasValidity: false,
+    issueDate: "2026-10-14",
+    signedDate: "2026-11-05",
     templatesLoading: false, templateError: null,
     selectedTemplate: { id: "saved-fta", slug: "fta" },
     withBasePath: (url) => url,
@@ -277,6 +330,9 @@ test("DID-only batches issue without MetaMask using fixed V1, status and renderi
     setIssuing() {}, onIssuingChange() {}, setParseError() {}, setRows() {},
     onIssuedCertificatesChange(value) { issued = value; },
     getISODateString: () => "2026-10-14T08:30:45Z",
+    dateInputToISO: (value) => /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? `${value}T00:00:00.000Z`
+      : null,
     generateCertificateId: () => "test-id",
     buildVCPayload: () => ({ unsigned: true }),
     setTimeout: (callback) => callback(),
@@ -294,6 +350,8 @@ test("DID-only batches issue without MetaMask using fixed V1, status and renderi
   assert.equal(requests[0].certificateFormat, "v1");
   assert.equal(requests[0].statusProfile, "trustvc");
   assert.equal(requests[0].renderMethod, "embedded");
+  assert.equal(requests[0].data.issueDate, "2026-10-14T00:00:00.000Z");
+  assert.equal(requests[0].data.signedDate, "2026-11-05T00:00:00.000Z");
   assert.equal(issued.length, 1);
   assert.equal(issued[0].certificate.proof.proofValue, "signed");
 });
@@ -313,6 +371,8 @@ test("Ethereum batches request MetaMask per row and never replace the DID proof"
     let rows;
     const dependencies = {
       connected: true, walletRequired: true, issuing: false, hasValidity: false,
+      issueDate: "2026-10-20",
+      signedDate: "2026-10-20",
       templatesLoading: false, templateError: null,
       selectedTemplate: { id: "saved-fta", slug: "fta" },
       withBasePath: (url) => url,
@@ -323,6 +383,9 @@ test("Ethereum batches request MetaMask per row and never replace the DID proof"
       setRows(value) { rows = value; },
       onIssuedCertificatesChange(value) { issued = value; },
       getISODateString: () => "2026-10-20T00:00:00Z",
+      dateInputToISO: (value) => /^\d{4}-\d{2}-\d{2}$/.test(value)
+        ? `${value}T00:00:00.000Z`
+        : null,
       generateCertificateId: () => "test-id", buildVCPayload: () => ({}),
       switchToSepolia: async () => {}, getSigner: async () => ({}),
       signCredentialWithEthereum: () => { throw new Error("Must preserve DID proof"); },

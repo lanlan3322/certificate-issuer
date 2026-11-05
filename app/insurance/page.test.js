@@ -52,6 +52,8 @@ function setup({
   statusProfile,
   status = 200,
   body = { signed: true, credential, documentStore: { address: "test-store", network: "sepolia" } },
+  issueDate = "2026-10-14",
+  signedDate = "2026-10-14",
   templates = [{ id: "saved-template-id", slug: "classic", name: "Classic" }],
   loading = false,
   templateError = null,
@@ -75,6 +77,8 @@ function setup({
       certificateType: "ProfessionalCertificate",
       templateId: "saved-template-id",
       description: "Proof preservation regression",
+      issueDate,
+      signedDate,
       hasValidity: false,
       certificateFormat: "w3c",
       statusProfile,
@@ -86,7 +90,9 @@ function setup({
     validateIssuingMethods: () => ({ valid: true }),
     getISODateString: () => "2026-10-14T00:00:00Z",
     generateCertificateId: () => "test-credential-id",
-    dateInputToISO: () => { throw new Error("No validity dates expected"); },
+    dateInputToISO: (value) => value === "2026-10-14"
+      ? "2026-10-14T00:00:00.000Z"
+      : null,
     fetch: async (url, options) => {
       calls.requests.push({ url, body: JSON.parse(options.body) });
       return { ok: status >= 200 && status < 300, status, json: async () => body };
@@ -130,6 +136,10 @@ test("DID-only issuance preserves server proof without connecting or invoking a 
   assert.equal(calls.requests[0].body.renderMethod, "embedded");
   assert.equal(calls.requests[0].body.templateId, "saved-template-id");
   assert.equal(calls.requests[0].body.data.templateId, "classic");
+  assert.equal(calls.requests[0].body.data.issueDate, "2026-10-14T00:00:00.000Z");
+  assert.equal(calls.requests[0].body.data.signedDate, "2026-10-14T00:00:00.000Z");
+  assert.equal(state.IssuedCert.issueDate, "2026-10-14T00:00:00.000Z");
+  assert.equal(state.IssuedCert.signedDate, "2026-10-14T00:00:00.000Z");
 
   const current = compile(expression("currentCredential"), {
     useMemo: (callback) => callback(),
@@ -140,6 +150,22 @@ test("DID-only issuance preserves server proof without connecting or invoking a 
   });
 
   assert.deepEqual(JSON.parse(JSON.stringify(current)).proof, original.proof);
+});
+
+test("issuance rejects a missing issue date before contacting the signing service", async () => {
+  const { run, state, calls } = setup({ issueDate: "" });
+  await run();
+  assert.deepEqual(state.Errors, ["Issuing date is required and must be valid."]);
+  assert.equal(calls.requests.length, 0);
+  assert.equal(state.IssuedCert, undefined);
+});
+
+test("issuance rejects a missing signed date before contacting the signing service", async () => {
+  const { run, state, calls } = setup({ signedDate: "" });
+  await run();
+  assert.deepEqual(state.Errors, ["Signed date is required and must be valid."]);
+  assert.equal(calls.requests.length, 0);
+  assert.equal(state.IssuedCert, undefined);
 });
 
 test("fixed issuance settings override stale form values for DID and combined issuance", async () => {

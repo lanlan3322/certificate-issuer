@@ -1,6 +1,7 @@
 "use client";
 
 import { getCertificateTextDensity } from "./text-density";
+import { formatDate } from "../../lib/certificate";
 import { CertificateTemplateData, Theme } from "./types";
 
 interface TemplateProps {
@@ -72,6 +73,7 @@ export default function ClassicTemplate({ certificate, theme }: TemplateProps) {
         <p className={`${extremelyDense ? "mt-2" : "mt-4"} italic ${descriptionSize} ${bodyColor}`}>"{certificate.description}"</p>
       )}
       <p className={`${extremelyDense ? "mt-3" : "mt-6"} text-xs ${accentColor}`}>Issued by {certificate.issuerName}</p>
+      <p className="mt-1 text-xs">{formatDate(certificate.issueDate)}</p>
     </div>
   );
 }

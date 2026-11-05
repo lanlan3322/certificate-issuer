@@ -49,6 +49,7 @@ export function toCertificateTemplateData(document: unknown, origin: string): Ce
       "Certificate Issuer"
     ),
     issueDate: text(doc.issuanceDate ?? doc.validFrom),
+    signedDate: text(subject.signedDate) || undefined,
     description: text(subject.description),
     validFrom: text(doc.validFrom ?? doc.issuanceDate),
     validUntil: typeof doc.validUntil === "string" ? doc.validUntil : undefined,

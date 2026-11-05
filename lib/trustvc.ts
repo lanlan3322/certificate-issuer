@@ -184,6 +184,7 @@ const CERTIFICATE_SUBJECT_CONTEXT = {
   issuerDisplayName: "https://verifiable.sg/credentials#issuerDisplayName",
   certificateNo: "https://verifiable.sg/credentials#certificateNo",
   courseLength: "https://verifiable.sg/credentials#courseLength",
+  signedDate: "https://verifiable.sg/credentials#signedDate",
 } as const;
 
 const LOCAL_DID_VERIFICATION_METHOD_ID = `${TRUSTVC_CONFIG.didUrl}#key-1`;
@@ -355,6 +356,7 @@ export interface CertificateData {
   documentStoreAddress?: string;
   documentStoreNetwork?: string;
   issueDate: string;
+  signedDate?: string;
   description: string;
   validFrom: string;
   validUntil?: string;
@@ -399,6 +401,7 @@ export function toOpenCertsCredentialSubject(
   if (data.issuerDisplayName) result.issuerDisplayName = data.issuerDisplayName;
   if (data.certificateNo) result.certificateNo = data.certificateNo;
   if (data.courseLength != null) result.courseLength = data.courseLength;
+  if (data.signedDate) result.signedDate = data.signedDate;
 
   return result;
 }
