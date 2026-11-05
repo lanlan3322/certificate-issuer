@@ -14,7 +14,7 @@ export default function AdminManualPage() {
         <p className="mt-3 text-slate-600 dark:text-slate-300">Configure your organization&apos;s CaaS workspace: set up issuer access, test credential workflows, and operate with appropriate controls.</p>
       </header>
       <nav aria-label="Admin manual sections" className="mb-8 flex flex-wrap gap-2 text-sm font-semibold">
-        {[["organizations", "Structure"], ["issuer-members", "Issuer members"], ["recovery", "Recovery"], ["operations", "Operations"], ["legal", "Legal & email"], ["pdpa", "PDPA procedures"], ["sign-off", "Sign-off status"]].map(([id, title]) => (
+        {[["organizations", "Structure"], ["rbac", "RBAC"], ["issuer-members", "Issuer members"], ["recovery", "Recovery"], ["operations", "Operations"], ["legal", "Legal & email"], ["pdpa", "PDPA procedures"], ["sign-off", "Sign-off status"]].map(([id, title]) => (
           <a key={id} href={`#${id}`} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 py-2 text-cyan-800 hover:bg-cyan-50 dark:border-slate-600 dark:text-cyan-300 dark:hover:bg-slate-800">{title}</a>
         ))}
       </nav>
@@ -32,16 +32,25 @@ export default function AdminManualPage() {
             ["Issuer metadata", "Display name is the public label; the issuer name remains its legacy name, and slug is the issuer code unique within its organization. Organization ownership cannot be transferred."],
             ["Lifecycle", "Deactivate an issuer to stop normal use while retaining historical records. Suspended and deleted states are distinct; only platform admins can soft-delete."],
             ["Organization directory", "Platform admins use Administration → Organizations to create, edit, view or deactivate organizations and manage memberships. Organization admins can open My organization to manage their own members."],
-            ["Issued credentials", "Platform admins can view and manage credentials across organizations. Other users see their active organization's credentials. Issuers may revoke and send only their assigned issuer's records; organization admins and viewers are read-only."],
+            ["Issued credentials", "Platform admins can view and manage credentials across organizations. Organization admins can read their organization's credentials; issuer members can read only assigned issuers' records. Issuer operators may issue, revoke and send for their assigned issuers."],
             ["Issuer members", "Open issuer details to add an existing application user ID, change the issuer role or remove the assignment. Changes affect only that issuer and take effect on the next authorized request."],
           ]} />
-          <ManualReference caption="Organization role permissions" headings={["Role", "Access"]} rows={[
-            ["platform_admin", "Manage all organizations, global user roles, memberships, issuers, templates and credentials."],
-            ["issuer_admin", "Manage templates for assigned issuers; no organization administration or issuance permission is implied."],
-            ["issuer_operator", "Issue, revoke and send for assigned issuers; does not manage issuer metadata, membership or templates."],
-            ["viewer", "Read access for the assigned issuer only."],
-          ]} />
-          <p className="mt-4">Organization administrators retain their Phase 1 organization-level controls. Issuer roles are a separate scope and do not grant organization administration. Removing an issuer member revokes that issuer&apos;s scoped permission; it does not delete the user or alter another issuer membership.</p>
+          <div id="rbac" className="scroll-mt-28">
+            <h3 className="mt-6 text-lg font-bold">Role-based access control (RBAC)</h3>
+            <ManualReference caption="Platform and organization RBAC table" headings={["Role", "Scope and permissions"]} rows={[
+              ["platform_admin", "Platform-wide: create, edit, deactivate and soft-delete organizations and issuers; manage global user roles, memberships and templates; view, issue, revoke and send credentials across organizations."],
+              ["organization_admin", "Own active organization: manage organization memberships, issuer metadata, issuer assignments and templates; read all organization credentials. Cannot edit organization profile/lifecycle, grant platform administration or soft-delete issuers. Issuance, revocation and sending require a separate issuer_operator assignment."],
+              ["issuer", "Organization role for credential operations. Access requires an issuer assignment; issuer_operator grants issue, revoke and send for that issuer. The organization role or legacy issuer ID alone does not grant access after assignment removal."],
+              ["viewer", "Read-only. Issuer-bound or explicitly assigned users are restricted to assigned issuers. An organization viewer with no legacy issuer binding and no issuer assignments retains organization-wide read access. No issuer, template or credential writes."],
+            ]} />
+            <ManualReference caption="Issuer-scoped RBAC table" headings={["Issuer membership role", "Permissions for the assigned issuer only"]} rows={[
+              ["issuer_admin", "Read issuer resources and credentials; create, update and deactivate templates. Cannot manage issuer metadata or memberships, administer the organization, issue, revoke or send credentials through this role."],
+              ["issuer_operator", "Read issuer resources and credentials; issue, revoke and send credentials. Cannot manage templates, issuer metadata, memberships or the organization."],
+              ["viewer", "Read issuer resources, templates and credentials. Cannot create, edit, deactivate, issue, revoke or send."],
+            ]} />
+            <p className="mt-4">Organization and issuer permissions are separate and combine when both are assigned. A user has one membership role per issuer and may have different roles for different issuers. Removing a membership removes that assignment&apos;s grants on the next authorized request; organization or platform administrator grants still apply.</p>
+            <aside className={noteStyle}><strong>Operational checks.</strong> Issuance resolves the issuer from the saved template; users do not choose a different issuer while issuing. Issuing, revoking and sending require an active issuer and organization. Deactivation retains historical records and does not change cryptographic verification.</aside>
+          </div>
         </section>
 
         <section id="issuer-members" aria-labelledby="issuer-members-heading" className={sectionStyle}>
