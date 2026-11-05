@@ -123,11 +123,9 @@ test("token-hash links keep verifyOtp while default confirmation links reach the
 
 function renderPortal(mode, recoverySession) {
   let index = 0;
-  const state = [mode, "", "", recoverySession, "", {
-    displayName: "Issuer User", issuerName: "Academy", email: "issuer@example.com",
-  }, [], null, null, false];
+  const state = [mode, "", "", recoverySession, true, "", null, null, false];
   const component = load("page.tsx", {
-    react: { useState: () => [state[index++], () => {}], useEffect: () => {} },
+    react: { useState: () => [state[index++], () => {}], useRef: () => ({ current: null }), useEffect: () => {} },
     "next/link": { default: () => null },
     "next/navigation": { useRouter: () => ({}) },
     "lucide-react": { KeyRound: () => null, LogOut: () => null, ShieldCheck: () => null },
@@ -135,6 +133,9 @@ function renderPortal(mode, recoverySession) {
     "../../lib/safe-internal-path": {},
     "../../lib/supabase/client": {},
     "../../lib/password-policy": policy,
+    "../../components/WorkspaceSession": { useWorkspaceSession: () => ({ user: { displayName: "Issuer User" }, refresh: async () => {} }) },
+    "../dashboard/page": { default: () => require("react").createElement("main", null, "Credential overview") },
+    "../../components/legal/LegalNotice": { default: () => null },
     "../templates/registry": { TEMPLATE_OPTIONS: [] },
   });
   return renderToStaticMarkup(component.default());
@@ -146,7 +147,7 @@ test("signed-in recovery users see password setup rather than the issuer overvie
   assert.match(reset, /special character/);
   assert.doesNotMatch(reset, /Welcome, Issuer User/);
   const normal = renderPortal("login", false);
-  assert.match(normal, /Welcome, /);
+  assert.match(normal, /Credential overview/);
   assert.doesNotMatch(normal, /Set new password/);
 });
 

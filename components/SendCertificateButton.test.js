@@ -89,12 +89,11 @@ test("failed sends stay open, expose errors, and reuse the same request identifi
   assert.equal(app.requests[0][1].requestId, app.requests[1][1].requestId);
 });
 
-test("both pages use the same certificate table with Send in the final column", () => {
-  for (const page of ["dashboard", "issuer"]) {
-    const source = readFileSync(`${__dirname}/../app/${page}/page.tsx`, "utf8");
-    assert.match(source, /<IssuedCertificatesTable credentials=/);
-  }
+test("workspace access reuses the dashboard table with Send in the final column", () => {
+  const dashboard = readFileSync(`${__dirname}/../app/dashboard/page.tsx`, "utf8");
+  assert.match(dashboard, /<IssuedCertificatesTable credentials=/);
+  assert.match(readFileSync(`${__dirname}/../app/issuer/page.tsx`, "utf8"), /return <DashboardPage \/>/);
   const table = readFileSync(`${__dirname}/IssuedCertificatesTable.tsx`, "utf8");
-  assert.match(table, /<SendCertificateButton credential=\{cred\} \/><\/td>\s*<\/tr>/);
+  assert.match(table, /<SendCertificateButton credential=\{cred\} \/>\}<\/td>\s*<\/tr>/);
   assert.match(table, />Send<\/th>\s*<\/tr>/);
 });

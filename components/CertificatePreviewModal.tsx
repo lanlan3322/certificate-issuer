@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import { CheckCircle, Download, XCircle } from "lucide-react";
 import type { CertEntry } from "../lib/certificate-types";
 import { CertificateTemplateRenderer, resolveTemplateId, TEMPLATE_OPTIONS } from "../app/templates";
@@ -16,6 +16,13 @@ export default function CertificatePreviewModal({
   onClose: () => void;
 }) {
   const certificatePreviewRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialog?.showModal();
+    return () => { dialog?.close(); if (previousFocus?.isConnected) previousFocus.focus(); };
+  }, []);
   const verificationUrl = buildVerificationUrl(
     typeof window === "undefined" ? "" : window.location.origin,
     certificate.id
@@ -38,15 +45,18 @@ export default function CertificatePreviewModal({
   }, [certificate]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label="Certificate preview">
-      <div className="bg-white rounded-xl max-w-5xl w-full max-h-[92vh] overflow-auto">
+    <dialog ref={dialogRef} onCancel={(event) => { event.preventDefault(); onClose(); }}
+      onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onClose(); } }}
+      className="m-auto max-h-[92dvh] w-[calc(100%_-_2rem)] max-w-5xl overflow-y-auto overscroll-contain break-words rounded-xl bg-white p-0 text-slate-900 shadow-xl backdrop:bg-black/60"
+      aria-label="Certificate preview">
+      <div className="bg-white rounded-xl w-full">
         <div className="bg-gradient-to-r from-primary to-accent text-white p-6 rounded-t-xl">
-          <div className="flex justify-between items-start">
-            <div>
+          <div className="flex flex-wrap justify-between items-start gap-4">
+            <div className="min-w-0">
               <p className="text-secondary text-sm uppercase tracking-wider">{certificate.certificateType}</p>
               <h2 className="text-2xl font-bold mt-1">{certificate.recipientName}</h2>
             </div>
-            <div className="flex items-start gap-3">
+            <div className="flex flex-wrap items-start gap-3">
               <CertificatePdfDownload
                 key={certificate.id ?? certificate.recipientName}
                 certificateRef={certificatePreviewRef}
@@ -96,12 +106,16 @@ export default function CertificatePreviewModal({
               <p className="text-gray-800">{certificate.recipientEmail}</p>
             </div>
             <div>
-              <p className="text-gray-500">Issuer</p>
+              <p className="text-gray-500">Issued By:</p>
               <p className="text-gray-800">{certificate.issuerName}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Organization:</p>
+              <p className="text-gray-800">{certificate.organizationDisplayName ?? "Not recorded"}</p>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

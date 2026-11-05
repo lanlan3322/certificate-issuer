@@ -18,7 +18,8 @@ function load(mocks) {
   instance.filename = filename;
   instance.paths = Module._nodeModulePaths(path.dirname(filename));
   const normalRequire = instance.require.bind(instance);
-  instance.require = (name) => Object.hasOwn(mocks, name) ? mocks[name] : normalRequire(name);
+  instance.require = (name) => name === "../../../lib/permissions" ? normalRequire(`${name}.ts`) :
+    Object.hasOwn(mocks, name) ? mocks[name] : normalRequire(name);
   instance._compile(ts.transpileModule(readFileSync(filename, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
       esModuleInterop: true },
@@ -51,6 +52,7 @@ test("issuer profile API scopes callers, redacts key references, and accepts ref
     },
   };
   const mocks = {
+    "../../../lib/issuer-access": { requireIssuerAccess: async () => ({}) },
     "../../../lib/apiAuth": {
       authorize: async (role) => {
         roles.push(role);

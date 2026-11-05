@@ -13,6 +13,9 @@ function loadHandler({ user, credentials = [], failure } = {}) {
   instance.filename = filename;
   instance.paths = Module._nodeModulePaths(path.dirname(filename));
   const dependencies = {
+    "../../../lib/issuer-access": { requireIssuerAccess: async () => ({}) },
+    "../../../services/TemplateService": { TemplateService: {} },
+    "../../../lib/permissions": require("../../../lib/permissions.ts"),
     "../../../lib/apiAuth": {
       authorize: async () => user ? { user } : {
         response: NextResponse.json({ error: "Issuer login required." }, { status: 401 }),
@@ -48,16 +51,18 @@ test("credential listing requires login before accessing records", async () => {
 
 test("only the session platform-admin role enables platform-wide credential viewing", async () => {
   for (const roles of [["platform-admin"], ["issuer-admin"], ["issuer-operator"], ["verifier"], []]) {
-    const credentials = [{ id: "credential-id", issuerId: "issuer-id" }];
-    const { handler, calls } = loadHandler({ user: { issuerId: "issuer-id", roles }, credentials });
+    const credentials = [{ id: "credential-id", issuerId: "issuer-id", organizationId: "org-id" }];
+    const { handler, calls } = loadHandler({ user: { issuerId: "issuer-id", organizationId: "org-id", roles }, credentials });
     const response = await handler.GET(new Request(
       "https://verifiable.sg/api/credentials?platformAdmin=true&issuerId=other-issuer&status=revoked&limit=25"
     ));
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { credentials });
+    assert.deepEqual(await response.json(), { credentials: credentials.map((record) => ({ ...record,
+      canManage: roles.includes("platform-admin") || roles.includes("issuer-operator"),
+    })) });
     assert.deepEqual(calls, [
-      ["expireOverdue", "issuer-id"],
-      ["list", "issuer-id", { status: "revoked", limit: 25, platformAdmin: roles.includes("platform-admin") }],
+      ...(["platform-admin", "issuer-operator"].some((role) => roles.includes(role)) ? [["expireOverdue", "issuer-id"]] : []),
+      ["list", "issuer-id", { status: "revoked", limit: 25, platformAdmin: roles.includes("platform-admin"), organizationId: "org-id" }],
     ]);
   }
 });
@@ -70,5 +75,5 @@ test("platform-wide listing defaults to no requested limit and reports failures"
   const response = await handler.GET(new Request("https://verifiable.sg/api/credentials"));
   assert.equal(response.status, 500);
   assert.deepEqual(await response.json(), { error: "Unable to load credentials." });
-  assert.deepEqual(calls[1], ["list", "issuer-id", { status: undefined, limit: undefined, platformAdmin: true }]);
+  assert.deepEqual(calls[1], ["list", "issuer-id", { status: undefined, limit: undefined, platformAdmin: true, organizationId: undefined }]);
 });

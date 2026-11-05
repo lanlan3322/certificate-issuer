@@ -8,6 +8,7 @@ import { toCertificateTemplateData } from "../renderer/certificateView";
 import { CertificateTemplateData } from "../templates/types";
 import { DOCUMENT_STORE_CONFIG, TRUSTVC_CONFIG } from "../../lib/constants";
 import { withBasePath } from "../../lib/site";
+import { issuerPresentation } from "../../lib/issuer-presentation";
 import {
   VerificationResult,
 } from "../../lib/trustvc";
@@ -20,7 +21,15 @@ export default function VerifyPage() {
   const [showCertificateView, setShowCertificateView] = useState(false);
   const [credentialToDownload, setCredentialToDownload] = useState<Record<string, unknown> | null>(null);
   const certificatePreviewRef = useRef<HTMLDivElement>(null);
+  const previewDialogRef = useRef<HTMLDialogElement>(null);
   const [idLookup, setIdLookup] = useState<IdLookup | null>(null);
+  useEffect(() => {
+    if (!showCertificateView) return;
+    const dialog = previewDialogRef.current;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialog?.showModal();
+    return () => { dialog?.close(); if (previousFocus?.isConnected) previousFocus.focus(); };
+  }, [showCertificateView]);
 
   // QR codes on issued certificates link to /verify/?id=<certificate id>, so
   // the issuer's stored copy is verified without the holder uploading the file.
@@ -106,6 +115,7 @@ export default function VerifyPage() {
     ? toCertificateTemplateData(verifiedDocument, typeof window === "undefined" ? "" : window.location.origin)
     : null;
   const verificationUrl = certificateForView?.verificationUrl ?? "";
+  const issuerLabels = issuerPresentation(verifiedDocument);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -185,8 +195,11 @@ export default function VerifyPage() {
           </h2>
 
           <div className="mb-4">
-            <label className="label">Paste JSON Credential</label>
+            <label htmlFor="verification-json" className="label">Paste JSON Credential</label>
             <textarea
+              id="verification-json"
+              name="credential-json"
+              spellCheck={false}
               value={credentialJson}
               onChange={(e) => setCredentialJson(e.target.value)}
               className="input-field font-mono text-sm"
@@ -195,7 +208,7 @@ export default function VerifyPage() {
             />
           </div>
 
-          <div className="flex items-center space-x-4 mb-6">
+          <div className="mb-6 flex flex-wrap items-center gap-3">
             <label className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200">
               <Upload className="w-4 h-4" />
               <span>Upload File</span>
@@ -262,6 +275,13 @@ export default function VerifyPage() {
                 >
                   {result.message}
                 </p>
+                  <dl className="mt-4 text-sm">
+                    <dt className="font-medium">Issued By:</dt>
+                    <dd className="break-words">{idLookup?.issuerDisplayName ?? issuerLabels.issuerDisplayName}</dd>
+                    <dt className="mt-2 font-medium">Organization:</dt>
+                    <dd className="break-words">{idLookup?.organizationDisplayName ?? issuerLabels.organizationDisplayName}</dd>
+                  </dl>
+                  <p className="mt-2 text-xs">Display labels do not add an independent identity or organization trust check.</p>
 
                 {result.details && (
                   <div className="mt-4 p-4 bg-white rounded-lg">
@@ -394,14 +414,16 @@ export default function VerifyPage() {
       </div>
 
       {showCertificateView && certificateForView && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-              <div>
+        <dialog ref={previewDialogRef} aria-label="Certificate preview" onCancel={(event) => { event.preventDefault(); setShowCertificateView(false); }}
+          onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); setShowCertificateView(false); } }}
+          className="m-auto max-h-[92dvh] w-[calc(100%_-_2rem)] max-w-5xl overflow-y-auto overscroll-contain break-words rounded-xl bg-white p-0 text-slate-900 shadow-xl backdrop:bg-black/60">
+          <div className="w-full bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
+              <div className="min-w-0">
                 <h3 className="text-lg font-semibold text-gray-900">Certificate Preview</h3>
                 <p className="text-xs text-gray-500">Rendered using the credential&apos;s selected template.</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <CertificatePdfDownload
                   certificateRef={certificatePreviewRef}
                   recipientName={certificateForView.recipientName}
@@ -436,13 +458,15 @@ export default function VerifyPage() {
               </div>
             </div>
           </div>
-        </div>
+        </dialog>
       )}
     </div>
   );
 }
 interface IdLookup {
   id: string;
+  issuerDisplayName?: string;
+  organizationDisplayName?: string;
   status?: string | null;
   validFrom?: string | null;
   validUntil?: string | null;

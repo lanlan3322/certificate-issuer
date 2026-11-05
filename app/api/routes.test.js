@@ -79,8 +79,11 @@ for (const group of groups) {
     ]));
     Object.assign(mocks, {
       "../issuers/[id]/handler": {},
+      "../issuers/[id]/members/handler": {},
       "../organizations/handler": {},
       "../organizations/[id]/handler": {},
+      "../organizations/[id]/members/handler": {},
+      "../users/handler": {},
     });
     const router = load(group.route, mocks);
     for (const [endpoint, , supported] of group.endpoints) {

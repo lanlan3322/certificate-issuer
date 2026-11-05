@@ -46,6 +46,14 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
     secretKeyMultibase: "zSecret",
   };
   const mocks = {
+    "../../../lib/issuer-access": { requireIssuerAccess: async (_user, id) => {
+      if (id !== "issuer-id" && !roles.includes("platform-admin")) throw new Error("Issuer access denied.");
+      return { id, organizationId: "org-id", displayName: "Fintech Academy", active: true };
+    } },
+    "../../../services/OrganizationService": { OrganizationService: {
+      getById: async () => ({ id: "org-id", displayName: "Example Organization", status: "active" }),
+    } },
+    "../../../lib/permissions": require("../../../lib/permissions.ts"),
     "next/server": { NextResponse, after: (callback) => pending.push(callback) },
     "../../../lib/apiAuth": {
       authorize: async () => ({
@@ -205,22 +213,26 @@ test("issue route signs and persists using the selected template issuer profile"
   assert.equal(registration[3].network, profile.documentStoreNetwork);
 });
 
-test("shared templates reuse style without borrowing the owner's signing profile or ownership", async () => {
+test("template owner controls issuance and sibling issuer access requires an assignment or platform permission", async () => {
   for (const roles of [["issuer-operator"], ["platform-admin"]]) {
     const { post, calls } = createRoute({ templateOwner: "other-issuer", roles });
-    assert.equal((await post()).status, 200);
+    assert.equal((await post()).status, roles.includes("platform-admin") ? 200 : 500);
     assert.deepEqual(calls.find(([name]) => name === "load-template")[2], {
       organizationId: "org-id", platformAdmin: roles.includes("platform-admin"),
     });
-    assert.equal(calls.some(([name]) => name === "load-profile"), false);
+    if (!roles.includes("platform-admin")) {
+      assert.equal(calls.some(([name]) => name === "sign" || name === "persist"), false);
+      continue;
+    }
+    assert.deepEqual(calls.find(([name]) => name === "load-profile").slice(1), ["profile-id","other-issuer"]);
     const payload = calls.find(([name]) => name === "payload")[1];
     assert.equal(payload.templateId, "fta");
-    assert.equal(payload.issuerName, "Logged-in issuer");
-    assert.equal(payload.issuerDid, undefined);
+    assert.equal(payload.issuerName, "Fintech Academy");
+    assert.equal(payload.issuerDid, "did:web:fta.verifiable.sg");
     const saved = calls.find(([name]) => name === "persist")[1];
-    assert.equal(saved.issuerId, "issuer-id");
+    assert.equal(saved.issuerId, "other-issuer");
     assert.equal(saved.templateId, "template-row-id");
-    assert.equal(saved.issuerProfileId, undefined);
+    assert.equal(saved.issuerProfileId, "profile-id");
   }
 });
 
@@ -256,7 +268,7 @@ test("unmapped templates ignore client-supplied DID, display name, and Document 
   assert.equal(response.status, 200);
   const payload = calls.find(([name]) => name === "payload")[1];
   assert.equal(payload.issuerDid, undefined);
-  assert.equal(payload.issuerDisplayName, undefined);
+  assert.equal(payload.issuerDisplayName, "Fintech Academy");
   assert.equal(payload.documentStoreAddress, defaultStore.address);
   assert.equal(payload.documentStoreNetwork, defaultStore.network);
   assert.equal(calls.some(([name]) => name === "profile-key"), false);

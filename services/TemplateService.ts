@@ -1,4 +1,4 @@
-import { getSupabaseAdmin, getSupabaseServerClient } from "../lib/supabase/server";
+import { getSupabaseServerClient } from "../lib/supabase/server";
 
 export interface TemplateInput {
   issuerId: string;
@@ -11,6 +11,7 @@ export interface TemplateInput {
 
 export interface TemplateRecord {
   id: string;
+  organizationId: string;
   issuerId: string | null;
   issuerProfileId: string | null;
   slug: string;
@@ -19,10 +20,13 @@ export interface TemplateRecord {
   definition: Record<string, unknown>;
   isActive: boolean;
   createdAt: string;
+  issuerDisplayName?: string;
+  organizationDisplayName?: string;
 }
 
 const mapRow = (row: Record<string, unknown>): TemplateRecord => ({
   id: String(row.id),
+  organizationId: String(row.organization_id),
   issuerId: row.issuer_id ? String(row.issuer_id) : null,
   issuerProfileId: row.issuer_profile_id ? String(row.issuer_profile_id) : null,
   slug: String(row.slug),
@@ -31,15 +35,15 @@ const mapRow = (row: Record<string, unknown>): TemplateRecord => ({
   definition: (row.definition as Record<string, unknown>) ?? {},
   isActive: row.is_active !== false,
   createdAt: String(row.created_at),
+  issuerDisplayName: (row.issuers as { display_name?: string } | null)?.display_name,
+  organizationDisplayName: (row.organizations as { display_name?: string } | null)?.display_name,
 });
 
 export const TemplateService = {
   async listForIssuance(scope: { organizationId: string; platformAdmin: boolean }) {
-    const table = getSupabaseAdmin().from("templates");
-    let query = (scope.platformAdmin
-      ? table.select("*")
-      : table.select("*, issuers!inner(organization_id)")).eq("is_active", true);
-    if (!scope.platformAdmin) query = query.eq("issuers.organization_id", scope.organizationId);
+    const client = await getSupabaseServerClient();
+    let query = client.from("templates").select("*, issuers(display_name), organizations(display_name)").eq("is_active", true);
+    if (!scope.platformAdmin) query = query.eq("organization_id", scope.organizationId);
     const { data, error } = await query.order("name", { ascending: true });
     if (error) throw error;
     return (data ?? []).map(mapRow);
@@ -59,7 +63,7 @@ export const TemplateService = {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reference);
     const { data, error } = await supabase
       .from("templates")
-      .select("*")
+      .select("*, issuers(display_name), organizations(display_name)")
       .eq("issuer_id", issuerId)
       .eq(isUuid ? "id" : "slug", reference)
       .maybeSingle();
@@ -67,14 +71,18 @@ export const TemplateService = {
     return data ? mapRow(data) : null;
   },
 
-  async list(issuerId: string, options: { includeInactive?: boolean } = {}) {
+  async list(issuerId: string, options: { includeInactive?: boolean; organizationId?: string; platformAdmin?: boolean } = {}) {
     const supabase = await getSupabaseServerClient();
 
     let queryBuilder = supabase
       .from("templates")
-      .select("*")
-      .or(`issuer_id.eq.${issuerId},issuer_id.is.null`)
+      .select("*, issuers(display_name), organizations(display_name)")
       .order("created_at", { ascending: false });
+    if (!options.platformAdmin) {
+      queryBuilder = options.organizationId
+        ? queryBuilder.eq("organization_id", options.organizationId)
+        : queryBuilder.or(`issuer_id.eq.${issuerId},issuer_id.is.null`);
+    }
 
     if (!options.includeInactive) {
       queryBuilder = queryBuilder.eq("is_active", true);
@@ -152,15 +160,14 @@ export const TemplateService = {
     return mapRow(data);
   },
 
-  async deactivate(id: string, issuerId: string) {
+  async deactivate(id: string, issuerId?: string) {
     const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from("templates")
       .update({ is_active: false })
-      .eq("id", id)
-      .eq("issuer_id", issuerId)
-      .select()
-      .single();
+      .eq("id", id);
+    if (issuerId) query = query.eq("issuer_id", issuerId);
+    const { data, error } = await query.select().single();
     if (error) throw error;
     if (!data) throw new Error("Template not found.");
     return mapRow(data);

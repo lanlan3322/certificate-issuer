@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import AgentWindow from "./AgentWindow";
 import { AgentAnalyticsService } from "../../lib/agent/analytics";
@@ -8,6 +8,7 @@ import { createLocalAgentResponse } from "../../lib/agent/local";
 import type { AgentAction, AgentMessageData, AgentResponse } from "../../lib/agent/types";
 import { getSupabaseBrowserClient } from "../../lib/supabase/client";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+import { withBasePath } from "../../lib/site";
 
 const MEMORY_KEY = "trustvc-agent-history";
 const SESSION_KEY = "trustvc-agent-session-id";
@@ -22,6 +23,7 @@ export default function AgentWidget() {
   const [workflowState, setWorkflowState] = useState<Record<string, string>>({});
   const [databaseSessionId, setDatabaseSessionId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const sessionRequest = useRef<Promise<string | null> | null>(null);
 
   useEffect(() => {
     const openAgent = () => {
@@ -48,29 +50,48 @@ export default function AgentWidget() {
     return () => { subscription.unsubscribe(); };
   }, []);
 
-  const createDatabaseSession = async () => {
-    try {
-      const response = await fetch("/api/agent/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPage: pathname }) });
-      if (!response.ok) return null;
-      const payload = await response.json() as { session?: { id?: string } };
-      return payload.session?.id ?? null;
-    } catch {
-      return null;
-    }
-  };
+  const createDatabaseSession = useCallback(() => {
+    if (sessionRequest.current) return sessionRequest.current;
+    const request = (async () => {
+      try {
+        const response = await fetch(withBasePath("/api/agent/session"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPage: pathname }) });
+        const payload = await response.json() as { session?: { id?: string }; error?: string };
+        if (!response.ok || !payload.session?.id) throw new Error(payload.error ?? "Unable to create an assistant session.");
+        window.sessionStorage.setItem(SESSION_KEY, payload.session.id);
+        return payload.session.id;
+      } catch (reason) {
+        setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", createdAt: new Date().toISOString(),
+          content: `${reason instanceof Error ? reason.message : "Unable to connect to the assistant."} Conversation persistence is unavailable.` }]);
+        return null;
+      }
+    })();
+    sessionRequest.current = request;
+    void request.finally(() => { sessionRequest.current = null; });
+    return request;
+  }, [pathname]);
 
   useEffect(() => { const stored = window.localStorage.getItem(MEMORY_KEY); if (stored) setMessages(JSON.parse(stored) as AgentMessageData[]); }, []);
   useEffect(() => { window.localStorage.setItem(MEMORY_KEY, JSON.stringify(messages.slice(-40))); }, [messages]);
   useEffect(() => {
+    if (!open || !isAuthenticated) return;
     const existing = window.sessionStorage.getItem(SESSION_KEY);
     if (existing) { setDatabaseSessionId(existing); return; }
-    void createDatabaseSession().then((id) => { if (id) { window.sessionStorage.setItem(SESSION_KEY, id); setDatabaseSessionId(id); } });
-  }, [pathname]);
+    let active = true;
+    void createDatabaseSession().then((id) => { if (active && id) setDatabaseSessionId(id); });
+    return () => { active = false; };
+  }, [createDatabaseSession, open, isAuthenticated]);
 
   const exitSession = async () => {
-    const existingSessionId = databaseSessionId ?? window.sessionStorage.getItem(SESSION_KEY);
+    const existingSessionId = databaseSessionId ?? await sessionRequest.current ?? window.sessionStorage.getItem(SESSION_KEY);
     if (existingSessionId) {
-      await fetch(`/api/agent/session?sessionId=${encodeURIComponent(existingSessionId)}`, { method: "DELETE" }).catch(() => undefined);
+      try {
+        const response = await fetch(withBasePath(`/api/agent/session?sessionId=${encodeURIComponent(existingSessionId)}`), { method: "DELETE" });
+        if (!response.ok) throw new Error("Unable to end the previous assistant session. Please try again.");
+      } catch (reason) {
+        setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", createdAt: new Date().toISOString(),
+          content: reason instanceof Error ? reason.message : "Unable to end the assistant session." }]);
+        return;
+      }
     }
     window.localStorage.removeItem(MEMORY_KEY);
     window.sessionStorage.removeItem(SESSION_KEY);
@@ -105,7 +126,7 @@ export default function AgentWidget() {
     const context = { currentPage: pathname, userAction: content, workflowState };
     let response: AgentResponse;
     try {
-      const request = await fetch("/api/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: content, context, sessionId: databaseSessionId ?? undefined }) });
+      const request = await fetch(withBasePath("/api/agent"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: content, context, sessionId: databaseSessionId ?? undefined }) });
       if (!request.ok) throw new Error("Agent API unavailable");
       response = await request.json() as AgentResponse;
     } catch { response = createLocalAgentResponse(content, context); }

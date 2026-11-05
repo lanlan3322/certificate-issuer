@@ -58,7 +58,7 @@ export default function CookieBanner() {
               <button type="button" onClick={() => save(true)} className="rounded-lg border border-slate-400 px-4 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Accept All</button>
               <button type="button" onClick={() => save(false)} className="rounded-lg border border-slate-400 px-4 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Reject Optional</button>
               <button type="button" onClick={() => setOpen(true)} className="rounded-lg border border-slate-400 px-4 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Cookie Preferences</button>
-              <Link href="/privacy" className="rounded-lg px-4 py-2 text-sm font-semibold underline underline-offset-4 focus-visible:outline focus-visible:outline-2">Privacy Policy</Link>
+              <Link href="/privacy" prefetch={false} className="rounded-lg px-4 py-2 text-sm font-semibold underline underline-offset-4 focus-visible:outline focus-visible:outline-2">Privacy Policy</Link>
             </div>
             {error && <p role="alert" className="mt-3 text-sm text-red-700 dark:text-red-300">{error}</p>}
           </div>

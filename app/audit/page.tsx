@@ -102,7 +102,7 @@ export default function AuditPage() {
             Credential lifecycle activity and the immutable audit trail for your organization.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {RANGES.map((range) => (
             <button
               key={range}

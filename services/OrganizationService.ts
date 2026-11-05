@@ -1,8 +1,12 @@
-import { getSupabaseAdmin, getSupabaseServerClient } from "../lib/supabase/server";
+import { getSupabaseServerClient } from "../lib/supabase/server";
 
 export interface OrganizationInput {
   name: string;
   slug: string;
+  displayName?: string;
+  website?: string | null;
+  logoUrl?: string | null;
+  status?: "active" | "disabled";
 }
 
 export interface OrganizationRecord {
@@ -11,6 +15,12 @@ export interface OrganizationRecord {
   slug: string;
   status: "active" | "disabled";
   createdAt: string;
+  displayName: string;
+  website: string | null;
+  logoUrl: string | null;
+  createdBy: string | null;
+  updatedAt: string;
+  softDeletedAt: string | null;
 }
 
 const mapRow = (row: Record<string, unknown>): OrganizationRecord => ({
@@ -19,28 +29,27 @@ const mapRow = (row: Record<string, unknown>): OrganizationRecord => ({
   slug: String(row.slug),
   status: (row.status as "active" | "disabled") ?? "active",
   createdAt: String(row.created_at),
+  displayName: String(row.display_name ?? row.name),
+  website: row.website ? String(row.website) : null,
+  logoUrl: row.logo_url ? String(row.logo_url) : null,
+  createdBy: row.created_by ? String(row.created_by) : null,
+  updatedAt: String(row.updated_at),
+  softDeletedAt: row.soft_deleted_at ? String(row.soft_deleted_at) : null,
 });
 
 export const OrganizationService = {
   async create(input: OrganizationInput, userId: string): Promise<OrganizationRecord> {
-    const supabase = getSupabaseAdmin();
+    const supabase = await getSupabaseServerClient();
 
-    // Insert the organization
     const { data: org, error: orgError } = await supabase
       .from("organizations")
-      .insert({ name: input.name, slug: input.slug })
+      .insert({ name: input.name, slug: input.slug, display_name: input.displayName || input.name,
+        website: input.website ?? null, logo_url: input.logoUrl ?? null,
+        status: input.status ?? "active", created_by: userId })
       .select()
       .single();
 
     if (orgError) throw new Error(`Failed to create organization: ${orgError.message}`);
-
-    // Link the user to this organization
-    const { error: linkError } = await supabase
-      .from("users")
-      .update({ organization_id: org.id })
-      .eq("auth_user_id", userId);
-
-    if (linkError) throw new Error(`Failed to link user to organization: ${linkError.message}`);
 
     return mapRow(org);
   },
@@ -67,9 +76,9 @@ export const OrganizationService = {
   },
 
   async list(includeDisabled = false): Promise<OrganizationRecord[]> {
-    const supabase = getSupabaseAdmin();
+    const supabase = await getSupabaseServerClient();
 
-    let query = supabase.from("organizations").select("*");
+    let query = supabase.from("organizations").select("*").is("soft_deleted_at", null);
     if (!includeDisabled) {
       query = query.eq("status", "active");
     }
@@ -88,17 +97,30 @@ export const OrganizationService = {
       .eq("id", id)
       .maybeSingle();
 
-    if (error || !org) return null;
+    if (error) throw error;
+    if (!org) return null;
     return mapRow(org);
   },
 
   async updateStatus(id: string, status: OrganizationRecord["status"]): Promise<OrganizationRecord> {
-    const supabase = getSupabaseAdmin();
+    return this.update(id, { status });
+  },
+
+  async update(id: string, input: Partial<OrganizationInput> & { softDeletedAt?: string }): Promise<OrganizationRecord> {
+    const supabase = await getSupabaseServerClient();
+    const updates: Record<string, unknown> = {};
+    for (const [field, column] of [
+      ["name", "name"], ["slug", "slug"], ["displayName", "display_name"], ["website", "website"],
+      ["logoUrl", "logo_url"], ["status", "status"], ["softDeletedAt", "soft_deleted_at"],
+    ] as const) {
+      if (input[field] !== undefined) updates[column] = input[field];
+    }
 
     const { data: org, error } = await supabase
       .from("organizations")
-      .update({ status })
+      .update(updates)
       .eq("id", id)
+      .is("soft_deleted_at", null)
       .select()
       .single();
 
@@ -108,4 +130,3 @@ export const OrganizationService = {
     return mapRow(org);
   },
 };
-

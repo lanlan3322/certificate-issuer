@@ -12,6 +12,7 @@ import { VerificationService } from "../../../services/VerificationService";
 import { createSafeDocumentLoader } from "../../../lib/safe-document-loader";
 import { clientIp } from "../../../lib/apiAuth";
 import { enforceRateLimit, RateLimitError } from "../../../lib/auth";
+import { issuerPresentation } from "../../../lib/issuer-presentation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -211,6 +212,7 @@ export async function POST(request: Request) {
             validUntil: record?.validUntil,
             issuingMethods: record?.issuingMethods,
             documentHash: record?.documentHash,
+            ...issuerPresentation(credentialToVerify),
           }
         : null,
     });

@@ -7,6 +7,8 @@ import {
   type IssuerProfileInput,
 } from "../../../services/IssuerProfileService";
 import { isRootDidWeb, LEGACY_DID_ID } from "../../../lib/did-publication";
+import { hasPermission } from "../../../lib/permissions";
+import { requireIssuerAccess } from "../../../lib/issuer-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -104,10 +106,13 @@ export async function GET(request: Request) {
   const { user, response } = await authorize();
   if (response) return response;
   try {
-    const includeInactive = new URL(request.url).searchParams.get("includeInactive") === "true";
+    const params = new URL(request.url).searchParams;
+    const includeInactive = params.get("includeInactive") === "true";
+    const issuerId = params.get("issuerId") || user.issuerId;
+    await requireIssuerAccess(user, issuerId);
     return NextResponse.json({
-      canManage: user.roles.includes("issuer-admin"),
-      issuerProfiles: (await IssuerProfileService.list(user.issuerId, { includeInactive }))
+      canManage: hasPermission(user, "issuers.manage"),
+      issuerProfiles: (await IssuerProfileService.list(issuerId, { includeInactive }))
         .map(({ id, issuerName, displayName, did, verificationMethod, documentStoreAddress,
           documentStoreNetwork, logoUrl, website, active, createdAt, updatedAt }) => ({
           id,

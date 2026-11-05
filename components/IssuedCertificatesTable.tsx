@@ -8,7 +8,7 @@ import { TEMPLATE_OPTIONS } from "../app/templates/registry";
 import type { CertEntry } from "../lib/certificate-types";
 import { withBasePath } from "../lib/site";
 
-export interface CredentialItem { id: string; issuerId?: string; externalId: string; recipientName: string; recipientEmail: string; status: string; issuedAt: string; credential: Record<string, unknown>; templateId: string | null }
+export interface CredentialItem { id: string; issuerId?: string; externalId: string; recipientName: string; recipientEmail: string; status: string; issuedAt: string; credential: Record<string, unknown>; templateId: string | null; issuerSnapshot?: Record<string, unknown>; canManage?: boolean }
 
 interface Props {
   credentials: CredentialItem[];
@@ -16,6 +16,7 @@ interface Props {
   loading?: boolean;
   error?: string | null;
   currentIssuerId?: string;
+  canManageCredentials?: boolean;
 }
 
 type Sort = { column: "recipientName" | "issuedAt"; direction: "ascending" | "descending" };
@@ -50,7 +51,7 @@ function getVisibleCredentials(credentials: CredentialItem[], query: string, sor
   });
 }
 
-export default function IssuedCertificatesTable({ credentials: allCredentials, onCredentialsChange: setAllCredentials, loading: credentialLoading = false, error, currentIssuerId }: Props) {
+export default function IssuedCertificatesTable({ credentials: allCredentials, onCredentialsChange: setAllCredentials, loading: credentialLoading = false, error, currentIssuerId, canManageCredentials = true }: Props) {
   const [revokeLoading, setRevokeLoading] = useState<string | null>(null);
   const [selectedCredential, setSelectedCredential] = useState<CertEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -96,6 +97,8 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
       id: cred.externalId || certificate.id || cred.id,
       recipientName: cred.recipientName,
       recipientEmail: cred.recipientEmail,
+      issuerName: typeof cred.issuerSnapshot?.issuerDisplayName === "string" ? cred.issuerSnapshot.issuerDisplayName : certificate.issuerName,
+      organizationDisplayName: typeof cred.issuerSnapshot?.organizationDisplayName === "string" ? cred.issuerSnapshot.organizationDisplayName : undefined,
       issueDate: certificate.issueDate || cred.issuedAt,
       templateId: TEMPLATE_OPTIONS.some((template) => template.id === certificate.templateId)
         ? certificate.templateId
@@ -112,11 +115,16 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
 
   return <>
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">Issued credentials</h2>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Issued credentials</h2>
+        <p role="status" className="text-xs text-slate-500">{visibleCredentials.length} of {allCredentials.length} loaded records</p>
+      </div>
       <label className="mb-4 block text-sm font-medium text-slate-700 dark:text-slate-300">
         Search credentials
         <input
           type="search"
+          name="credential-search"
+          autoComplete="off"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder="Search recipient, email, template, status or issue date"
@@ -132,8 +140,14 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
       ) : allCredentials.length === 0 ? (
         <p className="text-slate-500">No credentials have been issued yet.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[850px] text-left text-sm">
+        <div className="min-w-0">
+          <div className="mb-4 flex flex-wrap gap-2 sm:hidden" aria-label="Sort credentials">
+            <button type="button" aria-pressed={sort?.column === "recipientName"} className="btn-secondary px-3" onClick={() => toggleSort("recipientName")}>Recipient {sort?.column === "recipientName" ? (sort.direction === "ascending" ? "\u2191" : "\u2193") : "\u2195"}</button>
+            <button type="button" aria-pressed={sort?.column === "issuedAt"} className="btn-secondary px-3" onClick={() => toggleSort("issuedAt")}>Issue date {sort?.column === "issuedAt" ? (sort.direction === "ascending" ? "\u2191" : "\u2193") : "\u2195"}</button>
+          </div>
+          <div className="overflow-x-auto">
+          <table role="table" className="credential-table w-full text-left text-sm sm:min-w-[850px]">
+            <caption className="sr-only">Issued credentials and available actions</caption>
             <thead className="border-b border-slate-200 text-slate-500 dark:border-slate-700">
               <tr>
                 <th scope="col" aria-sort={sort?.column === "recipientName" ? sort.direction : "none"} className="px-3 py-3">
@@ -161,7 +175,7 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
               {visibleCredentials.map((cred) => {
                 const templateLabel = getTemplateLabel(cred);
                 const isRevoked = cred.status.toLowerCase() === "revoked";
-                const canManage = !currentIssuerId || cred.issuerId === currentIssuerId;
+                const canManage = canManageCredentials && (cred.canManage ?? (!currentIssuerId || cred.issuerId === currentIssuerId));
                 return (
                   <tr
                     key={cred.id}
@@ -172,12 +186,16 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
                     onKeyDown={(e) => { if (e.target === e.currentTarget && e.key === "Enter") handleViewCredential(cred); }}
                     style={{ cursor: "pointer" }}
                   >
-                    <td className={`px-3 py-3 font-medium ${isRevoked ? "text-gray-400 italic" : "text-slate-800 dark:text-slate-200"}`}>{cred.recipientName}</td>
-                    <td className={`px-3 py-3 ${isRevoked ? "text-gray-400 italic" : "text-slate-600 dark:text-slate-400"}`}>{cred.recipientEmail}</td>
-                    <td className={`px-3 py-3 font-medium ${isRevoked ? "text-gray-400 italic" : "text-slate-700 dark:text-slate-300"}`}>{templateLabel}</td>
-                    <td className={`px-3 py-3 uppercase text-xs ${isRevoked ? "text-gray-400 italic" : ""}`}>{cred.status}</td>
-                    <td className={`px-3 py-3 ${isRevoked ? "text-gray-400 italic" : "text-slate-600 dark:text-slate-400"}`}>{new Date(cred.issuedAt).toLocaleDateString()}</td>
-                    <td className="px-3 py-3 text-center">
+                    <td data-label="Recipient" className={`px-3 py-3 font-medium ${isRevoked ? "text-gray-400 italic" : "text-slate-800 dark:text-slate-200"}`}>{cred.recipientName}</td>
+                    <td data-label="Email" className={`px-3 py-3 ${isRevoked ? "text-gray-400 italic" : "text-slate-600 dark:text-slate-400"}`}>{cred.recipientEmail}</td>
+                    <td data-label="Template" className={`px-3 py-3 font-medium ${isRevoked ? "text-gray-400 italic" : "text-slate-700 dark:text-slate-300"}`}>
+                      {templateLabel}
+                      <p className="mt-1 text-xs">Issued By: {String(cred.issuerSnapshot?.issuerDisplayName ?? "Not recorded")}</p>
+                      <p className="text-xs">Organization: {String(cred.issuerSnapshot?.organizationDisplayName ?? "Not recorded")}</p>
+                    </td>
+                    <td data-label="Status" className={`px-3 py-3 uppercase text-xs ${isRevoked ? "text-gray-400 italic" : ""}`}>{cred.status}</td>
+                    <td data-label="Issued" className={`px-3 py-3 ${isRevoked ? "text-gray-400 italic" : "text-slate-600 dark:text-slate-400"}`}>{new Date(cred.issuedAt).toLocaleDateString()}</td>
+                    <td data-label="Preview" className="px-3 py-3 text-center">
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleViewCredential(cred); }}
@@ -187,7 +205,7 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
                         View
                       </button>
                     </td>
-                    <td className="px-3 py-3 text-right">
+                    <td data-label="Actions" className="px-3 py-3 text-right">
                       {canManage && !isRevoked && (revokeLoading === cred.id ? (
                         <div className="inline-flex items-center justify-end gap-2">
                           <div className="h-4 w-4 animate-spin border-[2] border-cyan-500 border-t-transparent rounded-full" />
@@ -203,12 +221,13 @@ export default function IssuedCertificatesTable({ credentials: allCredentials, o
                         </button>
                       ))}
                     </td>
-                    <td className="px-3 py-3 text-right">{canManage && <SendCertificateButton credential={cred} />}</td>
+                    <td data-label="Delivery" className="px-3 py-3 text-right">{canManage && <SendCertificateButton credential={cred} />}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </section>

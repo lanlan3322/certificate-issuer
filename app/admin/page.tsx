@@ -1,575 +1,460 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useEffect, useState, type FormEvent } from "react";
+import { useWorkspaceSession } from "../../components/WorkspaceSession";
 import { withBasePath } from "../../lib/site";
+import { hasPermission } from "../../lib/permissions";
 
-interface OrganizationRecord {
-  id: string;
-  name: string;
-  slug: string;
-  status: "active" | "disabled";
-  createdAt: string;
-}
-
-interface OrganizationsResponse {
-  organizations?: OrganizationRecord[];
-  error?: string;
-}
-
-interface IssuerRecord {
+type IssuerStatus = "active" | "inactive" | "suspended" | "deleted" | "disabled";
+type IssuerRole = "issuer_admin" | "issuer_operator" | "viewer";
+interface Organization { id: string; name: string; status: string }
+interface Issuer {
   id: string;
   organizationId: string;
   name: string;
+  displayName?: string | null;
   slug: string;
   contactEmail: string;
-  status: "active" | "disabled" | "suspended";
-  createdAt: string;
+  website?: string | null;
+  description?: string | null;
+  logoUrl?: string | null;
+  didUri?: string;
+  verificationMethod?: string | null;
+  keyFingerprint?: string | null;
+  status: IssuerStatus;
+  active?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
+interface IssuerMember { issuerId: string; userId: string; role: IssuerRole; createdAt: string }
 
-interface IssuersResponse {
-  issuers?: IssuerRecord[];
-  error?: string;
-}
-
-const orgInitialForm = {
-  name: "",
-  slug: "",
+type IssuerDraft = Omit<Issuer, "id" | "createdAt" | "updatedAt" | "organizationId" | "didUri" | "verificationMethod" | "keyFingerprint" | "active">;
+const blankDraft: IssuerDraft = {
+  name: "", displayName: "", slug: "", contactEmail: "", website: "", description: "", logoUrl: "", status: "active",
 };
+const roles: IssuerRole[] = ["issuer_admin", "issuer_operator", "viewer"];
+
+function normalizeStatus(status: IssuerStatus) {
+  return status === "disabled" ? "inactive" : status;
+}
+
+function issuerDraft(issuer: Issuer): IssuerDraft {
+  return {
+    name: issuer.name,
+    displayName: issuer.displayName ?? "",
+    slug: issuer.slug,
+    contactEmail: issuer.contactEmail,
+    website: issuer.website ?? "",
+    description: issuer.description ?? "",
+    logoUrl: issuer.logoUrl ?? "",
+    status: normalizeStatus(issuer.status) as IssuerStatus,
+  };
+}
+
+function metadataBody(draft: IssuerDraft) {
+  return {
+    name: draft.name.trim(),
+    displayName: draft.displayName?.trim() || null,
+    slug: draft.slug.trim().toLowerCase(),
+    contactEmail: draft.contactEmail.trim(),
+    website: draft.website?.trim() || null,
+    description: draft.description?.trim() || null,
+    logoUrl: draft.logoUrl?.trim() || null,
+    status: draft.status,
+  };
+}
+
+async function responseJson<T>(response: Response): Promise<T & { error?: string }> {
+  return response.json() as Promise<T & { error?: string }>;
+}
 
 export default function AdminPage() {
-  const [organizations, setOrganizations] = useState<OrganizationRecord[]>([]);
-  const [orgForm, setOrgForm] = useState(orgInitialForm);
+  const { user } = useWorkspaceSession();
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [issuers, setIssuers] = useState<Issuer[]>([]);
+  const [form, setForm] = useState<IssuerDraft>(blankDraft);
+  const [organizationId, setOrganizationId] = useState("");
+  const [organizationFilter, setOrganizationFilter] = useState("");
+  const [selectedIssuerId, setSelectedIssuerId] = useState("");
+  const [detailVersion, setDetailVersion] = useState(0);
+  const [editingId, setEditingId] = useState("");
+  const [details, setDetails] = useState<Issuer | null>(null);
+  const [members, setMembers] = useState<IssuerMember[]>([]);
+  const [memberUserId, setMemberUserId] = useState("");
+  const [memberRole, setMemberRole] = useState<IssuerRole>("issuer_operator");
+  const [roleDrafts, setRoleDrafts] = useState<Record<string, IssuerRole>>({});
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedOrg, setSelectedOrg] = useState<OrganizationRecord | null>(null);
-  const [issuers, setIssuers] = useState<IssuerRecord[]>([]);
-  const [issuerLoading, setIssuerLoading] = useState(true);
-  const [issuerForm, setIssuerForm] = useState({ name: "", slug: "", contactEmail: "", role: "issuer-operator" });
-  const [issuerCreating, setIssuerCreating] = useState(false);
-  const [invitationMessage, setInvitationMessage] = useState<string | null>(null);
-  const [issuerError, setIssuerError] = useState<string | null>(null);
-  const [globalFilter, setGlobalFilter] = useState<"all" | string>("all");
-  const [createOrgId, setCreateOrgId] = useState<string>("");
-  const [transferringIssuerId, setTransferringIssuerId] = useState<string | null>(null);
-  const [transferError, setTransferError] = useState<string | null>(null);
-  const organizationIssuers = issuers.filter((issuer) => issuer.organizationId === selectedOrg?.id);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const canManage = hasPermission(user, "issuers.manage");
+  const platformAdmin = hasPermission(user, "organizations.manage");
 
   useEffect(() => {
-    void (async () => {
-      try {
-        const orgRes = await fetch(withBasePath("/api/organizations"));
-        const payload = (await orgRes.json()) as OrganizationsResponse;
-        if (!orgRes.ok) {
-          throw new Error(payload.error ?? "Unable to load organizations.");
-        }
-        if (!Array.isArray(payload.organizations)) {
-          throw new Error("Invalid organization list response.");
-        }
-        setOrganizations(payload.organizations);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unable to load data.");
-      } finally {
-        setLoading(false);
-      }
-    })();
-
-    void (async () => {
-      try {
-        const response = await fetch(withBasePath("/api/issuers"));
-        const payload = (await response.json()) as IssuersResponse;
-        if (!response.ok) {
-          throw new Error(payload.error ?? "Unable to load issuers.");
-        }
-        if (!Array.isArray(payload.issuers)) {
-          throw new Error("Invalid issuer list response.");
-        }
-        setIssuers(payload.issuers);
-        setIssuerError(null);
-      } catch (err) {
-        setIssuerError(err instanceof Error ? err.message : "Unable to load issuers.");
-      } finally {
-        setIssuerLoading(false);
-      }
-    })();
-  }, []);
-  const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}$/;
-
-  const formatSlug = (value: string): string =>
-    value
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
-
-  const handleOrgFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setOrgForm({ ...orgForm, [e.target.name]: e.target.value });
-  };
-
-  const handleCreateOrganization = async (e: React.FormEvent) => {
-    e.preventDefault();
+    const controller = new AbortController();
+    if (!user || !canManage) { setLoading(false); return () => controller.abort(); }
+    setLoading(true);
     setError(null);
+    const loadOrganizations = async () => {
+      const path = platformAdmin ? "/api/organizations" : `/api/organizations/${encodeURIComponent(user.organizationId)}`;
+      const response = await fetch(withBasePath(path), { signal: controller.signal });
+      const payload = await responseJson<{ organizations?: Organization[]; organization?: Organization }>(response);
+      if (!response.ok) throw new Error(payload.error ?? "Unable to load organizations.");
+      const items = platformAdmin ? payload.organizations : payload.organization ? [payload.organization] : undefined;
+      if (!Array.isArray(items)) throw new Error("Invalid organization list response.");
+      if (!controller.signal.aborted) {
+        setOrganizations(items);
+        if (!platformAdmin) setOrganizationId(user.organizationId);
+      }
+    };
+    const loadIssuers = async () => {
+      const response = await fetch(withBasePath("/api/issuers"), { signal: controller.signal });
+      const payload = await responseJson<{ issuers?: Issuer[] }>(response);
+      if (!response.ok) throw new Error(payload.error ?? "Unable to load issuers.");
+      if (!Array.isArray(payload.issuers)) throw new Error("Invalid issuer list response.");
+      if (!controller.signal.aborted) setIssuers(payload.issuers);
+    };
+    void Promise.allSettled([loadOrganizations(), loadIssuers()]).then((results) => {
+      if (controller.signal.aborted) return;
+      const errors = results.flatMap((result) => result.status === "rejected"
+        ? [result.reason instanceof Error ? result.reason.message : "Unable to load issuer management."] : []);
+      setError(errors.length ? errors.join(" ") : null);
+      setLoading(false);
+    });
+    return () => controller.abort();
+  }, [user, canManage, platformAdmin]);
 
-    const name = orgForm.name.trim();
-    const slug = formatSlug(orgForm.slug);
-
-    if (!name) {
-      setError("Organization name is required.");
+  useEffect(() => {
+    if (!selectedIssuerId) {
+      setDetails(null);
+      setMembers([]);
+      setDetailError(null);
       return;
     }
-    if (!slug || !SLUG_PATTERN.test(slug)) {
-      setError(
-        "Organization slug must be 2–63 characters, using only lowercase letters, numbers, and hyphens (starting with a letter or number)."
-      );
-      return;
-    }
+    const controller = new AbortController();
+    setDetailLoading(true);
+    setDetailError(null);
+    const load = async () => {
+      const [issuerResponse, memberResponse] = await Promise.all([
+        fetch(withBasePath(`/api/issuers/${encodeURIComponent(selectedIssuerId)}`), { signal: controller.signal }),
+        fetch(withBasePath(`/api/issuers/${encodeURIComponent(selectedIssuerId)}/members`), { signal: controller.signal }),
+      ]);
+      const [issuerPayload, memberPayload] = await Promise.all([
+        responseJson<{ issuer?: Issuer }>(issuerResponse),
+        responseJson<{ members?: IssuerMember[] }>(memberResponse),
+      ]);
+      if (!issuerResponse.ok || !issuerPayload.issuer) throw new Error(issuerPayload.error ?? "Unable to load issuer details.");
+      if (!memberResponse.ok || !Array.isArray(memberPayload.members)) throw new Error(memberPayload.error ?? "Unable to load issuer members.");
+      if (!controller.signal.aborted) {
+        setDetails(issuerPayload.issuer);
+        setMembers(memberPayload.members);
+        setRoleDrafts(Object.fromEntries(memberPayload.members.map((member) => [member.userId, member.role])));
+      }
+    };
+    void load().catch((reason) => {
+      if (!controller.signal.aborted) setDetailError(reason instanceof Error ? reason.message : "Unable to load issuer details.");
+    }).finally(() => {
+      if (!controller.signal.aborted) setDetailLoading(false);
+    });
+    return () => controller.abort();
+  }, [selectedIssuerId, detailVersion]);
 
+  const saveIssuer = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true); setError(null); setNotice(null);
     try {
-      const response = await fetch(withBasePath("/api/organizations"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug }),
-      });
-
-      const payload = (await response.json()) as {
-        error?: string;
-        organization?: OrganizationRecord;
+      const creating = !editingId;
+      const body = {
+        ...(creating ? { organizationId } : { id: editingId }),
+        ...metadataBody(form),
       };
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to create organization.");
-      }
-
-      // Append newly created org to the list so it appears in the dropdown immediately
-      if (payload.organization) {
-        setOrganizations((prev) => [...prev, payload.organization!]);
-      }
-      setOrgForm(orgInitialForm);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
-    }
-  };
-
-  const handleToggleOrgStatus = async (org: OrganizationRecord) => {
-    const nextStatus = org.status === "active" ? "disabled" : "active";
-    setError(null);
-
-    try {
-      const response = await fetch(withBasePath(`/api/organizations/${org.id}`), {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: nextStatus }),
+      const response = await fetch(withBasePath(creating ? "/api/issuers" : `/api/issuers/${encodeURIComponent(editingId)}`), {
+        method: creating ? "POST" : "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
-
-      const payload = (await response.json()) as { error?: string; organization?: OrganizationRecord };
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to update organization status.");
-      }
-
-      setOrganizations((prev) =>
-        prev.map((o) => (o.id === org.id ? payload.organization! : o))
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update organization status.");
-    }
+      const payload = await responseJson<{ issuer?: Issuer }>(response);
+      if (!response.ok || !payload.issuer) throw new Error(payload.error ?? `Unable to ${creating ? "create" : "update"} issuer.`);
+      const saved = payload.issuer;
+      setIssuers((current) => [saved, ...current.filter((item) => item.id !== saved.id)]);
+      setSelectedIssuerId(saved.id);
+      setEditingId("");
+      setForm(blankDraft);
+      setNotice(creating ? "Issuer created." : "Issuer details updated.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to save issuer."); }
+    finally { setBusy(false); }
   };
 
-  const handleSelectOrg = (org: OrganizationRecord) => {
-    setSelectedOrg(selectedOrg?.id === org.id ? null : org);
+  const beginEdit = (issuer: Issuer) => {
+    setSelectedIssuerId(issuer.id);
+    setEditingId(issuer.id);
+    setOrganizationId(issuer.organizationId);
+    setForm(issuerDraft(issuer));
+    setError(null);
+    setNotice(null);
   };
 
-  const handleCreateIssuer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIssuerError(null);
-    setInvitationMessage(null);
-
-    const name = issuerForm.name.trim();
-    const slug = formatSlug(issuerForm.slug);
-    const contactEmail = issuerForm.contactEmail.trim();
-
-    if (!name || !slug || !contactEmail) {
-      setIssuerError("Name, slug, and contact email are required.");
-      return;
-    }
-
-    setIssuerCreating(true);
+  const changeStatus = async (issuer: Issuer, status: "active" | "inactive") => {
+    if (status === "inactive" && !window.confirm(`Deactivate ${issuer.displayName || issuer.name}? Existing credentials remain available for historical verification.`)) return;
+    setBusy(true); setError(null); setNotice(null);
     try {
-      const response = await fetch(withBasePath("/api/issuers"), {
+      const response = await fetch(withBasePath(`/api/issuers/${encodeURIComponent(issuer.id)}`), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: issuer.id, ...metadataBody({ ...issuerDraft(issuer), status }) }),
+      });
+      const payload = await responseJson<{ issuer?: Issuer }>(response);
+      if (!response.ok || !payload.issuer) throw new Error(payload.error ?? "Unable to update issuer status.");
+      const updated = payload.issuer;
+      setIssuers((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setDetails(updated);
+      setNotice(status === "inactive" ? "Issuer deactivated." : "Issuer activated.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to update issuer status."); }
+    finally { setBusy(false); }
+  };
+
+  const softDelete = async (issuer: Issuer) => {
+    if (!platformAdmin) return;
+    if (!window.confirm(`Soft-delete ${issuer.displayName || issuer.name}? This preserves historical records but removes the issuer from normal use.`)) return;
+    setBusy(true); setError(null); setNotice(null);
+    try {
+      const response = await fetch(withBasePath(`/api/issuers/${encodeURIComponent(issuer.id)}`), { method: "DELETE" });
+      const payload: { issuer?: Issuer; error?: string } = response.status === 204
+        ? {} : await responseJson<{ issuer?: Issuer }>(response);
+      if (!response.ok) throw new Error(payload.error ?? "Unable to soft-delete issuer.");
+      const updated = payload.issuer ?? { ...issuer, status: "deleted" as const, active: false };
+      setIssuers((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setDetails(updated);
+      setNotice("Issuer soft-deleted. Historical records are preserved.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to soft-delete issuer."); }
+    finally { setBusy(false); }
+  };
+
+  const addMember = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!selectedIssuerId) return;
+    setBusy(true); setDetailError(null); setNotice(null);
+    try {
+      const response = await fetch(withBasePath(`/api/issuers/${encodeURIComponent(selectedIssuerId)}/members`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug, contactEmail, role: issuerForm.role, organizationId: createOrgId || undefined }),
+        body: JSON.stringify({ userId: memberUserId.trim(), role: memberRole }),
       });
-
-      const data = (await response.json()) as { error?: string; issuer?: IssuerRecord; invitationSent?: boolean };
-      if (!response.ok) {
-        throw new Error(data.error ?? "Failed to create issuer.");
-      }
-
-      if (!data.issuer || data.invitationSent !== true) throw new Error("Issuer invitation was not confirmed. Contact your administrator before retrying.");
-      const createdIssuer = data.issuer;
-      setIssuers((prev) => [...prev.filter((issuer) => issuer.id !== createdIssuer.id), createdIssuer]);
-      setInvitationMessage(`Invitation sent to ${contactEmail} with the ${issuerForm.role} role.`);
-      setIssuerForm({ name: "", slug: "", contactEmail: "", role: "issuer-operator" });
-    } catch (err) {
-      setIssuerError(err instanceof Error ? err.message : "An unexpected error occurred.");
-    } finally {
-      setIssuerCreating(false);
-    }
+      const payload = await responseJson<{ member?: IssuerMember }>(response);
+      if (!response.ok || !payload.member) throw new Error(payload.error ?? "Unable to add issuer member.");
+      setMemberUserId("");
+      const listResponse = await fetch(withBasePath(`/api/issuers/${encodeURIComponent(selectedIssuerId)}/members`));
+      const listPayload = await responseJson<{ members?: IssuerMember[] }>(listResponse);
+      if (!listResponse.ok || !Array.isArray(listPayload.members)) throw new Error(listPayload.error ?? "Member saved but the list could not be refreshed.");
+      setMembers(listPayload.members);
+      setRoleDrafts(Object.fromEntries(listPayload.members.map((member) => [member.userId, member.role])));
+      setNotice("Issuer member added.");
+    } catch (reason) { setDetailError(reason instanceof Error ? reason.message : "Unable to add issuer member."); }
+    finally { setBusy(false); }
   };
 
-  const handleToggleIssuerStatus = async (issuer: IssuerRecord) => {
-    const nextStatus = issuer.status === "active" ? "disabled" : "active";
-    setIssuerError(null);
-
+  const changeMemberRole = async (member: IssuerMember) => {
+    const role = roleDrafts[member.userId] ?? member.role;
+    if (role === member.role) return;
+    setBusy(true); setDetailError(null); setNotice(null);
     try {
-      const response = await fetch(withBasePath("/api/issuers"), {
-        method: "PATCH",
+      const response = await fetch(withBasePath(`/api/issuers/${encodeURIComponent(member.issuerId)}/members`), {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: issuer.id, status: nextStatus }),
+        body: JSON.stringify({ userId: member.userId, role }),
       });
-
-      const data = (await response.json()) as { error?: string; issuer?: IssuerRecord };
-      if (!response.ok) {
-        throw new Error(data.error ?? "Unable to update issuer status.");
-      }
-
-      setIssuers((prev) =>
-        prev.map((i) => (i.id === issuer.id ? data.issuer! : i))
-      );
-    } catch (err) {
-      setIssuerError(err instanceof Error ? err.message : "Unable to update issuer status.");
-    }
+      const payload = await responseJson<{ member?: IssuerMember }>(response);
+      if (!response.ok || !payload.member) throw new Error(payload.error ?? "Unable to change member role.");
+      setMembers((current) => current.map((item) => item.userId === member.userId ? payload.member! : item));
+      setNotice("Issuer member role updated.");
+    } catch (reason) { setDetailError(reason instanceof Error ? reason.message : "Unable to change member role."); }
+    finally { setBusy(false); }
   };
 
-  const handleTransferIssuer = async (issuerId: string, newOrgId: string) => {
-    setTransferError(null);
-    setTransferringIssuerId(issuerId);
-
+  const removeMember = async (member: IssuerMember) => {
+    if (!window.confirm(`Remove user ${member.userId} from this issuer? Their issuer-scoped access will end.`)) return;
+    setBusy(true); setDetailError(null); setNotice(null);
     try {
-      const response = await fetch(withBasePath("/api/issuers"), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: issuerId, organizationId: newOrgId }),
-      });
-
-      const data = (await response.json()) as { error?: string; issuer?: IssuerRecord };
+      const response = await fetch(withBasePath(`/api/issuers/${encodeURIComponent(member.issuerId)}/members?userId=${encodeURIComponent(member.userId)}`), { method: "DELETE" });
       if (!response.ok) {
-        throw new Error(data.error ?? "Failed to transfer issuer.");
+        const payload = await responseJson<{ error?: string }>(response);
+        throw new Error(payload.error ?? "Unable to remove issuer member.");
       }
-
-      setIssuers((prev) => prev.map((i) => (i.id === issuerId ? data.issuer! : i)));
-      setTransferError("Issuer transferred successfully!");
-    } catch (err) {
-      setTransferError(err instanceof Error ? err.message : "An unexpected error occurred.");
-    } finally {
-      setTransferringIssuerId(null);
-    }
+      setMembers((current) => current.filter((item) => item.userId !== member.userId));
+      setRoleDrafts((current) => Object.fromEntries(Object.entries(current).filter(([id]) => id !== member.userId)));
+      setNotice("Issuer member removed.");
+    } catch (reason) { setDetailError(reason instanceof Error ? reason.message : "Unable to remove issuer member."); }
+    finally { setBusy(false); }
   };
 
-  return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
-      <div className="mb-8 flex items-start justify-between gap-4">
-        <button
-          type="button"
-          onClick={() => {
-            setGlobalFilter((prev) => (prev === "all" ? "scoped" : "all"));
-            setSelectedOrg(null);
-            setCreateOrgId("");
-          }}
-          className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-            globalFilter === "all"
-              ? "bg-indigo-600 text-white shadow-sm hover:bg-indigo-500"
-              : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-          }`}
-        >
-          {globalFilter === "all" ? "Switch to Organization" : "Switch to Issuer"}
-        </button>
+  if (!canManage) return <main className="mx-auto max-w-4xl p-6"><h1 className="text-2xl font-bold">Issuer management</h1><p role="alert" className="mt-3">Issuer administrator access is required.</p></main>;
+  const visible = issuers.filter((issuer) => !organizationFilter || issuer.organizationId === organizationFilter);
+  const selectedIssuer = details?.id === selectedIssuerId ? details : issuers.find((issuer) => issuer.id === selectedIssuerId) ?? null;
+  const formOrganizationOptions = organizations.filter((organization) => organization.status === "active");
+
+  return <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">Administration</p>
+        <h1 className="mt-2 text-3xl font-bold">Issuer directory</h1>
+        <p className="mt-2 max-w-2xl text-sm text-slate-500">Manage issuer profiles, lifecycle and issuer-scoped members. Organization ownership cannot be transferred.</p>
       </div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn-primary" onClick={() => { setSelectedIssuerId(""); setEditingId(""); setForm(blankDraft); setOrganizationId(platformAdmin ? "" : user?.organizationId ?? ""); setNotice(null); setError(null); }}>Create issuer</button>
+        <Link href="/organizations" prefetch={false} className="btn-secondary">{platformAdmin ? "Manage organizations" : "My organization"}</Link>
+      </div>
+    </header>
+    {error && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
+    {notice && <p role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</p>}
+    {loading && <p role="status" className="mb-4">Loading issuer directory...</p>}
 
-      {error && <p role="alert" className="mb-4 text-sm text-red-600">{error}</p>}
-      {issuerError && <p role="alert" className="mb-4 text-sm text-red-600">{issuerError}</p>}
-      {invitationMessage && <p role="status" className="mb-4 text-sm text-emerald-700">{invitationMessage}</p>}
-
-      {/* Global Mode: Issuer Management */}
-      {globalFilter === "all" && (
-        <section className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-1 text-xl font-semibold text-slate-900">Issuer Management</h2>
-          <p className="mb-5 text-sm text-slate-500">Create issuers for any organization or reassign existing ones.</p>
-
-          {transferError && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{transferError}</div>
-          )}
-
-          <div className="mb-8 rounded-lg border border-slate-200 p-5">
-            <h3 className="mb-4 text-base font-semibold text-slate-800">Create New Issuer</h3>
-            <form onSubmit={handleCreateIssuer} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Assign to organization</label>
-                  <select required disabled={loading} className="w-full rounded-md border border-slate-300 px-3 py-2" value={createOrgId} onChange={(e) => setCreateOrgId(e.target.value)}>
-                    <option value="">Select an organization</option>
-                    {organizations.filter((o) => o.status === "active").map((org) => (
-                      <option key={org.id} value={org.id}>{org.name} ({org.slug})</option>
-                    ))}
-                  </select>
-                  {loading ? <p role="status" className="mt-1 text-sm text-slate-500">Loading organizations…</p> : !error && !organizations.some((org) => org.status === "active") ? (
-                    <p className="mt-1 text-sm text-slate-500">No active organizations available. Create or activate an organization in Organization Management.</p>
-                  ) : null}
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+      <section className="card" aria-labelledby="issuer-directory-heading">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <h2 id="issuer-directory-heading" className="text-xl font-semibold">Issuers</h2>
+          <span className="text-sm text-slate-500">{visible.length} {visible.length === 1 ? "issuer" : "issuers"}</span>
+        </div>
+        <label className="label" htmlFor="issuer-organization-filter">Filter by organization</label>
+        <select id="issuer-organization-filter" value={organizationFilter} onChange={(event) => setOrganizationFilter(event.target.value)} className="input-field mb-5">
+          <option value="">All accessible organizations</option>
+          {organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
+        </select>
+        {!loading && !error && !visible.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-800">No issuers match this organization.</p>}
+        <ul className="space-y-3">
+          {visible.map((issuer) => {
+            const status = normalizeStatus(issuer.status);
+            return <li key={issuer.id} className={`rounded-xl border p-4 ${selectedIssuerId === issuer.id ? "border-cyan-500 ring-1 ring-cyan-500" : "border-slate-200 dark:border-slate-700"}`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="break-words font-semibold">{issuer.displayName || issuer.name}</h3>
+                  {issuer.displayName && <p className="mt-1 text-xs text-slate-500">Issuer name: {issuer.name}</p>}
+                  <p className="mt-1 break-all text-sm text-slate-500">{issuer.contactEmail}</p>
                 </div>
-                <div>
-                  <label htmlFor="issuer-role" className="mb-1 block text-sm font-medium text-slate-700">Login user role</label>
-                  <select id="issuer-role" required value={issuerForm.role} onChange={(event) => setIssuerForm({ ...issuerForm, role: event.target.value })} className="w-full rounded-md border border-slate-300 px-3 py-2">
-                    <option value="issuer-operator">issuer-operator</option>
-                    <option value="issuer-admin">issuer-admin</option>
-                  </select>
-                  <p className="mt-1 text-sm text-slate-500">A new login invitation is sent to the contact email. Existing accounts cannot be reassigned here.</p>
-                </div>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium capitalize dark:bg-slate-800">{status}</span>
               </div>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Issuer name</label>
-                  <input required className="w-full rounded-md border border-slate-300 px-3 py-2" placeholder="e.g. Root CA" name="name" value={issuerForm.name} onChange={(e) => setIssuerForm({ ...issuerForm, name: e.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Slug</label>
-                  <input required className="w-full rounded-md border border-slate-300 px-3 py-2" placeholder="e.g. root-ca" name="slug" value={issuerForm.slug} onChange={(e) => setIssuerForm({ ...issuerForm, slug: e.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Contact email</label>
-                  <input required type="email" className="w-full rounded-md border border-slate-300 px-3 py-2" placeholder="e.g. ca-admin@example.com" name="contactEmail" value={issuerForm.contactEmail} onChange={(e) => setIssuerForm({ ...issuerForm, contactEmail: e.target.value })} />
-                </div>
+              <p className="my-3 break-all text-xs text-slate-500">{organizations.find((org) => org.id === issuer.organizationId)?.name ?? issuer.organizationId} · {issuer.slug}</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="btn-secondary min-h-11 px-3 py-2" onClick={() => {
+                  setSelectedIssuerId(issuer.id);
+                  setDetailVersion((version) => version + 1);
+                  setEditingId("");
+                  setForm(blankDraft);
+                  setError(null);
+                }}>View details</button>
+                {status !== "deleted" && <button type="button" className="btn-secondary min-h-11 px-3 py-2" onClick={() => beginEdit(issuer)}>Edit</button>}
+                {status !== "deleted" && status !== "suspended" && <button type="button" disabled={busy} className="btn-secondary min-h-11 px-3 py-2" onClick={() => void changeStatus(issuer, status === "active" ? "inactive" : "active")}>{status === "active" ? "Deactivate" : "Activate"}</button>}
+                {platformAdmin && status !== "deleted" && <button type="button" disabled={busy} className="min-h-11 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60" onClick={() => void softDelete(issuer)}>Soft-delete</button>}
               </div>
-              <button type="submit" disabled={loading || !createOrgId || issuerCreating} className="w-full rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-500 disabled:opacity-60">{issuerCreating ? "Sending invitation..." : "Create issuer"}</button>
-            </form>
-          </div>
-
-          <div className="rounded-lg border border-slate-200 p-5">
-            <h3 className="mb-4 text-base font-semibold text-slate-800">Reassign Issuer to Organization</h3>
-            <form onSubmit={(e) => { e.preventDefault(); const f=e.target as HTMLFormElement; const d=new FormData(f); const iid=(d.get("issuerId")?.toString()||"").trim(); const nid=(d.get("newOrgId")?.toString()||"").trim(); if(!iid){setTransferError("Please select an issuer.");return;} if(!nid){setTransferError("Please select a target organization.");return;} handleTransferIssuer(iid,nid); }} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Issuer</label>
-                  <select required disabled={issuerLoading} className="w-full rounded-md border border-slate-300 px-3 py-2" name="issuerId">
-                    <option value="">Select an issuer</option>
-                    {issuers.map((i) => (
-                      <option key={i.id} value={i.id}>{i.name} ({i.slug}) — Current: {organizations.find((o)=>o.id===i.organizationId)?.name ?? i.organizationId}</option>
-                    ))}
-                  </select>
-                  {issuerLoading ? <p role="status" className="mt-1 text-sm text-slate-500">Loading issuers…</p> : !issuerError && issuers.length === 0 ? (
-                    <p className="mt-1 text-sm text-slate-500">No issuers configured yet.</p>
-                  ) : null}
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Target organization</label>
-                  <select required disabled={loading} className="w-full rounded-md border border-slate-300 px-3 py-2" name="newOrgId">
-                    <option value="">Select organization</option>
-                    {organizations.filter((o) => o.status === "active").map((org) => (
-                      <option key={org.id} value={org.id}>{org.name} ({org.slug})</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <button type="submit" disabled={loading || issuerLoading || issuers.length === 0 || !organizations.some((org) => org.status === "active") || transferringIssuerId !== null} className="w-full rounded-md bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-500 disabled:opacity-60">Transfer issuer</button>
-            </form>
-          </div>
-        </section>
-      )}
-
-      {/* Organizations section — scoped mode only */}
-      {globalFilter !== "all" && (
-        <section className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-xl font-semibold text-slate-900">Organizations Management</h2>
-
-          {loading ? (
-          <p className="text-slate-500">Loading organizations…</p>
-        ) : organizations.length === 0 ? (
-          <>
-            <p className="mb-4 text-slate-500">No organizations configured yet.</p>
-            <form onSubmit={handleCreateOrganization} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Organization name</label>
-                <input
-                  required
-                  className="w-full rounded-md border border-slate-300 px-3 py-2"
-                  placeholder="e.g. My Organization"
-                  name="name"
-                  value={orgForm.name}
-                  onChange={handleOrgFormChange}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Slug</label>
-                <input
-                  required
-                  className="w-full rounded-md border border-slate-300 px-3 py-2"
-                  placeholder="e.g. my-org-name"
-                  name="slug"
-                  value={orgForm.slug}
-                  onChange={handleOrgFormChange}
-                />
-                <p className="mt-1 text-xs text-slate-500">
-                  Lowercase letters, numbers, and hyphens only. Auto-formatted on submit.
-                </p>
-              </div>
-              <button
-                type="submit"
-                className="w-full rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500"
-              >
-                Create organization
-              </button>
-            </form>
-          </>
-        ) : (
-          <div className="space-y-3">
-            {organizations.map((org) => (
-              <div
-                key={org.id}
-                onClick={() => handleSelectOrg(org)}
-                className={`flex cursor-pointer items-center justify-between gap-4 rounded-lg border p-4 transition-colors hover:bg-slate-50 ${
-                  selectedOrg?.id === org.id ? "border-blue-500 bg-blue-50/50" : "border-slate-200"
-                }`}
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-slate-800">{org.name}</h3>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase tracking-wide ${
-                        org.status === "active"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {org.status}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-slate-600">{org.slug}</p>
-                  <p className="text-xs text-slate-500">Created: {new Date(org.createdAt).toLocaleDateString()}</p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void handleToggleOrgStatus(org);
-                  }}
-                  className={`rounded-md px-3 py-2 text-sm font-medium ${
-                    org.status === "active"
-                      ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                      : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                  }`}
-                >
-                  {org.status === "active" ? "Disable" : "Activate"}
-                </button>
-              </div>
-            ))}
-
-            <form onSubmit={handleCreateOrganization} className="mt-6 space-y-4 pt-6 border-t border-slate-200">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Create new organization with name</label>
-                <input
-                  required
-                  className="w-full rounded-md border border-slate-300 px-3 py-2"
-                  placeholder="e.g. My Organization"
-                  name="name"
-                  value={orgForm.name}
-                  onChange={handleOrgFormChange}
-                />
-              </div>
-              <div>
-                 <label className="mb-1 block text-sm font-medium text-slate-700">Create new organization with slug</label>
-               <input
-                  required
-                  className="w-full rounded-md border border-slate-300 px-3 py-2"
-                  placeholder="e.g. my-org-name"
-                  name="slug"
-                  value={orgForm.slug}
-                  onChange={handleOrgFormChange}
-                />
-                <p className="mt-1 text-xs text-slate-500">
-                  Lowercase letters, numbers, and hyphens only. Auto-formatted on submit.
-                </p>
-              </div>
-              <button
-                type="submit"
-                className="w-full rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500"
-              >
-                Create organization
-              </button>
-            </form>
-          </div>
-        )}
+            </li>;
+          })}
+        </ul>
       </section>
-      )}
 
-      {selectedOrg && (
-        <section className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-1 text-xl font-semibold text-slate-900">Issuers &ndash; {selectedOrg.name}</h2>
-          <p className="mb-5 text-sm text-slate-500">Manage issuers registered for this organization.</p>
-
-          {issuerLoading ? (
-            <p className="text-slate-500">Loading issuers…</p>
-          ) : issuerError ? null : organizationIssuers.length === 0 ? (
-            <>
-              <p className="mb-4 text-slate-500">No issuers configured for this organization yet.</p>
-              <p className="text-sm text-slate-600">
-                Issuers are created from the central issuer management form.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setGlobalFilter("all");
-                  setSelectedOrg(null);
-                  setCreateOrgId(selectedOrg.id);
-                }}
-                className="mt-4 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
-              >
-                Create issuer
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="space-y-3">
-                {organizationIssuers.map((issuer) => (
-                  <div
-                    key={issuer.id}
-                    className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 p-4"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-slate-800">{issuer.name}</h3>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase tracking-wide ${
-                            issuer.status === "active"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {issuer.status}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm text-slate-600">{issuer.slug}</p>
-                      <p className="text-xs text-slate-500">Contact: {issuer.contactEmail}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => void handleToggleIssuerStatus(issuer)}
-                      className={`rounded-md px-3 py-2 text-sm font-medium ${
-                        issuer.status === "active"
-                          ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                          : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                      }`}
-                    >
-                      {issuer.status === "active" ? "Disable" : "Activate"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+      <div className="space-y-6">
+        <section className="card" aria-labelledby="issuer-form-heading">
+          <h2 id="issuer-form-heading" className="text-xl font-semibold">{editingId ? "Edit issuer" : "Create issuer"}</h2>
+          <p className="mt-2 text-sm text-slate-500">Issuer codes are unique within their organization. Organization ownership is fixed after creation.</p>
+          <form onSubmit={(event) => void saveIssuer(event)} className="mt-5 space-y-4">
+            {!editingId && <label className="label" htmlFor="issuer-organization">Organization
+              <select id="issuer-organization" name="organizationId" required value={organizationId} onChange={(event) => setOrganizationId(event.target.value)} className="input-field mt-1">
+                <option value="">Select an organization</option>
+                {formOrganizationOptions.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
+              </select>
+            </label>}
+            <label className="label" htmlFor="issuer-display-name">Display name
+              <input id="issuer-display-name" name="displayName" autoComplete="organization" value={form.displayName ?? ""} onChange={(event) => setForm({ ...form, displayName: event.target.value })} className="input-field mt-1" />
+            </label>
+            <label className="label" htmlFor="issuer-name">Issuer name
+              <input id="issuer-name" name="name" autoComplete="off" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="input-field mt-1" />
+              <span className="mt-1 block text-xs font-normal text-slate-500">Legacy issuer name. Set the user-facing label separately with Display name.</span>
+            </label>
+            <label className="label" htmlFor="issuer-slug">Issuer code (slug)
+              <input id="issuer-slug" name="slug" autoComplete="off" spellCheck={false} pattern="[a-z0-9][a-z0-9-]{1,62}" required value={form.slug} onChange={(event) => setForm({ ...form, slug: event.target.value.toLowerCase() })} className="input-field mt-1" />
+              <span className="mt-1 block text-xs font-normal text-slate-500">2–63 lowercase letters, numbers or hyphens; unique within this organization.</span>
+            </label>
+            <label className="label" htmlFor="issuer-contact-email">Contact email
+              <input id="issuer-contact-email" name="contactEmail" type="email" autoComplete="email" required value={form.contactEmail} onChange={(event) => setForm({ ...form, contactEmail: event.target.value })} className="input-field mt-1" />
+            </label>
+            <label className="label" htmlFor="issuer-website">Website
+              <input id="issuer-website" name="website" type="url" autoComplete="url" value={form.website ?? ""} onChange={(event) => setForm({ ...form, website: event.target.value })} className="input-field mt-1" />
+            </label>
+            <label className="label" htmlFor="issuer-logo-url">Logo URL
+              <input id="issuer-logo-url" name="logoUrl" type="url" value={form.logoUrl ?? ""} onChange={(event) => setForm({ ...form, logoUrl: event.target.value })} className="input-field mt-1" />
+            </label>
+            <label className="label" htmlFor="issuer-description">Description
+              <textarea id="issuer-description" name="description" rows={3} value={form.description ?? ""} onChange={(event) => setForm({ ...form, description: event.target.value })} className="input-field mt-1" />
+            </label>
+            {editingId && <label className="label" htmlFor="issuer-status">Status
+              <select id="issuer-status" name="status" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as IssuerStatus })} className="input-field mt-1">
+                <option value="active">Active</option><option value="inactive">Inactive</option><option value="suspended">Suspended</option>
+              </select>
+            </label>}
+            <div className="flex flex-wrap gap-2">
+              <button type="submit" disabled={busy || loading || (!editingId && formOrganizationOptions.length === 0)} className="btn-primary min-h-11">{busy ? "Saving..." : editingId ? "Save issuer" : "Create issuer"}</button>
+              {editingId && <button type="button" className="btn-secondary min-h-11" onClick={() => { setEditingId(""); setForm(blankDraft); }}>Cancel edit</button>}
+            </div>
+            {!editingId && !loading && formOrganizationOptions.length === 0 && <p role="status" className="text-sm text-amber-700">No active organizations are available. Ask a platform administrator to create or activate one.</p>}
+          </form>
         </section>
-      )}
-    </main>
-  );
+
+        {selectedIssuer && <section className="card" aria-labelledby="issuer-details-heading">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 id="issuer-details-heading" className="text-xl font-semibold">Issuer details</h2>
+              <p className="mt-1 break-all text-sm text-slate-500">{selectedIssuer.displayName || selectedIssuer.name}</p>
+            </div>
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs capitalize dark:bg-slate-800">{normalizeStatus(selectedIssuer.status)}</span>
+          </div>
+          {detailLoading && <p role="status" className="mb-3 text-sm text-slate-600">Loading details and members...</p>}
+          {detailError && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">{detailError}</p>}
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            <div><dt className="font-medium text-slate-500">Issuer name</dt><dd className="mt-1 break-all">{selectedIssuer.name}</dd></div>
+            <div><dt className="font-medium text-slate-500">Issuer code (slug)</dt><dd className="mt-1 break-all">{selectedIssuer.slug}</dd></div>
+            <div><dt className="font-medium text-slate-500">Contact email</dt><dd className="mt-1 break-all">{selectedIssuer.contactEmail}</dd></div>
+            <div><dt className="font-medium text-slate-500">Organization</dt><dd className="mt-1">{organizations.find((org) => org.id === selectedIssuer.organizationId)?.name ?? selectedIssuer.organizationId}</dd></div>
+            {selectedIssuer.website && <div><dt className="font-medium text-slate-500">Website</dt><dd className="mt-1 break-all"><a className="underline" href={selectedIssuer.website} target="_blank" rel="noreferrer">{selectedIssuer.website}</a></dd></div>}
+            {selectedIssuer.description && <div className="sm:col-span-2"><dt className="font-medium text-slate-500">Description</dt><dd className="mt-1 whitespace-pre-wrap">{selectedIssuer.description}</dd></div>}
+          </dl>
+
+          <div className="mt-6 border-t border-slate-200 pt-5 dark:border-slate-700">
+            <h3 className="text-lg font-semibold">Issuer members</h3>
+            <p className="mt-1 text-sm text-slate-500">Assign existing application users by user ID. Membership changes apply only to this issuer.</p>
+            {!detailLoading && !members.length && <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800">No members are assigned to this issuer.</p>}
+            <ul className="mt-3 space-y-3">
+              {members.map((member) => <li key={member.userId} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                <p className="break-all text-sm font-medium">{member.userId}</p>
+                <p className="mt-1 text-xs text-slate-500">Added {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : "date unavailable"}</p>
+                <div className="mt-3 flex flex-wrap items-end gap-2">
+                  <label className="label min-w-[180px] flex-1" htmlFor={`member-role-${member.userId}`}>Role
+                    <select id={`member-role-${member.userId}`} value={roleDrafts[member.userId] ?? member.role} onChange={(event) => setRoleDrafts({ ...roleDrafts, [member.userId]: event.target.value as IssuerRole })} className="input-field mt-1">
+                      {roles.map((role) => <option key={role} value={role}>{role.replace("_", " ")}</option>)}
+                    </select>
+                  </label>
+                  <button type="button" disabled={busy || (roleDrafts[member.userId] ?? member.role) === member.role} className="btn-secondary min-h-11 px-3 py-2" onClick={() => void changeMemberRole(member)}>Save role</button>
+                  <button type="button" disabled={busy} className="min-h-11 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60" onClick={() => void removeMember(member)}>Remove</button>
+                </div>
+              </li>)}
+            </ul>
+            <form onSubmit={(event) => void addMember(event)} className="mt-5 space-y-3 rounded-xl bg-slate-50 p-4 dark:bg-slate-800">
+              <h4 className="font-semibold">Add existing user</h4>
+              <label className="label" htmlFor="issuer-member-user-id">Application user ID
+                <input id="issuer-member-user-id" name="userId" required autoComplete="off" value={memberUserId} onChange={(event) => setMemberUserId(event.target.value)} className="input-field mt-1" />
+              </label>
+              <label className="label" htmlFor="issuer-member-role">Issuer role
+                <select id="issuer-member-role" value={memberRole} onChange={(event) => setMemberRole(event.target.value as IssuerRole)} className="input-field mt-1">
+                  {roles.map((role) => <option key={role} value={role}>{role.replace("_", " ")}</option>)}
+                </select>
+              </label>
+              <p className="text-xs leading-5 text-slate-500">issuer_admin manages this issuer&apos;s templates; issuer_operator can issue, revoke and send; viewer has read-only access.</p>
+              <button type="submit" disabled={busy || detailLoading} className="btn-primary min-h-11">{busy ? "Saving..." : "Add issuer member"}</button>
+            </form>
+          </div>
+        </section>}
+      </div>
+    </div>
+  </main>;
 }

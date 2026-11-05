@@ -55,8 +55,11 @@ export default function VerificationPortalPage() {
 
         <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Credential JSON</h2>
+            <h2 id="inspector-json-heading" className="text-lg font-semibold text-slate-900">Credential JSON</h2>
             <textarea
+              aria-labelledby="inspector-json-heading"
+              name="credential-json"
+              spellCheck={false}
               value={payload}
               onChange={(event) => setPayload(event.target.value)}
               rows={16}

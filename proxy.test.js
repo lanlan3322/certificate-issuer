@@ -68,12 +68,29 @@ test("Overview stays public while Dashboard requires login", async () => {
       url: `https://verifiable.sg${pathname}`,
       cookies: { getAll: () => [] },
     });
+
     assert.equal((await proxy(request("/"))).kind, "next");
     const dashboard = await proxy(request("/dashboard/"));
     assert.equal(dashboard.kind, authenticated ? "next" : "redirect");
     if (!authenticated) {
       assert.equal(dashboard.destination.pathname, "/issuer/");
       assert.equal(dashboard.destination.searchParams.get("next"), "/dashboard/");
+    }
+  }
+});
+
+test("API calls avoid trailing-slash redirect requests while retaining authentication", async () => {
+  for (const authenticated of [false, true]) {
+    const { proxy } = load({ authenticated });
+    for (const pathname of ["/api/auth/me", "/api/verify", "/api/templates", "/api/credentials"]) {
+      const request = {
+        nextUrl: { pathname, search: "" }, url: `https://verifiable.sg${pathname}`,
+        cookies: { getAll: () => [] },
+      };
+      const result = await proxy(request);
+      const protectedApi = ["/api/templates", "/api/credentials"].includes(pathname);
+      assert.equal(result.kind, protectedApi && !authenticated ? "json" : "next");
+      if (protectedApi && !authenticated) assert.equal(result.status, 401);
     }
   }
 });

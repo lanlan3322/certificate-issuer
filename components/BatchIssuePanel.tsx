@@ -74,6 +74,7 @@ function dateInputToISO(dateInput: string, endOfDay = false): string | null {
 }
 
 interface BatchIssuePanelProps {
+  templateCatalog?: ReturnType<typeof useIssuanceTemplates>;
   connected: boolean;
   issuingMethods: IssuingMethod[];
   onToggleIssuingMethod: (method: IssuingMethod) => void;
@@ -174,6 +175,7 @@ export function BatchIssuedCertificatesPanel({
 }
 
 export default function BatchIssuePanel({
+  templateCatalog,
   connected,
   issuingMethods,
   onToggleIssuingMethod,
@@ -182,7 +184,8 @@ export default function BatchIssuePanel({
   walletControls,
 }: BatchIssuePanelProps) {
   const { getSigner, switchToSepolia } = useWalletConnection();
-  const { templates, loading: templatesLoading, error: templateError } = useIssuanceTemplates();
+  const ownCatalog = useIssuanceTemplates(!templateCatalog);
+  const { templates, loading: templatesLoading, error: templateError } = templateCatalog ?? ownCatalog;
   const [templateId, setTemplateId] = useState("");
   const selectedTemplate = templates.find((template) => template.id === templateId);
   useEffect(() => {

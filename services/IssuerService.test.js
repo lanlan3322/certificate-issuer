@@ -41,7 +41,7 @@ function setup({ reservationError = null, inviteError = null, linkError = null }
 }
 
 test("invitation reserves selected role, sends email, and links the returned auth identity", async () => {
-  for (const role of ["issuer-admin", "issuer-operator"]) {
+  for (const role of ["issuer-admin", "issuer-operator", "organization_admin", "issuer", "viewer"]) {
     const { IssuerService, calls } = setup();
     const issuer = await IssuerService.createWithInvitation(input, role, "actor", "https://example.com/issuer/?mode=reset");
     assert.equal(issuer.id, "issuer");

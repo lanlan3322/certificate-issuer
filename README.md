@@ -1,20 +1,31 @@
-# Certificate Issuer — TrustVC + IMDA
+# Verifiable.sg — Credential-as-a-Service
 
-A modern web application for issuing **W3C Verifiable Credentials** certificates using the TrustVC SDK, managed by Singapore's IMDA (Infocomm Media Development Authority). Deployed as a static site on GitHub Pages at:
+An organization-scoped Credential-as-a-Service platform for issuing, managing,
+sharing and verifying **W3C Verifiable Credentials** using the TrustVC SDK.
+The full platform requires a Next.js server runtime for authentication and APIs;
+static hosting does not provide the complete service.
 
-**https://lanlan3322.github.io/certificate-issuer/**
+Legacy frontend reference: https://lanlan3322.github.io/certificate-issuer/
 
 ![Certificate Issuer](https://img.shields.io/badge/TrustVC-IMDA-blue)
 ![W3C VC](https://img.shields.io/badge/W3C-Verifiable%20Credentials-green)
-![Next.js](https://img.shields.io/badge/Next.js-14-black)
+![Next.js](https://img.shields.io/badge/Next.js-App%20Router-black)
 
 ## Documentation
 
 - [Quick Start Guide](docs/QUICK_START.md)
-- [User Manual](docs/USER_MANUAL.md)
-- [Admin Manual](docs/ADMIN_MANUAL.md)
+- [User Manual](https://verifiable.sg/docs/user-manual/)
+- [Admin Manual](https://verifiable.sg/docs/admin-manual/)
 - [Operator Manual](docs/OPERATOR_MANUAL.md)
 - [Developer Onboarding Guide](docs/DEVELOPER_ONBOARDING.md)
+
+### Hosting eligibility and request budget
+
+Vercel Hobby permits personal, non-commercial use only. A commercial CaaS
+platform is not eligible regardless of its request volume. Route counts are not
+monthly usage measurements: authenticated pages also render dynamically.
+See the [current request and hosting audit](docs/API_ROUTE_AUDIT.md) for measured
+request reductions, build inventory, verification limits and deployment gates.
 
 ### Vercel function storage
 
@@ -107,7 +118,7 @@ without these fields must be reissued; rendering cannot recover missing signed d
 
 ## Tech Stack
 
-- **Framework:** Next.js 14 (App Router, TypeScript, static export)
+- **Framework:** Next.js App Router, TypeScript, server rendering
 - **Styling:** Tailwind CSS
 - **TrustVC SDK:** `@trustvc/trustvc` for W3C VC signing
 - **Blockchain:** Ethereum Sepolia testnet (OpenAttestation Document Store)
@@ -139,9 +150,9 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000/certificate-issuer](http://localhost:3000/certificate-issuer) to view the app.
+Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-> **Note:** The app uses `basePath: "/certificate-issuer"` to match the GitHub Pages URL. Locally, the dev server serves the app at `/certificate-issuer/`.
+> **Note:** The default server deployment uses no base path. The legacy `DEPLOY_TARGET=github-pages` setting uses `/certificate-issuer`; it is not the full authenticated platform deployment.
 
 ### Build for Production
 
@@ -149,7 +160,8 @@ Open [http://localhost:3000/certificate-issuer](http://localhost:3000/certificat
 npm run build
 ```
 
-Output will be in the `out/` directory (static export, ready for GitHub Pages).
+Output is in `.next/`. Run `npm start` for the production server, or deploy with
+a hosting provider whose terms permit commercial use.
 
 ## Environment Variables
 

@@ -1,144 +1,127 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, LogOut, ShieldCheck } from "lucide-react";
+import { KeyRound, ShieldCheck } from "lucide-react";
 import { withBasePath } from "../../lib/site";
 import { safeInternalPath } from "../../lib/safe-internal-path";
 import { getSupabaseBrowserClient } from "../../lib/supabase/client";
 import { isValidPassword, PASSWORD_REQUIREMENTS } from "../../lib/password-policy";
 import LegalNotice from "../../components/legal/LegalNotice";
-import IssuedCertificatesTable, { type CredentialItem } from "../../components/IssuedCertificatesTable";
-
-type Mode = "login" | "reset";
-interface User { issuerId: string; email: string; displayName: string; issuerName: string; organization: string; }
+import { useWorkspaceSession } from "../../components/WorkspaceSession";
+import DashboardPage from "../dashboard/page";
 
 export default function IssuerPortalPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("login");
+  const { user, refresh } = useWorkspaceSession();
+  const recoveryTask = useRef<Promise<boolean> | null>(null);
+  const [mode, setMode] = useState<"login" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [recoverySession, setRecoverySession] = useState(false);
+  const [recoveryChecked, setRecoveryChecked] = useState(false);
   const [newPassword, setNewPassword] = useState("");
-  const [user, setUser] = useState<User | null>(null);
-  const [credentials, setCredentials] = useState<CredentialItem[]>([]);
-  const [credentialLoading, setCredentialLoading] = useState(false);
-  const [credentialError, setCredentialError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const loadSession = async () => {
-    const response = await fetch(withBasePath("/api/auth/me"), { method: "POST" });
-    const payload = await response.json() as { user?: User | null };
-    if (!payload.user) return;
-    setUser(payload.user);
-    setCredentialLoading(true);
-    setCredentialError(null);
-    try {
-      const credentialResponse = await fetch(withBasePath("/api/credentials"));
-      const credentialPayload = await credentialResponse.json() as { credentials?: CredentialItem[]; error?: string };
-      if (!credentialResponse.ok || !Array.isArray(credentialPayload.credentials)) {
-        throw new Error(credentialPayload.error ?? "Unable to load credentials.");
-      }
-      setCredentials(credentialPayload.credentials);
-    } catch (reason) {
-      setCredentialError(reason instanceof Error ? reason.message : "Unable to load credentials.");
-    } finally {
-      setCredentialLoading(false);
-    }
-  };
-
   useEffect(() => {
+    let active = true;
     const acceptInvitation = async () => {
+      const params = new URLSearchParams(window.location.search);
       const fragment = new URLSearchParams(window.location.hash.slice(1));
       const type = fragment.get("type");
+      if (params.get("mode") === "reset" || type === "invite" || type === "recovery") setMode("reset");
+      const linkError = params.get("error");
+      if (linkError === "invalid_link") setError("That reset link is invalid or has expired.");
+      if (linkError === "missing_code") setError("That reset link is missing the recovery token.");
+      if (linkError === "pkce_recovery_link") setError("That reset link uses an unsupported PKCE code. Request a new reset email after the recovery email template is updated.");
       if (type !== "invite" && type !== "recovery") {
-        if (new URLSearchParams(window.location.search).get("mode") === "reset") {
-          const { data, error } = await getSupabaseBrowserClient().auth.getUser();
-          if (error || !data.user) throw new Error("That reset link is invalid or has expired. Request a new reset email.");
-          setRecoverySession(true);
+        if (params.get("mode") === "reset") {
+          const { data, error: recoveryError } = await getSupabaseBrowserClient().auth.getUser();
+          if (recoveryError || !data.user) throw new Error("That reset link is invalid or has expired. Request a new reset email.");
+          return true;
         }
-        return;
+        return false;
       }
-      const accessToken = fragment.get("access_token");
-      const refreshToken = fragment.get("refresh_token");
+      const accessToken = fragment.get("access_token"), refreshToken = fragment.get("refresh_token");
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      if (!accessToken || !refreshToken) throw new Error(type === "invite"
-        ? "The invitation link is incomplete. Contact your administrator."
-        : "The reset link is incomplete. Request a new reset email.");
-      const { error } = await getSupabaseBrowserClient().auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-      if (error) throw new Error(type === "invite"
-        ? "The invitation link is invalid or expired. Contact your administrator."
-        : "The reset link is invalid or expired. Request a new reset email.");
-      setMode("reset");
-      setRecoverySession(true);
+      if (!accessToken || !refreshToken) throw new Error("The access link is incomplete. Request a new link or contact your administrator.");
+      const { error: recoveryError } = await getSupabaseBrowserClient().auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+      if (recoveryError) throw new Error("The access link is invalid or expired. Request a new link or contact your administrator.");
+      await refresh();
+      return true;
     };
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("mode") === "reset") {
-      setMode("reset");
-    }
-    if (params.get("error") === "invalid_link") setError("That reset link is invalid or has expired.");
-    if (params.get("error") === "missing_code") setError("That reset link is missing the recovery token.");
-    if (params.get("error") === "pkce_recovery_link") setError("That reset link uses an unsupported PKCE code. Request a new reset email after the recovery email template is updated.");
-    void acceptInvitation().then(loadSession).catch((reason) => {
-      setError(reason instanceof Error ? reason.message : "Unable to accept invitation.");
-    });
-  }, []);
+    recoveryTask.current ??= acceptInvitation();
+    void recoveryTask.current.then((confirmed) => { if (active) setRecoverySession(confirmed); }).catch((reason) => {
+      if (active) setError(reason instanceof Error ? reason.message : "Unable to accept invitation.");
+    }).finally(() => { if (active) setRecoveryChecked(true); });
+    return () => { active = false; };
+  }, [refresh]);
 
   const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    setLoading(true); setError(null); setMessage(null);
+    event.preventDefault(); setLoading(true); setError(null); setMessage(null);
     try {
-      const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/reset-request";
-      const body = mode === "login" ? { email, password } : { email };
-      const response = await fetch(withBasePath(endpoint), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const payload = await response.json() as { error?: string; user?: User; message?: string };
+      const response = await fetch(withBasePath(mode === "login" ? "/api/auth/login" : "/api/auth/reset-request"), {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(mode === "login" ? { email, password } : { email }),
+      });
+      const payload = await response.json() as { error?: string; message?: string };
       if (!response.ok) throw new Error(payload.error ?? "Request failed.");
       if (mode === "login") {
-        setUser(payload.user ?? null);
-        await loadSession();
-        window.dispatchEvent(new Event("trustvc-auth-changed"));
-        const nextPath = new URLSearchParams(window.location.search).get("next");
-        router.push(safeInternalPath(nextPath));
-      }
-      else { setMessage(payload.message ?? "If the email is registered, reset instructions have been created."); }
-    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Request failed."); }
+        await refresh();
+        router.push(safeInternalPath(new URLSearchParams(window.location.search).get("next")));
+        router.refresh();
+      } else setMessage(payload.message ?? "If the email is registered, reset instructions have been created.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Request failed."); }
     finally { setLoading(false); }
   };
-
   const submitReset = async (event: FormEvent) => {
     event.preventDefault(); setLoading(true); setError(null); setMessage(null);
     try {
       if (!isValidPassword(newPassword)) throw new Error(PASSWORD_REQUIREMENTS);
-      const response = await fetch(withBasePath("/api/auth/reset"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: newPassword }) });
+      const response = await fetch(withBasePath("/api/auth/reset"), {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: newPassword }),
+      });
       const payload = await response.json() as { error?: string; errorMessage?: string };
       if (!response.ok) throw new Error(payload.errorMessage ?? payload.error ?? "Unable to reset password.");
-      setMessage("Password reset successfully. You can now log in."); setMode("login"); setNewPassword(""); setRecoverySession(false);
-    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Unable to reset password."); }
+      setMessage("Password reset successfully. You can now log in.");
+      setMode("login"); setNewPassword(""); setRecoverySession(false);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to reset password."); }
     finally { setLoading(false); }
   };
+  const switchMode = () => { setMode(mode === "login" ? "reset" : "login"); setError(null); setMessage(null); };
 
-  const logout = async () => { await fetch(withBasePath("/api/auth/logout"), { method: "POST" }); setUser(null); setCredentials([]); window.dispatchEvent(new Event("trustvc-auth-changed")); };
+  if (!recoveryChecked) return <main className="mx-auto max-w-xl px-4 py-10"><p role="status">Preparing your workspace...</p></main>;
+  if (user && mode !== "reset" && !recoverySession && !message) return <DashboardPage />;
 
-  if (user && mode !== "reset" && !recoverySession) return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
-        <div><p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">Issuer portal</p><h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">Welcome, {user.displayName}</h1><p className="mt-1 text-slate-600 dark:text-slate-300">{user.issuerName} · {user.organization}</p></div>
-        <div className="flex flex-wrap gap-2"><Link href="/profile/" className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">My Profile</Link><Link href="/insurance/" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">Issue credential</Link><button type="button" onClick={() => void logout()} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200"><LogOut className="h-4 w-4" /> Log out</button></div>
-      </div>
-      <IssuedCertificatesTable credentials={credentials} onCredentialsChange={setCredentials} loading={credentialLoading} error={credentialError} currentIssuerId={user.issuerId} />
-    </main>
-  );
-
-  return <main className="mx-auto max-w-xl px-4 py-10 sm:px-6"><section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-8"><div className="mb-6 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-cyan-300"><ShieldCheck className="h-6 w-6" /></div><h1 className="mt-4 text-3xl font-bold text-slate-900 dark:text-white">Issuer access</h1><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Sign in to manage your credentials.</p></div>
-    {mode === "reset" ? <form className="space-y-4" onSubmit={submit}><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Registered email<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="input-field mt-1" /></label><button disabled={loading} className="btn-primary w-full">{loading ? "Sending..." : "Send reset instructions"}</button>{recoverySession && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">Recovery session verified. Set a new password below.</div>}</form> : <form className="space-y-4" onSubmit={submit}><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Email<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="input-field mt-1" /></label><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Password<input required type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="input-field mt-1" /></label><button disabled={loading} className="btn-primary w-full">{loading ? "Working..." : "Log in"}</button></form>}
-    {recoverySession && mode === "reset" && <form className="mt-5 space-y-4 border-t border-slate-200 pt-5 dark:border-slate-700" onSubmit={submitReset}><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">New password<input required minLength={10} autoComplete="new-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="input-field mt-1" /><span className="mt-1 block text-xs text-slate-500">{PASSWORD_REQUIREMENTS}</span></label><button disabled={loading} className="btn-primary w-full">Set new password</button></form>}
-    {message && <div className="mt-4"><p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>{mode === "reset" && message === "If the email is registered, reset instructions have been created." && <button type="button" onClick={() => { setMode("login"); setMessage(null); }} className="mt-3 text-sm font-semibold text-cyan-700 hover:text-cyan-800 hover:underline dark:text-cyan-300 dark:hover:text-cyan-200">Log in</button>}</div>}{error && <div className="mt-4"><p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>{mode === "login" && error === "Invalid email or password." && <button type="button" onClick={() => { setMode("reset"); setError(null); setMessage(null); }} className="mt-3 text-sm font-semibold text-cyan-700 hover:text-cyan-800 hover:underline dark:text-cyan-300 dark:hover:text-cyan-200">Reset password</button>}</div>}<p className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-slate-500"><KeyRound className="h-3.5 w-3.5" /> Passwords are hashed server-side and never stored in the browser.</p>
-    <LegalNotice accountCreation={recoverySession} />
-  </section></main>;
+  return <main className="mx-auto max-w-xl px-4 py-10 sm:px-6">
+    <section className="card">
+      <header className="mb-6">
+        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-cyan-300"><ShieldCheck aria-hidden="true" size={24} /></div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">Verifiable.sg workspace</p>
+        <h1 className="mt-2 text-3xl font-bold">{recoverySession ? "Set your password" : mode === "reset" ? "Reset your password" : "Welcome back"}</h1>
+        <p className="mt-3 text-sm leading-6 text-slate-500">{recoverySession ? "Complete your account access to start using your organization’s workspace." : "One place to manage your organization’s credentials, templates and issuer access."}</p>
+      </header>
+      {recoverySession && mode === "reset" ? <form onSubmit={(event) => void submitReset(event)} className="space-y-4">
+        <p role="status" className="text-sm text-emerald-700">Recovery session verified.</p>
+        <label className="label" htmlFor="new-password">New password</label>
+        <input id="new-password" name="new-password" required minLength={10} autoComplete="new-password" type="password" aria-describedby="password-requirements"
+          value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="input-field" />
+        <p id="password-requirements" className="text-xs leading-5 text-slate-500">{PASSWORD_REQUIREMENTS}</p>
+        <button disabled={loading} className="btn-primary w-full">{loading ? "Saving password..." : "Set new password"}</button>
+      </form> : <form onSubmit={(event) => void submit(event)} className="space-y-4">
+        <label className="label" htmlFor="workspace-email">{mode === "reset" ? "Registered email" : "Email"}</label>
+        <input id="workspace-email" name="email" type="email" autoComplete="username" spellCheck={false} required value={email} onChange={(event) => setEmail(event.target.value)} className="input-field" />
+        {mode === "login" && <><label className="label" htmlFor="workspace-password">Password</label>
+          <input id="workspace-password" name="password" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} className="input-field" /></>}
+        <button disabled={loading} className="btn-primary w-full">{loading ? "Working..." : mode === "reset" ? "Send reset instructions" : "Sign in"}</button>
+        <button type="button" onClick={switchMode} className="min-h-11 rounded text-sm font-semibold text-cyan-700 dark:text-cyan-300">{mode === "login" ? "Forgot your password?" : "Back to sign in"}</button>
+      </form>}
+      {message && <p role="status" className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{message}</p>}
+      {error && <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+      <p className="mt-6 flex items-start gap-2 text-xs leading-5 text-slate-500"><KeyRound aria-hidden="true" size={16} className="shrink-0" />Access is provided by your organization administrator. Contact them if you need an invitation.</p>
+      <LegalNotice accountCreation={recoverySession} />
+    </section>
+  </main>;
 }

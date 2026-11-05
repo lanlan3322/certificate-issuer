@@ -1,90 +1,70 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LogOut } from "lucide-react";
 import Link from "next/link";
 import IssuedCertificatesTable, { type CredentialItem } from "../../components/IssuedCertificatesTable";
-
-interface AuthUser { issuerId: string; email: string; displayName: string; issuerName: string; organization: string }
+import { useWorkspaceSession } from "../../components/WorkspaceSession";
+import { hasPermission, isPlatformAdmin } from "../../lib/permissions";
+import { withBasePath } from "../../lib/site";
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [credentialLoading, setCredentialLoading] = useState(false);
+  const { user, error: sessionError } = useWorkspaceSession();
+  const [credentialLoading, setCredentialLoading] = useState(Boolean(user));
   const [credentialError, setCredentialError] = useState<string | null>(null);
   const [allCredentials, setAllCredentials] = useState<CredentialItem[]>([]);
 
-  // Detect auth session and load credentials on mount
   useEffect(() => {
-    let cancelled = false;
-    const checkAuth = async () => {
-      try {
-        const res = await fetch("/api/auth/me", { method: "POST" });
-        const payload = await res.json() as { user?: AuthUser | null };
-        if (!cancelled) {
-          if (payload.user) {
-            setUser(payload.user);
-            setCredentialLoading(true);
-            try {
-              const credRes = await fetch("/api/credentials");
-              const credPayload = await credRes.json() as { credentials?: CredentialItem[]; error?: string };
-              if (!credRes.ok || !Array.isArray(credPayload.credentials)) throw new Error(credPayload.error ?? "Unable to load credentials.");
-              setAllCredentials(credPayload.credentials);
-            } catch (reason) {
-              setCredentialError(reason instanceof Error ? reason.message : "Unable to load credentials.");
-            } finally {
-              setCredentialLoading(false);
-            }
-          }
-          setAuthLoading(false);
-        }
-      } catch {
-        if (!cancelled) setAuthLoading(false);
-      }
-    };
-    void checkAuth();
-    return () => { cancelled = true; };
-  }, []);
-
-  const handleLogout = async () => {
-    try { await fetch("/api/auth/logout", { method: "POST" }); } catch { /* ignore */ }
-    setUser(null);
+    const controller = new AbortController();
     setAllCredentials([]);
-    window.dispatchEvent(new Event("trustvc-auth-changed"));
-  };
+    if (!user) { setCredentialLoading(false); return; }
+    setCredentialLoading(true); setCredentialError(null);
+    void (async () => {
+      try {
+        const response = await fetch(withBasePath("/api/credentials"), { signal: controller.signal, cache: "no-store" });
+        const payload = await response.json() as { credentials?: CredentialItem[]; error?: string };
+        if (!response.ok || !Array.isArray(payload.credentials)) throw new Error(payload.error ?? "Unable to load credentials.");
+        if (!controller.signal.aborted) setAllCredentials(payload.credentials);
+      } catch (reason) {
+        if (!controller.signal.aborted) setCredentialError(reason instanceof Error ? reason.message : "Unable to load credentials.");
+      } finally { if (!controller.signal.aborted) setCredentialLoading(false); }
+    })();
+    return () => controller.abort();
+  }, [user]);
 
-  if (authLoading) {
-    return (
-      <main className="flex min-h-[60vh] items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-4 border-cyan-500 border-t-transparent rounded-full" />
-      </main>
-    );
-  }
+  if (!user) return <main className="mx-auto max-w-xl px-4 py-12">
+    <h1 className="text-2xl font-bold">Your credential workspace</h1>
+    <p role={sessionError ? "alert" : undefined} className="mt-3 text-slate-600">{sessionError ?? "Sign in to view your organization's credentials."}</p>
+    <Link href="/issuer/" prefetch={false} className="btn-primary mt-6">Sign in</Link>
+  </main>;
 
-  /* ─── Authenticated Dashboard ──────────────────────────────────── */
-  if (user) {
-    return (
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Welcome bar */}
-        <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">Dashboard</p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">Welcome, {user.displayName}</h1>
-            <p className="mt-1 text-slate-600 dark:text-slate-300">{user.issuerName} · {user.organization}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/profile/" className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">My Profile</Link>
-            <Link href="/insurance/" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 dark:hover:bg-slate-600">Issue credential</Link>
-            <button type="button" onClick={handleLogout} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200">
-              <LogOut className="h-4 w-4" /> Log out
-            </button>
-          </div>
-        </div>
+  const metrics = [
+    ["Loaded credentials", allCredentials.length],
+    ["Issued", allCredentials.filter((credential) => credential.status === "issued").length],
+    ["Revoked", allCredentials.filter((credential) => credential.status === "revoked").length],
+    ["Other statuses", allCredentials.filter((credential) => !["issued", "revoked"].includes(credential.status)).length],
+  ] as const;
 
-        <IssuedCertificatesTable credentials={allCredentials} onCredentialsChange={setAllCredentials} loading={credentialLoading} error={credentialError} currentIssuerId={user.issuerId} />
-      </main>
-    );
-  }
-
-  return <Link href="/issuer/">Log in to view your dashboard.</Link>;
+  return <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <header className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">Credential workspace</p>
+        <h1 className="mt-2 text-3xl font-bold">Credential overview</h1>
+        <p className="mt-2 text-sm text-slate-500">Welcome, {user.displayName}. {isPlatformAdmin(user) ? "Manage credentials across all organizations." : `Review your organization's credentials for ${user.issuerName}.`}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Link href="/profile/" prefetch={false} className="btn-secondary">My Profile</Link>
+        {hasPermission(user, "credentials.issue") && <Link href="/insurance/" prefetch={false} className="btn-primary">Issue credential</Link>}
+      </div>
+    </header>
+    <section aria-label="Loaded credential summary" className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
+      {metrics.map(([label, count]) => <div key={label} className="stat-card">
+        <p className="text-xs font-medium text-slate-500">{label}</p>
+        <p className="mt-2 text-2xl font-semibold tabular-nums">{credentialLoading ? "\u2014" : credentialError ? "Unavailable" : count.toLocaleString()}</p>
+      </div>)}
+    </section>
+    <p className="mb-4 text-xs text-slate-500">Summary reflects the records loaded below, not an organization-wide lifetime total.</p>
+    <IssuedCertificatesTable credentials={allCredentials} onCredentialsChange={setAllCredentials} loading={credentialLoading}
+      error={credentialError} currentIssuerId={isPlatformAdmin(user) ? undefined : user.issuerId}
+      canManageCredentials={hasPermission(user, "credentials.revoke")} />
+  </main>;
 }

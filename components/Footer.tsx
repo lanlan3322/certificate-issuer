@@ -1,76 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import { withBasePath } from "../lib/site";
 import { openCookiePreferences } from "../lib/cookie-consent";
 
-const footerLinks = [
-  { href: "/docs/user-manual", label: "User Manual" },
-  { href: "/docs/admin-manual", label: "Admin Manual" },
-  { href: "/release-notes", label: "Release Notes" },
+const groups = [
+  { title: "Platform", links: [["/verify", "Verify a credential"], ["/enterprise", "Plans"], ["/issuer/", "Workspace sign in"]] },
+  { title: "Resources", links: [["/docs/user-manual", "User guide"], ["/docs/admin-manual", "Admin guide"], ["/release-notes", "Release notes"], ["/contact", "Contact support"]] },
+  { title: "Legal", links: [["/privacy", "Privacy policy"], ["/terms", "Terms of service"]] },
 ];
 
-export default function Footer({ authenticated = false }: { authenticated?: boolean }) {
-  const [visible, setVisible] = useState(authenticated);
-  const pathname = usePathname();
-
-  useEffect(() => {
-    let active = true;
-    let requestId = 0;
-    const refreshAuthentication = async () => {
-      const currentRequest = ++requestId;
-      try {
-        const response = await fetch(withBasePath("/api/auth/me"), { method: "POST", cache: "no-store" });
-        if (!response.ok) throw new Error("Unable to confirm footer authentication.");
-        const payload = await response.json() as { user?: unknown };
-        if (active && currentRequest === requestId) setVisible(Boolean(payload.user));
-      } catch {
-        if (active && currentRequest === requestId) setVisible(false);
-      }
-    };
-    void refreshAuthentication();
-    window.addEventListener("trustvc-auth-changed", refreshAuthentication);
-    return () => {
-      active = false;
-      window.removeEventListener("trustvc-auth-changed", refreshAuthentication);
-    };
-  }, [pathname]);
-
-  return (
-    <footer className="theme-fixed border-t border-slate-200 bg-slate-950 text-slate-200">
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        {visible && <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Documentation</p>
-          </div>
-
-          <nav aria-label="Documentation links" className="flex flex-wrap gap-2 text-sm">
-            {footerLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-slate-200 transition hover:border-cyan-400 hover:text-cyan-200"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>}
-        <div className={`${visible ? "mt-6 border-t border-slate-700 pt-6 " : ""}flex flex-col gap-3 text-sm md:flex-row md:items-center md:justify-between`}>
-          <p>© Verifiable.sg</p>
-          <nav aria-label="Legal links" className="flex flex-wrap items-center gap-3">
-            <Link href="/privacy" className="underline underline-offset-4 focus-visible:outline focus-visible:outline-2">Privacy Policy</Link>
-            <span aria-hidden="true">|</span>
-            <Link href="/terms" className="underline underline-offset-4 focus-visible:outline focus-visible:outline-2">Terms of Service</Link>
-            <span aria-hidden="true">|</span>
-            <Link href="/contact" className="underline underline-offset-4 focus-visible:outline focus-visible:outline-2">Contact Us</Link>
-            <span aria-hidden="true">|</span>
-            <button type="button" onClick={openCookiePreferences} className="underline underline-offset-4 focus-visible:outline focus-visible:outline-2">Cookie Preferences</button>
-          </nav>
+export default function Footer() {
+  return <footer className="theme-fixed border-t border-slate-800 bg-slate-950 text-slate-300">
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+        <div>
+          <p className="text-lg font-bold text-white" translate="no">Verifiable.sg</p>
+          <p className="mt-3 max-w-xs text-sm leading-6 text-slate-400">Credential-as-a-Service for issuing, managing and verifying your organization&apos;s digital credentials.</p>
         </div>
+        {groups.map((group) => <nav key={group.title} aria-label={`${group.title} links`}>
+          <h2 className="mb-3 text-sm font-semibold text-white">{group.title}</h2>
+          <ul className="space-y-1">{group.links.map(([href, label]) => <li key={href}>
+            <Link href={href} prefetch={false} className="inline-flex min-h-11 items-center rounded text-sm hover:text-cyan-300">{label}</Link>
+          </li>)}</ul>
+        </nav>)}
       </div>
-    </footer>
-  );
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-6 text-xs text-slate-400">
+        <p>© Verifiable.sg. Built on open credential standards.</p>
+        <button type="button" onClick={openCookiePreferences} className="min-h-11 rounded px-2 underline underline-offset-4 hover:text-white">Cookie preferences</button>
+      </div>
+    </div>
+  </footer>;
 }

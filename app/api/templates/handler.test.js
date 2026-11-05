@@ -13,6 +13,8 @@ function setup({ roles = ["issuer-operator"], authenticated = true, failure = fa
   instance.filename = filename;
   instance.paths = Module._nodeModulePaths(path.dirname(filename));
   const mocks = {
+    "../../../lib/issuer-access": { requireIssuerAccess: async () => ({}) },
+    "../../../lib/permissions": require("../../../lib/permissions.ts"),
     "next/server": { NextResponse },
     "../../../lib/apiAuth": {
       authorize: async () => authenticated
@@ -21,12 +23,13 @@ function setup({ roles = ["issuer-operator"], authenticated = true, failure = fa
       errorResponse: (_error, message, status = 500) => NextResponse.json({ error: message }, { status }),
     },
     "../../../services/AuditService": { AuditService: {} },
+    "../../../services/IssuerService": { IssuerService: {} },
     "../../../services/TemplateService": {
       TemplateService: {
         listForIssuance: async (scope) => {
           calls.push(["issuance", scope]);
           if (failure) throw new Error("Database unavailable");
-          return [{ id: "saved-template" }];
+          return [{ id: "saved-template", issuerId: "my-issuer", organizationId: "my-org" }];
         },
         list: async (...args) => { calls.push(["builder", ...args]); return []; },
       },
@@ -48,15 +51,16 @@ test("issuance catalog trusts session organization and roles, not client overrid
     const response = await get("purpose=issuance&organizationId=other-org&issuerId=other-issuer&platformAdmin=true&includeInactive=true");
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("cache-control"), "no-store");
-    assert.deepEqual(await response.json(), { templates: [{ id: "saved-template" }] });
+    assert.deepEqual(await response.json(), { templates: roles.includes("issuer-admin") ? [] :
+      [{ id: "saved-template", issuerId: "my-issuer", organizationId: "my-org" }] });
     assert.deepEqual(calls, [["issuance", { organizationId: "my-org", platformAdmin: roles.includes("platform-admin") }]]);
   }
 });
 
-test("builder catalog remains issuer scoped", async () => {
+test("builder catalog remains organization scoped", async () => {
   const { get, calls } = setup();
   assert.equal((await get("issuerId=other-issuer&includeInactive=true")).status, 200);
-  assert.deepEqual(calls, [["builder", "my-issuer", { includeInactive: true }]]);
+  assert.deepEqual(calls, [["builder", "my-issuer", { includeInactive: true, organizationId: "my-org", platformAdmin: false }]]);
 });
 
 test("unauthenticated requests cannot query the catalog and database failures surface", async () => {

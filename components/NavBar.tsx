@@ -1,238 +1,133 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useRouter } from "next/navigation";
-import {
-  CheckCircle,
-  FilePlus2,
-  Menu,
-  X,
-  Moon,
-  Sun,
-  KeyRound,
-  LayoutDashboard,
-
-  Palette,
-  Send,
-  LogOut,
-} from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ArrowUpRight, ChevronDown, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useWorkspaceSession } from "./WorkspaceSession";
+import { normalizePagePath, publicNavigation, workspaceNavigation } from "../lib/navigation";
+import { withBasePath } from "../lib/site";
 import PageLoadingIndicator from "./PageLoadingIndicator";
-
-function normalizePath(path: string | null | undefined): string {
-  const normalized = path?.replace(/\/+$/, "") ?? "";
-  return normalized || "/";
-}
 
 export default function NavBar({ agentAvailable = false }: { agentAvailable?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [isNavigating, setIsNavigating] = useState(false);
+  const { user, error: sessionError, refresh } = useWorkspaceSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [issuerAuthenticated, setIssuerAuthenticated] = useState(false);
-  const [platformAdmin, setPlatformAdmin] = useState(false);
-  const [issuerMenuOpen, setIssuerMenuOpen] = useState(false);
-  const issuerRef = useRef<HTMLDivElement>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const accountRef = useRef<HTMLDivElement>(null);
+  const accountButton = useRef<HTMLButtonElement>(null);
+  const mobileButton = useRef<HTMLButtonElement>(null);
+  const navGroups = workspaceNavigation(user);
 
   useEffect(() => {
     setIsNavigating(false);
+    setMobileMenuOpen(false);
+    setAccountOpen(false);
   }, [pathname]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (issuerRef.current && !issuerRef.current.contains(event.target as Node)) {
-        setIssuerMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    // The theme class is already applied by the inline script in app/layout.tsx.
     setDarkMode(document.documentElement.classList.contains("dark"));
-  }, []);
+    const outside = (event: PointerEvent) => {
+      if (accountRef.current && !accountRef.current.contains(event.target as Node)) setAccountOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (accountOpen) { setAccountOpen(false); accountButton.current?.focus(); }
+      if (mobileMenuOpen) { setMobileMenuOpen(false); mobileButton.current?.focus(); }
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [accountOpen, mobileMenuOpen]);
 
-  useEffect(() => {
-    const refreshAuthentication = () => void fetch("/api/auth/me", { method: "POST" })
-      .then(async (response) => response.ok ? await response.json() as { user?: { roles?: string[] } } : null)
-      .then((payload) => {
-        setIssuerAuthenticated(Boolean(payload?.user));
-        setPlatformAdmin(payload?.user?.roles?.includes("platform-admin") ?? false);
-      })
-      .catch(() => {
-        setIssuerAuthenticated(false);
-        setPlatformAdmin(false);
-      });
-    refreshAuthentication();
-    window.addEventListener("trustvc-auth-changed", refreshAuthentication);
-    return () => window.removeEventListener("trustvc-auth-changed", refreshAuthentication);
-  }, [pathname]);
-
+  const navigate = (href: string) => {
+    if (normalizePagePath(pathname) !== normalizePagePath(href)) setIsNavigating(true);
+    setAccountOpen(false);
+    setMobileMenuOpen(false);
+  };
+  const active = (href: string) => normalizePagePath(pathname) === normalizePagePath(href);
   const toggleTheme = () => {
-    const nextMode = !darkMode;
-    document.documentElement.classList.toggle("dark", nextMode);
-    window.localStorage.setItem("trustvc-theme", nextMode ? "dark" : "light");
-    setDarkMode(nextMode);
+    const next = !darkMode;
+    document.documentElement.classList.toggle("dark", next);
+    setDarkMode(next);
+    try { window.localStorage.setItem("trustvc-theme", next ? "dark" : "light"); }
+    catch { setError("Theme changed for this visit. Your browser could not save the preference."); }
   };
-
-  const startNavigation = (href: string) => {
-    if (normalizePath(pathname) !== normalizePath(href)) {
-      setIsNavigating(true);
-    }
-  };
-
-  const publicNavItems = [
-    { href: "/", label: "Overview", icon: LayoutDashboard },
-    { href: "/verify", label: "Verification", icon: CheckCircle },
-  ];
-  const issuerNavItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/insurance", label: "Issue", icon: FilePlus2 },
-    { href: "/branding", label: "Branding", icon: Palette },
-    ...(platformAdmin ? [{ href: "/platform", label: "Organization", icon: KeyRound }] : []),
-    { href: "/did", label: "Issuer", icon: KeyRound },
-    { href: "/wallet", label: "Delivery options", icon: Send },
-  ];
-
   const logout = async () => {
-    startNavigation("/issuer/");
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    setIssuerAuthenticated(false);
-    setIssuerMenuOpen(false);
-    window.dispatchEvent(new Event("trustvc-auth-changed"));
-    router.push("/issuer/");
+    setLoggingOut(true); setError(null);
+    try {
+      const response = await fetch(withBasePath("/api/auth/logout"), { method: "POST" });
+      if (!response.ok) throw new Error("Unable to sign out. Please try again.");
+      await refresh();
+      setAccountOpen(false); setMobileMenuOpen(false);
+      router.push("/issuer/");
+      router.refresh();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to sign out."); }
+    finally { setLoggingOut(false); }
   };
 
-  const issuerMenuItems = issuerAuthenticated
-    ? issuerNavItems
-    : [{ href: "/issuer/", label: "Login / Register", icon: KeyRound }];
-
-  return (
-    <nav className="sticky top-3 z-50 px-4 pb-3 pt-3 sm:px-6 lg:px-8">
-      {isNavigating && <PageLoadingIndicator />}
-      <div className="mx-auto max-w-7xl rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/85 dark:shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
-        <div className="flex h-16 items-center justify-between px-4 sm:px-6">
-          <Link href="/" onNavigate={() => startNavigation("/")} className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <img src="/vs-light.png" alt="Verifiable.sg" width={1420} height={300} className="h-auto w-[170px] rounded dark:hidden sm:w-[205px]" />
-            <img src="/vs-dark.png" alt="Verifiable.sg" width={1420} height={300} className="hidden h-auto w-[170px] rounded dark:block sm:w-[205px]" />
-          </Link>
-
-          <div className="hidden items-center gap-2 md:flex">
-            {publicNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onNavigate={() => startNavigation(item.href)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 ${
-                    isActive
-                      ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
-                      : "text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-            <div ref={issuerRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setIssuerMenuOpen((open) => !open)}
-                aria-expanded={issuerMenuOpen}
-                className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${issuerMenuOpen ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`}
-              >
-                <KeyRound className="h-4 w-4" />
-                <span>eServices</span>
-              </button>
-              {issuerMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-                  {issuerMenuItems.map((item) => {
-                    const Icon = item.icon;
-                    return <Link key={item.href} href={item.href} onNavigate={() => startNavigation(item.href)} onClick={() => setIssuerMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><Icon className="h-4 w-4" />{item.label}</Link>;
-                  })}
-                  {issuerAuthenticated && <button type="button" onClick={() => void logout()} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40"><LogOut className="h-4 w-4" />Logout</button>}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {issuerAuthenticated && agentAvailable && (
-            <button
-              type="button"
-              aria-label="Open Issuer Success Agent"
-              onClick={() => {
-                if (agentAvailable) {
-                  window.dispatchEvent(new Event("trustvc-agent-open"));
-                } else {
-                  startNavigation("/issuer/");
-                  router.push("/issuer/");
-                }
-              }}
-              className="shrink-0 whitespace-nowrap rounded-lg bg-primary px-2 py-2 text-xs font-medium text-white transition-colors hover:bg-primary/90 sm:px-3 sm:text-sm"
-            >
-              Agent
-            </button>
-          )}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              className="rounded-lg border border-slate-200 p-2 text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
-            <button
-              className="rounded-lg border border-slate-200 p-2 text-slate-700 dark:border-slate-700 dark:text-slate-200 md:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
+  return <header className="site-header sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+    <a href="#main-content" className="skip-link">Skip to main content</a>
+    {isNavigating && <PageLoadingIndicator />}
+    <div className="mx-auto flex h-[72px] max-w-[1600px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+      <Link href="/" prefetch={false} onNavigate={() => navigate("/")} className="shrink-0 rounded-lg" aria-label="Verifiable.sg home">
+        <img src={withBasePath("/vs-light.png")} alt="Verifiable.sg" width={1420} height={300} className="h-auto w-[144px] dark:hidden sm:w-[185px]" />
+        <img src={withBasePath("/vs-dark.png")} alt="Verifiable.sg" width={1420} height={300} className="hidden h-auto w-[144px] dark:block sm:w-[185px]" />
+      </Link>
+      <nav aria-label="Primary navigation" className="hidden items-center gap-1 lg:flex">
+        {publicNavigation.map((item) => <Link key={item.href} href={item.href} prefetch={false}
+          onNavigate={() => navigate(item.href)} aria-current={active(item.href) ? "page" : undefined}
+          className={`nav-link ${active(item.href) ? "nav-link-active" : ""}`}>{item.label}</Link>)}
+      </nav>
+      <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
+        {user && agentAvailable && <button type="button" aria-label="Open Issuer Success Agent"
+          onClick={() => window.dispatchEvent(new Event("trustvc-agent-open"))}
+          className="hidden rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium dark:border-slate-700 sm:inline-flex">Assistant</button>}
+        <button type="button" onClick={toggleTheme} aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+          className="icon-button">{darkMode ? <Sun aria-hidden="true" size={18} /> : <Moon aria-hidden="true" size={18} />}</button>
+        <div ref={accountRef} className="relative hidden lg:block">
+          {user ? <><button ref={accountButton} type="button" aria-expanded={accountOpen} aria-controls="account-navigation"
+            onClick={() => setAccountOpen((value) => !value)} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold dark:border-slate-700">
+            <span className="max-w-36 truncate">{user.displayName || "My workspace"}</span><ChevronDown size={16} aria-hidden="true" />
+          </button>
+          {accountOpen && <nav id="account-navigation" aria-label="Account navigation" className="absolute right-0 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+            <p className="truncate px-3 py-2 text-xs text-slate-500">{user.email}</p>
+            <Link href="/dashboard" prefetch={false} onNavigate={() => navigate("/dashboard")} className="nav-link block">Open workspace</Link>
+            <Link href="/profile" prefetch={false} onNavigate={() => navigate("/profile")} className="nav-link block">My profile</Link>
+            <button type="button" disabled={loggingOut} onClick={() => void logout()} className="nav-link flex w-full items-center gap-2 text-left text-red-700 dark:text-red-300"><LogOut size={16} aria-hidden="true" />{loggingOut ? "Signing out..." : "Sign out"}</button>
+          </nav>}</> : <Link href="/issuer/" prefetch={false} onNavigate={() => navigate("/issuer/")} className="btn-primary">Sign in <ArrowUpRight size={16} className="ml-2" aria-hidden="true" /></Link>}
         </div>
-
-        {mobileMenuOpen && (
-          <div className="space-y-2 border-t border-slate-200 px-4 py-3 dark:border-slate-700 md:hidden">
-            {publicNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onNavigate={() => startNavigation(item.href)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-slate-900 text-white"
-                      : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-            <div className="border-t border-slate-200 pt-2 dark:border-slate-700">
-              <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-500">eServices</p>
-              {issuerMenuItems.map((item) => {
-                const Icon = item.icon;
-                return <Link key={item.href} href={item.href} onNavigate={() => startNavigation(item.href)} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon className="h-4 w-4" />{item.label}</Link>;
-              })}
-              {issuerAuthenticated && <button type="button" onClick={() => { setMobileMenuOpen(false); void logout(); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40"><LogOut className="h-4 w-4" />Logout</button>}
-            </div>
-          </div>
-        )}
+        {!user && <Link href="/issuer/" prefetch={false} onNavigate={() => navigate("/issuer/")} className="nav-link hidden whitespace-nowrap px-2 min-[360px]:inline-flex lg:hidden">Sign in</Link>}
+        <button ref={mobileButton} type="button" aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}
+          aria-expanded={mobileMenuOpen} aria-controls="mobile-navigation" onClick={() => setMobileMenuOpen((value) => !value)}
+          className="icon-button lg:hidden">{mobileMenuOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}</button>
       </div>
-    </nav>
-  );
+    </div>
+    {(error || sessionError) && <p role="alert" className="mx-auto max-w-7xl px-4 pb-3 text-sm text-red-700 dark:text-red-300">{error || sessionError}</p>}
+    {mobileMenuOpen && <nav id="mobile-navigation" aria-label="Mobile navigation" className="max-h-[calc(100dvh-72px)] overflow-y-auto overscroll-contain border-t border-slate-200 px-4 pb-6 dark:border-slate-800 lg:hidden">
+      <div className="grid grid-cols-2 gap-1 py-3">{publicNavigation.map((item) => <Link key={item.href} href={item.href} prefetch={false}
+        onNavigate={() => navigate(item.href)} aria-current={active(item.href) ? "page" : undefined}
+        className={`nav-link ${active(item.href) ? "nav-link-active" : ""}`}>{item.label}</Link>)}</div>
+      {!user && <Link href="/issuer/" prefetch={false} onNavigate={() => navigate("/issuer/")} className="btn-primary mb-3 w-full">Sign in to your workspace</Link>}
+      {navGroups.map((group) => <section key={group.label} className="border-t border-slate-200 py-3 dark:border-slate-800">
+        <h2 className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">{group.label}</h2>
+        <div className="grid gap-1 sm:grid-cols-2">{group.items.map((item) => <Link key={item.href} href={item.href} prefetch={false}
+          onNavigate={() => navigate(item.href)} aria-current={active(item.href) ? "page" : undefined}
+          className={`nav-link ${active(item.href) ? "nav-link-active" : ""}`}>{item.label}</Link>)}</div>
+      </section>)}
+      {user && <div className="border-t border-slate-200 pt-3 dark:border-slate-800">
+        <p className="truncate px-3 py-2 text-sm text-slate-500">{user.email}</p>
+        {agentAvailable && <button type="button" className="nav-link block w-full text-left" onClick={() => { setMobileMenuOpen(false); window.dispatchEvent(new Event("trustvc-agent-open")); }}>Open assistant</button>}
+        <button type="button" disabled={loggingOut} className="nav-link text-red-700 dark:text-red-300" onClick={() => void logout()}>{loggingOut ? "Signing out..." : "Sign out"}</button>
+      </div>}
+    </nav>}
+  </header>;
 }

@@ -1,4 +1,131 @@
-# API route and Hobby function-budget audit
+# API routes, request budgets and Vercel eligibility
+
+## Current CaaS website audit — 2026-11-05
+
+### Eligibility and limits
+
+**This is a commercial CaaS platform. Vercel Hobby is restricted to personal,
+non-commercial use, so this application is not eligible regardless of traffic.**
+No hosting plan, paid subscription or deployment has been changed. Account Usage
+figures were unavailable; monthly quota compliance cannot be certified from code.
+
+The current [Hobby documentation](https://vercel.com/docs/plans/hobby) lists these
+included allowances:
+
+| Meter | Included allowance |
+| --- | ---: |
+| Function invocations | 1,000,000 |
+| Active CPU | 4 CPU-hours |
+| Provisioned memory | 360 GB-hours |
+| CDN requests | 1,000,000 |
+| Fast data transfer | 100 GB |
+| Fast origin transfer | 10 GB |
+
+These are separate meters, not interchangeable request budgets. Check the
+current documentation and the project's plan before deployment. Function
+configuration also has separate [runtime limits](https://vercel.com/docs/functions/limitations).
+The older “12 functions” target below is historical; route source counts do not
+establish today's plan eligibility or final deployed function count.
+
+### Verified build inventory
+
+`npm run build` and `.next/server/app-paths-manifest.json` report:
+
+- **8 API route entry points**, unchanged by the website redesign.
+- **10 route handlers**, including the two auth callbacks.
+- **27 page candidates**, including the generated not-found page.
+- **Dynamic server rendering for pages**, plus the proxy. The root layout reads
+  the authenticated session; the previous claim that all pages are static no
+  longer applies. Page loads, RSC navigations/prefetches and protected redirects
+  can therefore consume function work in addition to explicit API calls.
+
+Vercel may bundle these differently. Only a deployed Build Output/function
+inventory and the account Usage dashboard can establish actual consumption.
+Consolidating handlers reduces entry points, not the number of invocations.
+
+### Request reductions
+
+The server already resolves the session for the layout. A shared client session
+now reuses that result instead of making independent header, footer and page
+authentication requests. Authorization is still checked by every protected API;
+client navigation visibility is not an authorization boundary.
+
+| Browser workflow | Previous application API reads | Current application API reads |
+| --- | ---: | ---: |
+| Header and footer on initial page/navigation | 2 auth reads | **0** |
+| Credential overview, including shared shell | 3 auth + 1 credentials | **1 credentials** |
+| Issuer administration, including shared shell | 3 auth + 1 organizations + 1 issuers | **2 directory reads** |
+| Single/batch template catalog on issuance page | 2 template reads | **1 shared template read** |
+| Assistant session while closed | Session creation on first visit | **0** |
+
+- Sign-in and sign-out explicitly refresh the shared session once. Concurrent
+  refreshes and auth-change listeners share one in-flight request.
+- Signed-in workspace access reuses the overview instead of a second dashboard.
+  Recovery/invitation links are processed before displaying the overview.
+- Assistant sessions are created on explicit opening, coalesced while in flight,
+  and reused across navigation. Session failures are shown in the conversation.
+- Header, sidebar, footer and shared consent/legal links disable automatic
+  prefetch. Other page links can still prefetch; this is not a claim that the
+  entire application has zero RSC prefetch traffic.
+- API paths no longer take a trailing-slash redirect hop through the proxy.
+  Existing slash/no-slash API URLs still resolve, and protected paths still
+  authenticate before dispatch. Ordinary page canonical redirects are unchanged.
+- Directory filters, credential search/sort and overview summary counts are
+  local operations. The summary describes loaded records, not lifetime totals.
+- There is no periodic application polling. Issuance, verification, delivery,
+  revocation, profile updates and audit-range changes retain their required
+  action-triggered requests. Batch issuance still makes a request per credential.
+
+These counts exclude page rendering/proxy work, static assets, Supabase's own
+authentication traffic, RPC providers, and optional consented analytics.
+Public verification and externally requested credentials can generate additional
+traffic independently of a signed-in workspace session.
+
+### Validation and deployment gate
+
+Regression tests cover zero session calls on mount/rerender, concurrent refresh
+coalescing, visible failures, stale-response rejection, role-aware navigation,
+directory request counts, and single/batch template sharing. Responsive browser
+checks use synthetic/anonymous state, not production credentials.
+
+Recorded results:
+
+- Production build, TypeScript and `git diff --check`: pass.
+- Focused UI, request-budget, recovery, preview, theme and proxy tests: **91/91**.
+- Full `node --test` suite: **348 tests, 333 passed, 15 failed**. Every remaining
+  failure name also appears in the recorded pre-redesign baseline (335 tests,
+  315 passed, 20 failed). The full suite is not green; existing signing/config
+  and isolated-loader failures remain release blockers.
+- Twelve public pages at 320, 375, 768 and 1280 pixels: no document-level
+  horizontal overflow and no passive application API calls. Initially unlabelled
+  JSON/CSV editors were corrected and rechecked.
+- Synthetic workspace layout at the same four widths, light/dark: mobile record
+  cards, desktop sidebar, and no document-level horizontal overflow.
+- Hydrated mobile navigation with four mocked roles: expected permission-gated
+  links and exactly four session requests for four explicit auth-change events.
+  This tests UI behavior, not a bypass of server authorization.
+- Local production HTTP: anonymous session 200, protected directory/credentials
+  401, all without redirect hops. These checks use a synthetic Supabase origin.
+  Public verification returns 500 in that isolated setup because its required
+  rate-limit database is unavailable; real cryptographic verification is not
+  claimed from this environment. A mocked verification response exercises only
+  preview rendering and keyboard behavior.
+
+Before asserting a hosting budget:
+
+1. Select hosting terms that permit commercial use; obtain approval before spend.
+2. Record Vercel Usage for invocations, CPU, memory, CDN and both transfer meters.
+3. Measure a representative period including public verification, certificate
+   downloads, batch issuance and dynamic navigation. Extrapolate each meter
+   separately for the billing cycle with headroom.
+4. Configure the available account usage controls/notifications and verify the
+   deployed function inventory. Application rate limits are not a monthly
+   account-wide invocation or spending cap.
+
+No actual monthly usage, live authenticated issuance, production migration or
+commercial Hobby compliance is claimed.
+
+## Historical route-consolidation audit
 
 Date: 2026-10-14
 
@@ -12,9 +139,10 @@ Date: 2026-10-14
 | Conservative total if the proxy consumes a separate function | 25 | **11** |
 
 The production Next build and `.next/server/app-paths-manifest.json` confirm
-the after counts. All pages in this build are static. Ten dynamic handlers, or
-eleven including the proxy conservatively, are below the requested 12-function
-limit. These are build-derived deployment candidates, not a count obtained from
+the historical after counts. At that time the pages were static; the current
+authenticated layout makes pages dynamic, as documented above. Ten handlers, or
+eleven including the proxy, met the historical requested 12-handler target, not
+a verified Vercel deployment or invocation budget. These are not counts from
 a deployed Vercel Build Output directory; Vercel can group functions differently.
 The final hosted deployment and its function inventory still need confirmation.
 

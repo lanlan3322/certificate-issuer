@@ -7,10 +7,16 @@ export async function dispatchApiRequest(
   routes: Record<string, ApiHandlers>,
   path: string
 ): Promise<Response> {
-  if (!Object.hasOwn(routes, path)) {
+  const routeKey = Object.hasOwn(routes, path) ? path : Object.keys(routes).find((candidate) => {
+    const parts = candidate.split("/");
+    const actual = path.split("/");
+    return parts.length === actual.length && parts.every((part, index) =>
+      /^\[[^\]]+\]$/.test(part) ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(actual[index]) : part === actual[index]);
+  });
+  if (routeKey === undefined) {
     return Response.json({ error: "API route not found." }, { status: 404 });
   }
-  const handlers = routes[path];
+  const handlers = routes[routeKey];
   const methods = new Set(Object.keys(handlers).filter((method) =>
     ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"].includes(method)));
   methods.add("OPTIONS");

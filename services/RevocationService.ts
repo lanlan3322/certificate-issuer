@@ -34,14 +34,15 @@ const mapRow = (row: Record<string, unknown>): RevocationRecord => ({
 });
 
 export const RevocationService = {
-  async list(issuerId: string, limit = 100) {
+  async list(issuerId?: string, limit = 100) {
     const supabase = await getSupabaseServerClient();
     const result = Math.min(Math.max(limit, 1), 500);
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("revocations")
-      .select("*, credentials(external_id, status)")
-      .eq("issuer_id", issuerId)
+      .select("*, credentials(external_id, status)");
+    if (issuerId) query = query.eq("issuer_id", issuerId);
+    const { data, error } = await query
       .order("created_at", { ascending: false })
       .limit(result);
 

@@ -4,76 +4,36 @@ const { readFileSync } = require("node:fs");
 const ts = require("typescript");
 const { renderToStaticMarkup } = require("react-dom/server");
 
-const javascript = ts.transpileModule(readFileSync(`${__dirname}/Footer.tsx`, "utf8"), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-}).outputText;
-
-function setup(initial = false) {
-  let visible;
-  let effect;
-  let user = initial ? { id: "user" } : null;
-  let failed = false;
-  const listeners = {};
+function setup() {
+  let preferencesOpened = false;
+  const javascript = ts.transpileModule(readFileSync(`${__dirname}/Footer.tsx`, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
   const module = { exports: {} };
-  new Function("require", "module", "exports", "fetch", "window", javascript)((name) => {
-    if (name === "react") return {
-      useState(value) { visible ??= value; return [visible, (value) => { visible = value; }]; },
-      useEffect(callback) { effect = callback; },
-    };
-    if (name === "next/link") return { default: "a" };
-    if (name === "next/navigation") return { usePathname: () => "/" };
-    if (name === "../lib/site") return { withBasePath: (url) => `/base${url}` };
-    if (name === "../lib/cookie-consent") return { openCookiePreferences() {} };
+  new Function("require", "module", "exports", "fetch", javascript)((name) => {
+    if (name === "next/link") return { default: ({ prefetch, ...props }) => require("react").createElement("a", props) };
+    if (name === "../lib/cookie-consent") return { openCookiePreferences() { preferencesOpened = true; } };
     assert.equal(name, "react/jsx-runtime");
     return require(name);
-  }, module, module.exports, async (url, options) => {
-    assert.equal(url, "/base/api/auth/me");
-    assert.equal(options.cache, "no-store");
-    return { ok: !failed, json: async () => ({ user }) };
-  }, {
-    addEventListener(name, callback) { listeners[name] = callback; },
-    removeEventListener(name) { delete listeners[name]; },
-  });
-  const render = () => module.exports.default({ authenticated: initial });
-  render();
-  const cleanup = effect();
-  return {
-    html: () => renderToStaticMarkup(render()),
-    changeUser(value) { user = value; },
-    fail() { failed = true; },
-    refresh: () => listeners["trustvc-auth-changed"](),
-    cleanup,
-    listeners,
-  };
+  }, module, module.exports, () => { assert.fail("Footer must not make any API calls."); });
+  return { render: module.exports.default, preferencesOpened: () => preferencesOpened };
 }
 
-test("Documentation footer is hidden anonymously and appears after successful login", async () => {
+test("public footer groups platform, resources and legal links without session requests", () => {
   const footer = setup();
-  assert.doesNotMatch(footer.html(), /Documentation/);
-  assert.match(footer.html(), /Privacy Policy/);
-  await footer.refresh();
-  assert.doesNotMatch(footer.html(), /Documentation/);
-  footer.changeUser({ id: "signed-in-user" });
-  await footer.refresh();
-  const html = footer.html();
-  assert.match(html, /Documentation/);
-  assert.match(html, /User Manual/);
-  assert.match(html, /Admin Manual/);
-  assert.match(html, /Release Notes/);
-  footer.changeUser(null);
-  await footer.refresh();
-  assert.doesNotMatch(footer.html(), /Documentation/);
-  assert.match(footer.html(), /Cookie Preferences/);
-  footer.cleanup();
-  assert.equal(footer.listeners["trustvc-auth-changed"], undefined);
+  const html = renderToStaticMarkup(footer.render());
+  for (const label of ["Platform links", "Resources links", "Legal links", "User guide", "Admin guide", "Privacy policy", "Terms of service", "Cookie preferences"]) assert.ok(html.includes(label), label);
+  assert.match(html, /Credential-as-a-Service/);
+  assert.equal((html.match(/<nav\b/g) ?? []).length, 3);
 });
 
-test("server-authenticated footer renders initially and hides if authentication cannot be confirmed", async () => {
-  const footer = setup(true);
-  assert.match(footer.html(), /Documentation/);
-  footer.fail();
-  await footer.refresh();
-  assert.doesNotMatch(footer.html(), /Documentation/);
-  assert.match(footer.html(), /Privacy Policy/);
-  footer.cleanup();
+test("footer preserves cookie preference controls", () => {
+  const footer = setup();
+  function find(node) {
+    if (!node || typeof node !== "object") return undefined;
+    if (Array.isArray(node)) return node.map(find).find(Boolean);
+    return node.type === "button" ? node : find(node.props?.children);
+  }
+  find(footer.render()).props.onClick();
+  assert.equal(footer.preferencesOpened(), true);
 });

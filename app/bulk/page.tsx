@@ -56,8 +56,11 @@ export default function BulkIssuePage() {
 
         <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Sample CSV rows</h2>
+            <h2 id="batch-csv-heading" className="text-lg font-semibold text-slate-900">Sample CSV rows</h2>
             <textarea
+              aria-labelledby="batch-csv-heading"
+              name="batch-csv"
+              spellCheck={false}
               value={rowsText}
               onChange={(event) => setRowsText(event.target.value)}
               rows={12}

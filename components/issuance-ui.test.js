@@ -742,7 +742,7 @@ test("dashboard headers match every cell and revoked rows hide Revoke but retain
       visibleCredentials: [{ ...dashboardCredential, status }],
       searchQuery: "", setSearchQuery() {}, sort: null, toggleSort() {}, getTemplateLabel,
       error: null,
-      SendCertificateButton: () => null, currentIssuerId: undefined,
+      SendCertificateButton: () => null, currentIssuerId: undefined, canManageCredentials: true,
       mapVcToCertEntry: mapper.mapVcToCertEntry,
       TEMPLATE_OPTIONS,
       handleViewCredential() {}, handleRevoke() {}, selectedCredential: null,
@@ -752,7 +752,9 @@ test("dashboard headers match every cell and revoked rows hide Revoke but retain
       .map((match) => match[1].replace(/<span aria-hidden="true">.*?<\/span>/g, "").replace(/<[^>]+>/g, "").trim());
     assert.deepEqual(headers, ["Recipient", "Email", "Template", "Status", "Issued", "View", "Actions", "Send"]);
     assert.equal((html.match(/<td\b/g) ?? []).length, headers.length);
-    assert.match(html, />Fintech Academy<\/td>/);
+    assert.match(html, />Fintech Academy<p/);
+    assert.match(html, /Issued By:/);
+    assert.match(html, /Organization:/);
     assert.match(html, /title="View certificate details"/);
     assert.equal(html.includes('title="Revoke certificate"'), status === "issued");
   }
@@ -766,7 +768,7 @@ test("shared table shows loading, errors, empty states and template labels", () 
   const render = (overrides) => renderToStaticMarkup(evaluate(`() => (${returned.expression.getText(source)})`, {
     credentialLoading: false, error: null, allCredentials: [], selectedCredential: null,
     visibleCredentials: overrides.allCredentials ?? [], searchQuery: "", setSearchQuery() {}, sort: null, toggleSort() {}, getTemplateLabel,
-    revokeLoading: null, SendCertificateButton: () => null, currentIssuerId: undefined,
+    revokeLoading: null, SendCertificateButton: () => null, currentIssuerId: undefined, canManageCredentials: true,
     mapVcToCertEntry: mapper.mapVcToCertEntry, TEMPLATE_OPTIONS, handleViewCredential() {}, handleRevoke() {},
     ...overrides,
   })());
@@ -790,7 +792,7 @@ test("shared table shows loading, errors, empty states and template labels", () 
       },
     };
     const html = render({ allCredentials: [row] });
-    assert.ok(html.includes(`>${expectedLabel}</td>`));
+    assert.ok(html.includes(`>${expectedLabel}<p`));
     assert.doesNotMatch(html, />Training<\/td>/);
   }
 });
@@ -838,7 +840,7 @@ test("sortable headers toggle direction, reset new column ascending, and expose 
   const returned = component.body.statements.find(ts.isReturnStatement);
   const render = (rows) => renderToStaticMarkup(evaluate(`() => (${returned.expression.getText(source)})`, {
     allCredentials: [dashboardCredential], visibleCredentials: rows, credentialLoading: false, error: null,
-    selectedCredential: null, revokeLoading: null, SendCertificateButton: () => null, currentIssuerId: undefined,
+    selectedCredential: null, revokeLoading: null, SendCertificateButton: () => null, currentIssuerId: undefined, canManageCredentials: true,
     searchQuery: "none", setSearchQuery() {}, sort, toggleSort, getTemplateLabel,
     handleViewCredential() {}, handleRevoke() {},
   })());
@@ -901,11 +903,12 @@ test("platform-wide rows remain viewable but only the logged-in issuer's rows ex
     assert.equal(html.includes("Send credential"), canManage);
     assert.equal((html.match(/<td\b/g) ?? []).length, 8);
   }
-  for (const filename of ["app/dashboard/page.tsx", "app/issuer/page.tsx"]) {
+  for (const filename of ["app/dashboard/page.tsx"]) {
     const source = sourceFile(filename);
     const table = findNode(source, (node) => ts.isJsxSelfClosingElement(node) &&
       node.tagName.getText(source) === "IssuedCertificatesTable");
-    assert.match(table.getText(source), /currentIssuerId=\{user.issuerId\}/);
+    assert.match(table.getText(source), /currentIssuerId=\{isPlatformAdmin\(user\) \? undefined : user.issuerId\}/);
+    assert.match(table.getText(source), /canManageCredentials=\{hasPermission\(user, "credentials.revoke"\)\}/);
   }
 });
 
@@ -1018,7 +1021,9 @@ test("shared popup preserves gallery layout, PDF capture, verification URL and a
     const certificate = { ...mapper.mapVcToCertEntry(dashboardCredential.credential), id: "certificate-id", status };
     const html = renderToStaticMarkup(React.createElement(Modal, { certificate, onClose() {} }));
     assert.match(html, /max-w-5xl/);
-    assert.match(html, /max-h-\[92vh\] overflow-auto/);
+    assert.match(html, /<dialog/);
+    assert.match(html, /max-h-\[92dvh\]/);
+    assert.match(html, /overflow-y-auto overscroll-contain/);
     assert.match(html, /Download PDF/);
     assert.match(html, /Completed training/);
     assert.match(html, /Academy/);
@@ -1028,5 +1033,23 @@ test("shared popup preserves gallery layout, PDF capture, verification URL and a
     assert.equal(html.includes(">Revoked</span>"), status !== "issued");
     assert.equal(renderedCertificate.verificationUrl, site.buildVerificationUrl("", "certificate-id"));
     assert.equal(renderedFooterUrl, renderedCertificate.verificationUrl);
+  }
+});
+
+test("certificate dialogs close on Escape without requiring browser-native cancel support", () => {
+  for (const filename of ["components/CertificatePreviewModal.tsx", "app/verify/page.tsx"]) {
+    const source = sourceFile(filename);
+    const attribute = findNode(source, (node) => ts.isJsxAttribute(node) && node.name.getText(source) === "onKeyDown");
+    let closed = 0, prevented = 0;
+    const handle = evaluate(attribute.initializer.expression.getText(source), {
+      onClose() { closed++; },
+      setShowCertificateView(value) { assert.equal(value, false); closed++; },
+    });
+    const preventDefault = () => { prevented++; };
+    handle({ key: "Tab", preventDefault });
+    assert.equal(closed, 0);
+    handle({ key: "Escape", preventDefault });
+    assert.equal(closed, 1);
+    assert.equal(prevented, 1);
   }
 });

@@ -8,11 +8,16 @@ import {
   renderTemplateText,
   type TemplateFieldDefinition,
 } from "../../../lib/phase3";
+import { useWorkspaceSession } from "../../../components/WorkspaceSession";
+import { hasPermission } from "../../../lib/permissions";
 
 type FieldDraft = TemplateFieldDefinition & { id: string };
 
 interface SavedTemplate {
   id: string;
+  issuerId?: string;
+  issuerDisplayName?: string | null;
+  organizationDisplayName?: string | null;
   slug: string;
   name: string;
   description: string;
@@ -24,6 +29,13 @@ interface IssuerProfileOption {
   id: string;
   displayName: string;
   did: string;
+}
+interface IssuerOption {
+  id: string;
+  name: string;
+  displayName?: string | null;
+  organizationId?: string;
+  organizationDisplayName?: string | null;
 }
 
 function slugify(value: string) {
@@ -69,6 +81,8 @@ const initialFields: FieldDraft[] = [
 ];
 
 export default function TemplateBuilderPage() {
+  const { user } = useWorkspaceSession();
+  const canManage = hasPermission(user, "templates.manage");
   const [name, setName] = useState("Sample Learning Credential");
   const [title, setTitle] = useState("Certificate of {{certificateType}}");
   const [subtitle, setSubtitle] = useState("Awarded to {{recipientName}}");
@@ -79,9 +93,12 @@ export default function TemplateBuilderPage() {
   const [issuerProfiles, setIssuerProfiles] = useState<IssuerProfileOption[]>([]);
   const [issuerProfileId, setIssuerProfileId] = useState("");
   const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
+  const [profilesLoading, setProfilesLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [issuers, setIssuers] = useState<IssuerOption[]>([]);
+  const [ownerIssuerId, setOwnerIssuerId] = useState("");
 
   const loadTemplates = useCallback(async () => {
     try {
@@ -99,17 +116,19 @@ export default function TemplateBuilderPage() {
     }
   }, []);
 
-  const loadIssuerProfiles = useCallback(async () => {
+  const loadIssuerProfiles = useCallback(async (issuerId: string, signal?: AbortSignal) => {
     try {
-      const response = await fetch(withBasePath("/api/issuer-profiles"));
+      const response = await fetch(withBasePath(`/api/issuer-profiles?issuerId=${encodeURIComponent(issuerId)}`), { signal });
       const payload = (await response.json()) as {
         issuerProfiles?: IssuerProfileOption[];
         error?: string;
       };
       if (!response.ok) throw new Error(payload.error ?? "Unable to load issuer profiles.");
+      if (signal?.aborted) return;
       setIssuerProfiles(payload.issuerProfiles ?? []);
       setProfileLoadError(null);
     } catch (profileError) {
+      if (signal?.aborted) return;
       setProfileLoadError(
         profileError instanceof Error ? profileError.message : "Unable to load issuer profiles."
       );
@@ -117,9 +136,36 @@ export default function TemplateBuilderPage() {
   }, []);
 
   useEffect(() => {
+    if (!canManage) return;
     void loadTemplates();
-    void loadIssuerProfiles();
-  }, [loadIssuerProfiles, loadTemplates]);
+    void (async () => {
+      try {
+        const response = await fetch(withBasePath("/api/issuers"));
+        const payload = await response.json() as { issuers?: IssuerOption[]; error?: string };
+        if (!response.ok || !Array.isArray(payload.issuers)) throw new Error(payload.error ?? "Unable to load issuers.");
+        setIssuers(payload.issuers);
+        if (payload.issuers.length === 1) setOwnerIssuerId(payload.issuers[0].id);
+      } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to load issuers."); }
+    })();
+  }, [canManage, loadTemplates]);
+
+  useEffect(() => {
+    if (!ownerIssuerId) {
+      setIssuerProfiles([]);
+      setIssuerProfileId("");
+      setProfileLoadError(null);
+      setProfilesLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setIssuerProfiles([]);
+    setProfileLoadError(null);
+    setProfilesLoading(true);
+    void loadIssuerProfiles(ownerIssuerId, controller.signal).finally(() => {
+      if (!controller.signal.aborted) setProfilesLoading(false);
+    });
+    return () => controller.abort();
+  }, [loadIssuerProfiles, ownerIssuerId]);
 
   const template = useMemo(
     () =>
@@ -185,6 +231,7 @@ export default function TemplateBuilderPage() {
           // The full definition is persisted so the template can be reloaded.
           definition: template,
           issuerProfileId: issuerProfileId || null,
+          issuerId: ownerIssuerId,
         }),
       });
       const payload = (await response.json()) as { error?: string };
@@ -209,6 +256,7 @@ export default function TemplateBuilderPage() {
     };
     setName(definition.name ?? saved.name);
     setIssuerProfileId(saved.issuerProfileId ?? "");
+    setOwnerIssuerId(saved.issuerId ?? "");
     setTitle(definition.title ?? "");
     setSubtitle(definition.subtitle ?? "");
     setDescription(definition.description ?? saved.description);
@@ -234,6 +282,10 @@ export default function TemplateBuilderPage() {
     }
   };
 
+  if (!canManage) {
+    return <main className="mx-auto max-w-4xl p-6"><h1 className="text-2xl font-bold">Template builder</h1><p role="alert" className="mt-3">Issuer administrator access is required.</p></main>;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <main className="mx-auto max-w-7xl px-4 py-8">
@@ -241,16 +293,29 @@ export default function TemplateBuilderPage() {
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">Organization branding</p>
             <h1 className="mt-2 text-3xl font-bold text-slate-900">Credential template builder</h1>
-            <p className="mt-2 text-sm text-slate-600">Create reusable credential layouts for your organization&apos;s issuance workflows.</p>
+            <p className="mt-2 text-sm text-slate-600">Create reusable credential layouts for an issuer you are allowed to manage.</p>
           </div>
-          <label className="mb-6 block max-w-xl text-sm font-medium text-slate-700">
+        </div>
+        {error && <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+        {status && <div role="status" className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{status}</div>}
+        <div className="mb-6 grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
+          <label className="block text-sm font-medium text-slate-700" htmlFor="template-owner-issuer">Template issuer
+            <select id="template-owner-issuer" required value={ownerIssuerId} onChange={(event) => { setOwnerIssuerId(event.target.value); setIssuerProfileId(""); }}
+              className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+              <option value="">Select an allowed issuer</option>
+              {issuers.map((issuer) => <option key={issuer.id} value={issuer.id}>{issuer.displayName || issuer.name}{issuer.organizationDisplayName ? ` — ${issuer.organizationDisplayName}` : ""}</option>)}
+            </select>
+          </label>
+          <label className="block text-sm font-medium text-slate-700" htmlFor="template-issuer-profile">
             Issuer profile
             <select
+              id="template-issuer-profile"
               value={issuerProfileId}
               onChange={(event) => setIssuerProfileId(event.target.value)}
+              disabled={!ownerIssuerId || profilesLoading || Boolean(profileLoadError)}
               className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
             >
-              <option value="">Use legacy platform issuer</option>
+              <option value="">{ownerIssuerId ? "Use the issuer's default profile" : "Select an issuer first"}</option>
               {issuerProfiles.map((profile) => (
                 <option key={profile.id} value={profile.id}>
                   {profile.displayName} ({profile.did})
@@ -258,24 +323,21 @@ export default function TemplateBuilderPage() {
               ))}
             </select>
             <span className="mt-1 block text-xs font-normal text-slate-500">
-              Issuer profiles are managed by an issuer administrator. Existing templates keep their current issuer unless changed here.
+              Profiles are loaded only for the selected issuer. Leave blank to use that issuer&apos;s default profile.
             </span>
           </label>
-          {profileLoadError && (
-            <p role="alert" className="mb-4 text-sm text-rose-700">{profileLoadError}</p>
-          )}
+          {profileLoadError && <p role="alert" className="text-sm text-rose-700 md:col-span-2">{profileLoadError}</p>}
+          {profilesLoading && <p role="status" className="text-sm text-slate-500 md:col-span-2">Loading profiles for the selected issuer...</p>}
+          {!issuers.length && <p role="status" className="text-sm text-amber-700 md:col-span-2">No issuers are available to you. Ask an issuer administrator to assign access.</p>}
           <button
             type="button"
             onClick={saveTemplate}
-            disabled={saving}
+            disabled={saving || !ownerIssuerId || profilesLoading || Boolean(profileLoadError)}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
           >
             {saving ? "Saving..." : "Save template"}
           </button>
         </div>
-
-        {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-        {status && <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{status}</div>}
 
         <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -431,7 +493,12 @@ export default function TemplateBuilderPage() {
                 <ul className="space-y-2">
                   {savedTemplates.map((item) => (
                     <li key={item.id} className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                      <span className="truncate">{item.name}</span>
+                      <span className="min-w-0">
+                        <span className="block truncate">{item.name}</span>
+                        <span className="block truncate text-xs text-slate-500">
+                          {[item.issuerDisplayName, item.organizationDisplayName].filter(Boolean).join(" · ") || "Owner unavailable"}
+                        </span>
+                      </span>
                       <span className="flex shrink-0 gap-2">
                         <button
                           type="button"

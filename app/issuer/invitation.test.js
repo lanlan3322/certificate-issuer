@@ -19,7 +19,7 @@ function setup(hash, failure = null, search = "?mode=reset") {
   const script = ts.transpileModule(`const run = ${initializer.getText(source)};`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  const accept = new Function("window", "getSupabaseBrowserClient", "setMode", "setRecoverySession",
+  const accept = new Function("window", "getSupabaseBrowserClient", "setMode", "setRecoverySession", "setError", "active", "refresh",
     `${script}\nreturn run;`)({
     location: { hash, pathname: "/issuer/", search },
     history: { replaceState: (...args) => calls.push(["replace", ...args]) },
@@ -28,17 +28,17 @@ function setup(hash, failure = null, search = "?mode=reset") {
     setSession: async (tokens) => {
     calls.push(["session", tokens]);
     return { error: failure };
-  } } }), (mode) => { state.mode = mode; }, (value) => { state.recovery = value; });
+  } } }), (mode) => { state.mode = mode; }, (value) => { state.recovery = value; }, () => {}, true, async () => {});
   return { accept, calls, state };
 }
 
 test("default Supabase invite link establishes cookie session and strips URL tokens", async () => {
   const { accept, calls, state } = setup("#type=invite&access_token=test-access&refresh_token=test-refresh");
-  await accept();
+  const confirmed = await accept();
   assert.deepEqual(calls[0], ["replace", null, "", "/issuer/?mode=reset"]);
   assert.deepEqual(calls[1], ["session", { access_token: "test-access", refresh_token: "test-refresh" }]);
   assert.equal(state.mode, "reset");
-  assert.equal(state.recovery, true);
+  assert.equal(confirmed, true);
 });
 
 test("invalid invitation sessions fail explicitly and do not enter password setup", async () => {
@@ -50,28 +50,27 @@ test("invalid invitation sessions fail explicitly and do not enter password setu
 
 test("ordinary login and server-verified token-hash links do not consume fragment sessions", async () => {
   const app = setup("");
-  await app.accept();
+  const confirmed = await app.accept();
   assert.deepEqual(app.calls, []);
-  assert.equal(app.state.recovery, true);
+  assert.equal(confirmed, true);
   const login = setup("", null, "");
-  await login.accept();
-  assert.equal(login.state.recovery, undefined);
+  assert.equal(await login.accept(), false);
 });
 
 test("recovery fragments establish the reset session just like invitation fragments", async () => {
   const app = setup("#type=recovery&access_token=test-access&refresh_token=test-refresh");
-  await app.accept();
+  const confirmed = await app.accept();
   assert.equal(app.state.mode, "reset");
-  assert.equal(app.state.recovery, true);
+  assert.equal(confirmed, true);
   assert.equal(app.calls[0][0], "replace");
 });
 
 test("invalid recovery fragments and expired cookie sessions cannot enable password setup", async () => {
   const invalid = setup("#type=recovery&access_token=a&refresh_token=b", new Error("expired"));
-  await assert.rejects(invalid.accept(), /reset link is invalid or expired/);
+  await assert.rejects(invalid.accept(), /access link is invalid or expired/);
   assert.equal(invalid.state.recovery, undefined);
   const expired = setup("", new Error("expired"));
   await assert.rejects(expired.accept(), /reset link is invalid or has expired/);
   assert.equal(expired.state.recovery, undefined);
-  await assert.rejects(setup("#type=recovery").accept(), /reset link is incomplete/);
+  await assert.rejects(setup("#type=recovery").accept(), /access link is incomplete/);
 });

@@ -16,6 +16,7 @@ test("Overview renders the same public content without session, wallet, or crede
     const authCalls = [];
     new Function("require", "module", "exports", "fetch", javascript)(
       (name) => {
+        if (name === "next/link") return { default: ({ prefetch, ...props }) => require("react").createElement("a", props) };
         assert.ok(["lucide-react", "react/jsx-runtime"].includes(name), `Unexpected overview dependency: ${name}`);
         return require(name);
       },
@@ -23,11 +24,11 @@ test("Overview renders the same public content without session, wallet, or crede
       async (...args) => { authCalls.push(args); return { json: async () => ({ user }) }; }
     );
     const html = renderToStaticMarkup(module.exports.default());
-    assert.match(html, /Trusted credentials/);
-    assert.match(html, /One connected workflow/);
+    assert.match(html, /Branded digital credentials/);
+    assert.match(html, /One connected service/);
     assert.match(html, /Built on open standards/);
     assert.match(html, /Common questions/);
-    assert.match(html, /href="\/insurance"/);
+    assert.match(html, /href="\/dashboard"/);
     assert.match(html, /href="\/verify"/);
     assert.doesNotMatch(html, /Welcome,|Issued certificates|My Profile/);
     assert.deepEqual(authCalls, []);

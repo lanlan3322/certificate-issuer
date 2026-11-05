@@ -8,6 +8,7 @@ const requestId = "22222222-2222-4222-8222-222222222222";
 function setup(options = {}) {
   const calls = [];
   class RateLimitError extends Error {}
+  class ForbiddenError extends Error {}
   const user = { id: "user", issuerId: "issuer-a", organizationId: "org-a", roles: options.roles ?? ["issuer-operator"] };
   const record = {
     id, externalId: "../test/cert", recipientEmail: "recipient@example.com",
@@ -19,12 +20,17 @@ function setup(options = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const mocks = {
+    "../../../../lib/issuer-access": { requireIssuerAccess: async () => {
+      if (options.deniedIssuer) throw new ForbiddenError("Issuer access denied.");
+      return {};
+    } },
+    "../../../../lib/permissions": require("../../../../lib/permissions.ts"),
     "next/server": { NextResponse: { json: (body, init) => Response.json(body, init) } },
     "../../../../lib/apiAuth": {
       authorize: async () => options.anonymous ? { response: Response.json({ error: "Login required" }, { status: 401 }) } : { user },
-      errorResponse: (error) => Response.json({ error: error.message }, { status: 429 }),
+      errorResponse: (error, _fallback, status) => Response.json({ error: error.message }, { status }),
     },
-    "../../../../lib/auth": { RateLimitError, enforceRateLimit: async (...args) => {
+    "../../../../lib/auth": { RateLimitError, ForbiddenError, enforceRateLimit: async (...args) => {
       calls.push(["limit", ...args]); if (options.limited) throw new RateLimitError("Too many attempts");
     } },
     "../../../../services/CredentialService": { CredentialService: { get: async (...args) => {
@@ -66,7 +72,7 @@ test("sends stored signed JSON through shared SMTP settings only to the scoped r
   const response = await app.post({ credentialId: id, requestId, recipientEmail: "attacker@example.com", credential: { forged: true } });
   assert.equal(response.status, 200);
   assert.match((await response.json()).message, /accepted for delivery/);
-  assert.deepEqual(app.calls.find(([type]) => type === "get"), ["get", id, "issuer-a"]);
+  assert.deepEqual(app.calls.find(([type]) => type === "get"), ["get", id]);
   const [, config] = app.calls.find(([type]) => type === "transport");
   assert.equal(config.host, "smtp.example.com");
   assert.equal(config.port, 587);
@@ -108,7 +114,7 @@ test("fails closed for missing/cross-issuer records, lifecycle states, configura
     [{ record: { status: "suspended" } }, 409], [{ record: { status: "expired" } }, 409],
     [{ record: { validUntil: "2000-01-01" } }, 409],
     [{ record: { recipientEmail: "one@example.com,two@example.com" } }, 422],
-    [{ unconfigured: true }, 503], [{ limited: true }, 429],
+    [{ unconfigured: true }, 503], [{ limited: true }, 429], [{ deniedIssuer: true }, 403],
     [{ env: { SMTP_PORT: "invalid" } }, 503], [{ env: { SMTP_PORT: "0" } }, 503],
     [{ env: { SMTP_PORT: "65536" } }, 503], [{ env: { SMTP_PASS: "" } }, 503],
     [{ record: { credential: { large: "x".repeat(5 * 1024 * 1024) } } }, 413],

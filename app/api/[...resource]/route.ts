@@ -3,6 +3,7 @@ import * as credentials from "../credentials/handler";
 import * as credentialSend from "../credentials/send/handler";
 import * as issuers from "../issuers/handler";
 import * as issuersId from "../issuers/[id]/handler";
+import * as issuerMembers from "../issuers/[id]/members/handler";
 import * as issuerProfiles from "../issuer-profiles/handler";
 import * as templates from "../templates/handler";
 import * as audit from "../audit/handler";
@@ -10,6 +11,8 @@ import * as revocation from "../revocation/handler";
 import * as stats from "../platform/stats/handler";
 import * as organizations from "../organizations/handler";
 import * as organizationsId from "../organizations/[id]/handler";
+import * as organizationMembers from "../organizations/[id]/members/handler";
+import * as users from "../users/handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +22,7 @@ const routes: Record<string, any> = {
   "credentials/send": credentialSend,
   issuers,
   "issuers/[id]": issuersId,
+  "issuers/[id]/members": issuerMembers,
   "issuer-profiles": issuerProfiles,
   templates,
   audit,
@@ -26,6 +30,8 @@ const routes: Record<string, any> = {
   "platform/stats": stats,
   organizations,
   "organizations/[id]": organizationsId,
+  "organizations/[id]/members": organizationMembers,
+  users,
 };
 
 async function dispatch(request: Request, context: { params: Promise<{ resource: string[] }> }) {

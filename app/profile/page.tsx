@@ -89,7 +89,7 @@ export default function ProfilePage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <Link href="/" className="text-sm text-cyan-700 hover:underline">Back to dashboard</Link>
+      <Link href="/dashboard" prefetch={false} className="text-sm text-cyan-700 hover:underline">Back to credential overview</Link>
       <h1 className="mt-4 text-3xl font-bold text-slate-900 dark:text-white">My Profile</h1>
       {loading && <p role="status" className="mt-4">Loading your profile...</p>}
       {error && <p role="alert" className="mt-4 text-red-700 dark:text-red-300">{error}</p>}

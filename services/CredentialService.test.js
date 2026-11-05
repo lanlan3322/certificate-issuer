@@ -51,6 +51,7 @@ function loadService(rows, { failureOffset } = {}) {
 
 const rows = Array.from({ length: 1205 }, (_, index) => ({
   id: `credential-${index}`, issuer_id: index % 2 ? "other-issuer" : "own-issuer",
+  organization_id: index % 4 === 3 ? "other-org" : "own-org",
   external_id: `certificate-${index}`, recipient_name: `Recipient ${index}`,
   recipient_email: `recipient-${index}@example.com`, credential: { type: ["VerifiableCredential"] },
   status: index % 3 ? "issued" : "revoked", issued_at: "2026-11-05T00:00:00Z",
@@ -79,6 +80,15 @@ test("ordinary listing keeps session RLS, issuer scoping and existing result lim
     assert.equal(calls[0].elevated, false);
     assert.deepEqual(calls[0].filters, [["issuer_id", "own-issuer"]]);
   }
+});
+
+test("organization listing includes sibling issuers but never foreign organization credentials", async () => {
+  const { service, calls } = loadService(rows);
+  const credentials = await service.list("own-issuer", { organizationId: "own-org", limit: 500 });
+  assert.ok(credentials.every((credential) => credential.organizationId === "own-org"));
+  assert.deepEqual(new Set(credentials.map((credential) => credential.issuerId)), new Set(["own-issuer", "other-issuer"]));
+  assert.deepEqual(calls[0].filters, [["organization_id", "own-org"]]);
+  assert.equal(calls[0].elevated, false);
 });
 
 test("platform-wide status filters and explicit bounded limits are preserved", async () => {

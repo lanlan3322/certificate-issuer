@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { authorize, errorResponse } from "../../../lib/apiAuth";
 import { AuditService } from "../../../services/AuditService";
 import { TemplateService } from "../../../services/TemplateService";
+import { canAccessIssuer, isPlatformAdmin } from "../../../lib/permissions";
+import { IssuerService } from "../../../services/IssuerService";
+import { requireIssuerAccess } from "../../../lib/issuer-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,22 +15,26 @@ export async function GET(request: Request) {
   try {
     if (new URL(request.url).searchParams.get("purpose") === "issuance") {
       return NextResponse.json({
-        templates: await TemplateService.listForIssuance({
+        templates: (await TemplateService.listForIssuance({
           organizationId: user.organizationId,
-          platformAdmin: user.roles.includes("platform-admin"),
-        }),
+          platformAdmin: isPlatformAdmin(user),
+        })).filter((template) => template.issuerId && canAccessIssuer(user, {
+          id: template.issuerId, organizationId: template.organizationId,
+        }, "operate")),
       }, { headers: { "Cache-Control": "no-store" } });
     }
     const includeInactive = new URL(request.url).searchParams.get("includeInactive") === "true";
     // Scoped to the session's issuer; the issuerId query param is ignored.
-    return NextResponse.json({ templates: await TemplateService.list(user.issuerId, { includeInactive }) });
+    return NextResponse.json({ templates: await TemplateService.list(user.issuerId, {
+      includeInactive, organizationId: user.organizationId, platformAdmin: isPlatformAdmin(user),
+    }) });
   } catch (error) {
     return errorResponse(error, "Unable to load templates.", 500);
   }
 }
 
 export async function POST(request: Request) {
-  const { user, response } = await authorize();
+  const { user, response } = await authorize("templates.manage");
   if (response) return response;
   try {
     const body = (await request.json()) as {
@@ -36,6 +43,7 @@ export async function POST(request: Request) {
       description?: string;
       definition?: Record<string, unknown>;
       issuerProfileId?: string | null;
+      issuerId?: string;
     };
 
     const slug = body.slug?.trim().toLowerCase();
@@ -52,8 +60,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "issuerProfileId must be a non-empty string or null." }, { status: 400 });
     }
 
+    const targetIssuerId = body.issuerId?.trim() || user.issuerId;
+    if (!targetIssuerId) return NextResponse.json({ error: "Select an issuer for the template." }, { status: 400 });
+    const owner = await IssuerService.getById(targetIssuerId);
+    if (!owner || !canAccessIssuer(user, owner, "templates")) {
+      return NextResponse.json({ error: "Issuer not found in your organization." }, { status: 403 });
+    }
+    if (!owner.active) return NextResponse.json({ error: "Select an active issuer." }, { status: 409 });
     const template = await TemplateService.upsert({
-      issuerId: user.issuerId,
+      issuerId: targetIssuerId,
       slug,
       name,
       description: body.description?.trim(),
@@ -62,8 +77,8 @@ export async function POST(request: Request) {
     });
 
     await AuditService.record({
-      organizationId: user.organizationId,
-      issuerId: user.issuerId,
+      organizationId: owner.organizationId,
+      issuerId: owner.id,
       userId: user.id,
       action: "template.saved",
       entityType: "template",
@@ -78,16 +93,22 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { user, response } = await authorize();
+  const { user, response } = await authorize("templates.manage");
   if (response) return response;
   try {
     const id = new URL(request.url).searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id is required." }, { status: 400 });
 
-    const template = await TemplateService.deactivate(id, user.issuerId);
+    const templates = await TemplateService.list(user.issuerId, {
+      includeInactive: true, organizationId: user.organizationId, platformAdmin: isPlatformAdmin(user),
+    });
+    const existing = templates.find((template) => template.id === id);
+    if (!existing?.issuerId) return NextResponse.json({ error: "Template not found." }, { status: 404 });
+    await requireIssuerAccess(user, existing.issuerId, "templates");
+    const template = await TemplateService.deactivate(id, existing.issuerId);
     await AuditService.record({
-      organizationId: user.organizationId,
-      issuerId: user.issuerId,
+      organizationId: template.organizationId,
+      issuerId: existing.issuerId,
       userId: user.id,
       action: "template.deactivated",
       entityType: "template",

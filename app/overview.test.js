@@ -14,19 +14,19 @@ function renderOverview() {
   const javascript = ts.transpileModule(`const render = () => (${returned.expression.getText(source)});`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
-  const names = ["Shield", "ArrowRight", "FileText", "ShieldCheck", "CheckCircle"];
+  const names = ["Shield", "ArrowRight", "FileText", "ShieldCheck", "CheckCircle", "Link"];
   const render = new Function("require", "exports", ...names, `${javascript}\nreturn render;`)(
-    require, {}, ...names.map((name) => icons[name])
+    require, {}, ...names.map((name) => name === "Link" ? ({ prefetch, ...props }) => require("react").createElement("a", props) : icons[name])
   );
   return renderToStaticMarkup(render());
 }
 
 test("overview prioritizes actionable navigation before standards and FAQ", () => {
   const html = renderOverview();
-  for (const href of ["/insurance", "/verify", "/enterprise"]) {
+  for (const href of ["/dashboard", "/verify", "/enterprise", "/organizations"]) {
     assert.ok(html.includes(`href="${href}"`), `Preserve ${href} navigation`);
   }
-  assert.ok(html.indexOf("quick-actions-heading") < html.indexOf("standards-heading"));
+  assert.ok(html.indexOf("workspace-heading") < html.indexOf("standards-heading"));
   assert.ok(html.indexOf("standards-heading") < html.indexOf("faq-heading"));
   assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
 });
@@ -36,7 +36,7 @@ test("overview fills both hero columns and uses responsive action cards", () => 
   assert.match(html, /lg:grid-cols-\[1\.2fr_0\.8fr\]/);
   assert.match(html, /<aside aria-labelledby="workflow-heading"/);
   assert.match(html, /<ol/);
-  assert.match(html, /grid gap-4 md:grid-cols-3/);
-  assert.equal((html.match(/group flex flex-col rounded-2xl/g) ?? []).length, 3);
-  assert.match(html, /focus-visible:outline-cyan-600/);
+  assert.match(html, /grid gap-5 md:grid-cols-3/);
+  assert.match(html, /sm:grid-cols-2 xl:grid-cols-4/);
+  assert.match(html, /focus-visible:outline-white/);
 });

@@ -990,6 +990,7 @@ export default function InsurancePage() {
 
             {issueMode === "batch" && (
               <BatchIssuePanel
+                templateCatalog={{ templates: availableTemplates, loading: templatesLoading, error: templateError }}
                 connected={connected}
                 issuingMethods={issuingMethods}
                 onToggleIssuingMethod={handleToggleIssuingMethod}

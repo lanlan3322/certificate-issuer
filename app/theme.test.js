@@ -23,8 +23,8 @@ test("NavBar toggle uses the same storage key as the init script", () => {
 
 test("NavBar displays the matching cropped logo for each theme", () => {
   const navbar = read("components/NavBar.tsx");
-  assert.match(navbar, /src="\/vs-light\.png"[^>]*alt="Verifiable.sg"[^>]*dark:hidden/);
-  assert.match(navbar, /src="\/vs-dark\.png"[^>]*alt="Verifiable.sg"[^>]*className="hidden[^"]*dark:block/);
+  assert.match(navbar, /src=\{withBasePath\("\/vs-light\.png"\)\}[^>]*alt="Verifiable.sg"[^>]*dark:hidden/);
+  assert.match(navbar, /src=\{withBasePath\("\/vs-dark\.png"\)\}[^>]*alt="Verifiable.sg"[^>]*className="hidden[^"]*dark:block/);
   assert.equal((navbar.match(/<img\b/g) ?? []).length, 2);
   assert.doesNotMatch(navbar, /src="\/vs\.png"/);
   for (const name of ["vs-light.png", "vs-dark.png"]) {

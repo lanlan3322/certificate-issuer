@@ -76,26 +76,23 @@ test("issuance catalog scopes active organization-owned templates, with a platfo
     { id: "sibling", issuer_id: "issuer-b", organization_id: "org-a", slug: "classic", name: "Sibling", is_active: true },
     { id: "foreign", issuer_id: "issuer-c", organization_id: "org-b", slug: "modern", name: "Foreign", is_active: true },
     { id: "inactive", issuer_id: "issuer-a", organization_id: "org-a", slug: "old", is_active: false },
-    { id: "global", issuer_id: null, organization_id: null, slug: "global", is_active: true },
+    { id: "global", issuer_id: null, organization_id: "verifiable-sg", slug: "global", is_active: true },
   ];
   const calls = [];
   const service = loadService({
     from(table) {
       assert.equal(table, "templates");
       const filters = [];
-      let innerJoin = false;
       const query = {
         select(fields) {
-          assert.ok(fields === "*" || fields === "*, issuers!inner(organization_id)");
-          innerJoin = fields.includes("!inner");
+          assert.equal(fields, "*, issuers(display_name), organizations(display_name)");
           return query;
         },
         eq(field, value) { filters.push([field, value]); return query; },
         async order() {
           calls.push(filters);
           return {
-            data: rows.filter((row) => (!innerJoin || row.issuer_id) && filters.every(([field, value]) =>
-              row[field === "issuers.organization_id" ? "organization_id" : field] === value)),
+            data: rows.filter((row) => filters.every(([field, value]) => row[field] === value)),
             error: null,
           };
         },
@@ -105,9 +102,10 @@ test("issuance catalog scopes active organization-owned templates, with a platfo
   });
   const scope = { organizationId: "org-a", platformAdmin: false };
   assert.deepEqual((await service.listForIssuance(scope)).map((row) => row.id), ["own", "sibling"]);
-  assert.deepEqual(calls[0], [["is_active", true], ["issuers.organization_id", "org-a"]]);
+  assert.deepEqual(calls[0], [["is_active", true], ["organization_id", "org-a"]]);
   assert.deepEqual((await service.listForIssuance({ ...scope, platformAdmin: true })).map((row) => row.id), ["own", "sibling", "foreign", "global"]);
   assert.deepEqual(calls[1], [["is_active", true]]);
+  assert.deepEqual((await service.listForIssuance({ organizationId: "verifiable-sg", platformAdmin: false })).map((row) => row.id), ["global"]);
   assert.equal((await service.getAvailableForIssuance("sibling", scope)).issuerId, "issuer-b");
   assert.equal(await service.getAvailableForIssuance("foreign", scope), null);
   assert.equal(await service.getAvailableForIssuance("modern", scope), null);

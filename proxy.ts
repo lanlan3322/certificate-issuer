@@ -2,9 +2,11 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { getUserSafely, isSupabaseAuthCookie } from "./lib/supabase/session";
 
-const protectedPages = ["/admin", "/audit", "/branding", "/dashboard", "/delivery", "/did", "/insurance", "/profile", "/revocation", "/wallet"];
+const protectedPages = ["/admin", "/organizations", "/audit", "/branding", "/dashboard", "/delivery", "/did", "/insurance", "/profile", "/revocation", "/wallet"];
 const protectedApiPrefixes = [
   "/api/issuers",
+  "/api/organizations",
+  "/api/users",
   "/api/templates",
   "/api/credentials",
   "/api/revocation",
@@ -40,7 +42,7 @@ export async function proxy(request: NextRequest) {
     return publicResponse;
   }
   if (pathname.startsWith("/.well-known/")) return NextResponse.next();
-  if (!pathname.endsWith("/") && !pathname.startsWith("/_next/") && !/\.[^/]+$/.test(pathname)) {
+  if (!pathname.endsWith("/") && !pathname.startsWith("/api/") && !pathname.startsWith("/_next/") && !/\.[^/]+$/.test(pathname)) {
     return NextResponse.redirect(new URL(`${pathname}/${search}`, request.url), 308);
   }
 

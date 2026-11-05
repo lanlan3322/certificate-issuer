@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { withBasePath } from "../lib/site";
 import type { TemplateRecord } from "../services/TemplateService";
 
-export function useIssuanceTemplates() {
+export function useIssuanceTemplates(enabled = true) {
   const [templates, setTemplates] = useState<TemplateRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
+    if (!enabled) return;
     let active = true;
     void (async () => {
       try {
@@ -25,6 +26,6 @@ export function useIssuanceTemplates() {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [enabled]);
   return { templates, loading, error };
 }

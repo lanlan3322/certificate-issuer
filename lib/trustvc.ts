@@ -182,6 +182,7 @@ const CERTIFICATE_SUBJECT_CONTEXT = {
   certificateType: "https://schemas.tradetrust.io/credentials#certificateType",
   templateId: "https://schemas.tradetrust.io/credentials#templateId",
   issuerDisplayName: "https://verifiable.sg/credentials#issuerDisplayName",
+  organizationDisplayName: "https://verifiable.sg/credentials#organizationDisplayName",
   certificateNo: "https://verifiable.sg/credentials#certificateNo",
   courseLength: "https://verifiable.sg/credentials#courseLength",
   signedDate: "https://verifiable.sg/credentials#signedDate",
@@ -353,6 +354,7 @@ export interface CertificateData {
   issuerName: string;
   issuerDid?: string;
   issuerDisplayName?: string;
+  organizationDisplayName?: string;
   documentStoreAddress?: string;
   documentStoreNetwork?: string;
   issueDate: string;
@@ -399,6 +401,7 @@ export function toOpenCertsCredentialSubject(
   if (data.templateId) result[OPEN_CERTS_SUBJECT_FIELD_MAP.templateId] = data.templateId;
   if (data.description) result[OPEN_CERTS_SUBJECT_FIELD_MAP.description] = data.description;
   if (data.issuerDisplayName) result.issuerDisplayName = data.issuerDisplayName;
+  if (data.organizationDisplayName) result.organizationDisplayName = data.organizationDisplayName;
   if (data.certificateNo) result.certificateNo = data.certificateNo;
   if (data.courseLength != null) result.courseLength = data.courseLength;
   if (data.signedDate) result.signedDate = data.signedDate;

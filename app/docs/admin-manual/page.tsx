@@ -14,8 +14,8 @@ export default function AdminManualPage() {
         <p className="mt-3 text-slate-600 dark:text-slate-300">Configure your organization&apos;s CaaS workspace: set up issuer access, test credential workflows, and operate with appropriate controls.</p>
       </header>
       <nav aria-label="Admin manual sections" className="mb-8 flex flex-wrap gap-2 text-sm font-semibold">
-        {[["organizations", "Structure"], ["invitations", "Invite"], ["recovery", "Recovery"], ["operations", "Operations"], ["legal", "Legal & email"], ["pdpa", "PDPA procedures"], ["sign-off", "Sign-off status"]].map(([id, title]) => (
-          <a key={id} href={`#${id}`} className="rounded-lg border border-slate-300 px-3 py-2 text-cyan-800 hover:bg-cyan-50 dark:border-slate-600 dark:text-cyan-300 dark:hover:bg-slate-800">{title}</a>
+        {[["organizations", "Structure"], ["issuer-members", "Issuer members"], ["recovery", "Recovery"], ["operations", "Operations"], ["legal", "Legal & email"], ["pdpa", "PDPA procedures"], ["sign-off", "Sign-off status"]].map(([id, title]) => (
+          <a key={id} href={`#${id}`} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 py-2 text-cyan-800 hover:bg-cyan-50 dark:border-slate-600 dark:text-cyan-300 dark:hover:bg-slate-800">{title}</a>
         ))}
       </nav>
       <div className="space-y-6 text-sm leading-6">
@@ -25,36 +25,39 @@ export default function AdminManualPage() {
             ["Organization", "Groups issuers and determines available templates."],
             ["Issuer", "Owns saved templates and issued credential activity."],
             ["Saved template", "Supplies the selected visual style."],
-            ["Certificate", "Remains owned by the issuing login's issuer; sharing style does not transfer identity."],
+            ["Certificate", "Uses the selected template's issuer ownership; historical signed records remain unchanged."],
           ]} />
           <ManualReference caption="Issuer Management quick guide" headings={["Control", "Behaviour"]} rows={[
-            ["Open Issuer Management", "Loads available issuers and active organizations."],
-            ["Organization view", "Filter issuers by organization; switching back preserves the full list."],
-            ["Organization directory", "Requires platform-admin. Loading and permission errors appear on the page."],
-            ["Issued credentials", "Platform admins can view credentials from all issuers on Dashboard and Issuer Portal. Other users see only their own issuer's credentials. Revoke and Send remain available only for the logged-in issuer's records."],
-            ["Before invitation", "Check issuer record, organization assignment and intended role."],
+            ["Open Issuers", "Use Administration in the desktop workspace sidebar or the mobile navigation menu. Create, inspect, edit and deactivate issuer profiles from the directory."],
+            ["Issuer metadata", "Display name is the public label; the issuer name remains its legacy name, and slug is the issuer code unique within its organization. Organization ownership cannot be transferred."],
+            ["Lifecycle", "Deactivate an issuer to stop normal use while retaining historical records. Suspended and deleted states are distinct; only platform admins can soft-delete."],
+            ["Organization directory", "Platform admins use Administration → Organizations to create, edit, view or deactivate organizations and manage memberships. Organization admins can open My organization to manage their own members."],
+            ["Issued credentials", "Platform admins can view and manage credentials across organizations. Other users see their active organization's credentials. Issuers may revoke and send only their assigned issuer's records; organization admins and viewers are read-only."],
+            ["Issuer members", "Open issuer details to add an existing application user ID, change the issuer role or remove the assignment. Changes affect only that issuer and take effect on the next authorized request."],
           ]} />
+          <ManualReference caption="Organization role permissions" headings={["Role", "Access"]} rows={[
+            ["platform_admin", "Manage all organizations, global user roles, memberships, issuers, templates and credentials."],
+            ["issuer_admin", "Manage templates for assigned issuers; no organization administration or issuance permission is implied."],
+            ["issuer_operator", "Issue, revoke and send for assigned issuers; does not manage issuer metadata, membership or templates."],
+            ["viewer", "Read access for the assigned issuer only."],
+          ]} />
+          <p className="mt-4">Organization administrators retain their Phase 1 organization-level controls. Issuer roles are a separate scope and do not grant organization administration. Removing an issuer member revokes that issuer&apos;s scoped permission; it does not delete the user or alter another issuer membership.</p>
         </section>
 
-        <section id="invitations" aria-labelledby="invitations-heading" className={sectionStyle}>
-          <h2 id="invitations-heading" className="text-xl font-bold">2. Invite an issuer user</h2>
-          <ManualReference caption="Setup gate — complete before inviting" headings={["Requirement", "Check"]} rows={[
-            ["Database", <span key="database">Apply <code className="break-all">012_issuer_user_invitations.sql</code>.</span>],
-            ["Email", "Configure Supabase SMTP and test invitation delivery."],
-            ["Redirect", <span key="redirect">Allow the deployed <code>/issuer/?mode=reset</code> URL in Supabase Auth.</span>],
+        <section id="issuer-members" aria-labelledby="issuer-members-heading" className={sectionStyle}>
+          <h2 id="issuer-members-heading" className="text-xl font-bold">2. Manage issuer members</h2>
+          <ManualFlow label="Assign access to an existing account" steps={[
+            ["Choose issuer", "Open Administration → Issuer directory and view the issuer details."],
+            ["Find user ID", "Use the existing application user ID supplied by your account administrator; issuer membership does not create an account or send an invitation."],
+            ["Choose scope", "Assign issuer_admin, issuer_operator or viewer for this issuer only."],
+            ["Review changes", "Change a member's role or remove the assignment from the issuer detail panel."],
           ]} />
-          <ManualFlow label="Invitation journey" steps={[
-            ["Create issuer", "Choose organization and contact email."],
-            ["Choose role", "issuer-operator (default) or issuer-admin."],
-            ["Send invitation", "Supabase emails the contact address."],
-            ["Set password", "Recipient opens the link and creates a password."],
+          <ManualReference caption="Issuer membership roles" headings={["Role", "Access"]} rows={[
+            ["issuer_admin", "Manage templates owned by the assigned issuer."],
+            ["issuer_operator", "Issue, revoke and send credentials for the assigned issuer."],
+            ["viewer", "Read resources for the assigned issuer."],
           ]} />
-          <aside className={noteStyle}><strong>No silent reassignment.</strong> Existing accounts are not reassigned or promoted. The role applies to the new login user, not the issuer record.</aside>
-          <details className={detailStyle}>
-            <summary className="cursor-pointer font-semibold">Invitation email link</summary>
-            <p className="mt-3">Default: <code>{"{{ .ConfirmationURL }}"}</code>. Custom token-hash alternative:</p>
-            <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-100 p-3 text-xs dark:bg-slate-800"><code>{"{{ .SiteURL }}/auth/recovery/?token_hash={{ .TokenHash }}&type=invite"}</code></pre>
-          </details>
+          <aside className={noteStyle}><strong>Least privilege.</strong> Check the user ID and issuer before saving. Role changes replace that user&apos;s role for this issuer; removing the membership ends issuer-scoped access without deleting historical records or the account.</aside>
         </section>
 
         <section id="recovery" aria-labelledby="recovery-heading" className={sectionStyle}>
@@ -96,7 +99,7 @@ export default function AdminManualPage() {
         <section id="legal" aria-labelledby="legal-heading" className={sectionStyle}>
           <h2 id="legal-heading" className="text-xl font-bold">5. Legal, consent and email</h2>
           <ManualReference caption="What is already in the interface" headings={["Surface", "Behaviour"]} rows={[
-            ["Public legal pages", <span key="pages"><Link href="/privacy" className="underline">Privacy Policy</Link> · <Link href="/terms" className="underline">Terms of Service</Link> · <Link href="/contact" className="underline">Contact Us</Link>. Legal footer is public; Documentation requires login.</span>],
+            ["Public resources", <span key="pages"><Link href="/privacy" prefetch={false} className="underline">Privacy Policy</Link> · <Link href="/terms" prefetch={false} className="underline">Terms of Service</Link> · <Link href="/contact" prefetch={false} className="underline">Contact support</Link>. Resources and legal links are public. Workspace actions require the appropriate organization role.</span>],
             ["Accounts", "Self-registration remains disabled. Invitation/password setup shows the account-creation notice; no mandatory checkbox or auth changes."],
             ["Cookies", "Necessary storage stays on; analytics defaults off; marketing is not enabled. Cookie Preferences reopens choices."],
             ["Embedded renderer", <span key="renderer"><code>/renderer/</code> has no application chrome or consent overlay, preserving external viewers.</span>],

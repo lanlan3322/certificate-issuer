@@ -3,7 +3,7 @@ import { parseStoredCredential } from "../lib/stored-credential";
 
 export interface CredentialInput {
   issuerId: string;
-  templateId?: string;
+  templateId: string;
   issuerProfileId?: string;
   issuerDid?: string;
   documentStoreAddress?: string | null;
@@ -21,6 +21,7 @@ export interface CredentialInput {
 
 export interface CredentialRecord {
   id: string;
+  organizationId: string;
   issuerId: string;
   templateId: string | null;
   issuerProfileId: string | null;
@@ -38,12 +39,14 @@ export interface CredentialRecord {
   issuedAt: string;
   validFrom: string | null;
   validUntil: string | null;
+  issuerSnapshot: Record<string, unknown>;
 }
 
 export class DuplicateCredentialError extends Error {}
 
 const mapRow = (row: Record<string, unknown>): CredentialRecord => ({
   id: String(row.id),
+  organizationId: String(row.organization_id),
   issuerId: String(row.issuer_id),
   templateId: row.template_id ? String(row.template_id) : null,
   issuerProfileId: row.issuer_profile_id ? String(row.issuer_profile_id) : null,
@@ -61,10 +64,12 @@ const mapRow = (row: Record<string, unknown>): CredentialRecord => ({
   issuedAt: row.issued_at ? String(row.issued_at) : new Date().toISOString(),
   validFrom: row.valid_from ? String(row.valid_from) : null,
   validUntil: row.valid_until ? String(row.valid_until) : null,
+  issuerSnapshot: row.issuer_snapshot && typeof row.issuer_snapshot === "object"
+    ? row.issuer_snapshot as Record<string, unknown> : {},
 });
 
 export const CredentialService = {
-  async list(issuerId: string, options: { limit?: number; status?: string; platformAdmin?: boolean } = {}) {
+  async list(issuerId: string, options: { limit?: number; status?: string; platformAdmin?: boolean; organizationId?: string } = {}) {
     const supabase = options.platformAdmin ? getSupabaseAdmin() : await getSupabaseServerClient();
     const limit = options.platformAdmin && options.limit === undefined
       ? undefined
@@ -79,7 +84,8 @@ export const CredentialService = {
         .order("issued_at", { ascending: false })
         .order("id", { ascending: false })
         .range(offset, offset + pageSize - 1);
-      if (!options.platformAdmin) query = query.eq("issuer_id", issuerId);
+      if (!options.platformAdmin) query = options.organizationId
+        ? query.eq("organization_id", options.organizationId) : query.eq("issuer_id", issuerId);
       if (options.status) query = query.eq("status", options.status);
 
       const { data, error } = await query;
@@ -89,14 +95,14 @@ export const CredentialService = {
     }
   },
 
-  async get(id: string, issuerId: string) {
+  async get(id: string, issuerId?: string) {
     const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from("credentials")
       .select("*")
-      .eq("id", id)
-      .eq("issuer_id", issuerId)
-      .maybeSingle();
+      .eq("id", id);
+    if (issuerId) query = query.eq("issuer_id", issuerId);
+    const { data, error } = await query.maybeSingle();
     if (error) throw error;
     return data ? mapRow(data) : null;
   },

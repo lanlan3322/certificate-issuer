@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
 import { authorize, errorResponse } from "../../../lib/apiAuth";
-import { AuditService } from "../../../services/AuditService";
-import { IssuerService, IssuerInvitationError, type IssuerRecord } from "../../../services/IssuerService";
+import { IssuerService, IssuerInvitationError, mapIssuerRow } from "../../../services/IssuerService";
 import { getSupabaseServerClient } from "../../../lib/supabase/server";
 import { withBasePath } from "../../../lib/site";
+import { canAccessIssuer, hasPermission, isPlatformAdmin as isPlatformAdministrator } from "../../../lib/permissions";
+import { parseIssuerInput } from "../../../lib/issuer-input";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STATUSES: IssuerRecord["status"][] = ["active", "disabled", "suspended"];
+function mutationError(error: unknown, fallback: string) {
+  if (error && typeof error === "object" && "code" in error && error.code === "23505" &&
+    "message" in error && String(error.message).includes("issuers_organization_code_key")) {
+    return NextResponse.json({ error: "Issuer code is already used in this organization." }, { status: 409 });
+  }
+  return errorResponse(error, fallback);
+}
 
 export async function GET(request: Request) {
   const { user, response } = await authorize();
@@ -16,15 +23,15 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const organizationId = searchParams.get("organization_id");
-    const isPlatformAdmin = user.roles.includes("platform-admin");
+    const isPlatformAdmin = isPlatformAdministrator(user);
     if (organizationId && organizationId !== "all") {
       if (organizationId !== user.organizationId && !isPlatformAdmin) {
         return NextResponse.json({ error: "Requires access to the requested organization." }, { status: 403 });
       }
-      return NextResponse.json({ issuers: await IssuerService.list(organizationId) });
+      return NextResponse.json({ issuers: (await IssuerService.list(organizationId)).filter((issuer) => canAccessIssuer(user, issuer)) });
     }
     if (!isPlatformAdmin) {
-      return NextResponse.json({ issuers: await IssuerService.list(user.organizationId) });
+      return NextResponse.json({ issuers: (await IssuerService.list(user.organizationId)).filter((issuer) => canAccessIssuer(user, issuer)) });
     }
     const { data, error } = await (await getSupabaseServerClient())
       .from("issuers")
@@ -32,16 +39,7 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false });
     if (error) throw error;
     return NextResponse.json({
-      issuers: (data ?? []).map((row: Record<string, unknown>) => ({
-        id: String(row.id),
-        organizationId: String(row.organization_id),
-        name: String(row.name),
-        slug: String(row.slug),
-        contactEmail: String(row.contact_email),
-        didUri: row.did_uri ? String(row.did_uri) : undefined,
-        status: row.status as IssuerRecord["status"],
-        createdAt: String(row.created_at),
-      })),
+      issuers: (data ?? []).map(mapIssuerRow),
     });
   } catch (error) {
     return errorResponse(error, "Unable to load issuers.", 500);
@@ -49,54 +47,41 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { user, response } = await authorize();
+  const { user, response } = await authorize("issuers.manage");
   if (response) return response;
   try {
-    const isPlatformAdmin = user.roles.includes("platform-admin");
-    if (!isPlatformAdmin && !user.roles.includes("issuer-admin")) {
+    const isPlatformAdmin = isPlatformAdministrator(user);
+    if (!hasPermission(user, "issuers.manage")) {
       return NextResponse.json({ error: "Requires the issuer-admin role." }, { status: 403 });
     }
 
-    const body = (await request.json()) as {
-      name?: string;
-      slug?: string;
-      contactEmail?: string;
-      didUri?: string;
-      organizationId?: string;
-      role?: string;
-    };
-
-    const name = body.name?.trim();
-    const slug = body.slug?.trim().toLowerCase();
-    const contactEmail = body.contactEmail?.trim();
-
-    if (!name || !slug || !contactEmail) {
-      return NextResponse.json({ error: "name, slug, and contactEmail are required." }, { status: 400 });
-    }
-    if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug)) {
-      return NextResponse.json({ error: "Slug must be 2-63 lowercase letters, numbers, or hyphens." }, { status: 400 });
-    }
-    if (body.role !== undefined && body.role !== "issuer-admin" && body.role !== "issuer-operator") {
-      return NextResponse.json({ error: "role must be issuer-admin or issuer-operator." }, { status: 400 });
-    }
-    if (body.role && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
-      return NextResponse.json({ error: "A valid contact email is required for the invitation." }, { status: 400 });
+    const body = await request.json();
+    const parsed = parseIssuerInput(body);
+    if (!parsed.input) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    const { name, slug, contactEmail } = parsed.input;
+    if (!name || !slug || !contactEmail) return NextResponse.json({ error: "Issuer name, code, and email are required." }, { status: 400 });
+    if (body.role !== undefined && !["issuer-admin", "issuer-operator", "organization_admin", "issuer", "viewer"].includes(body.role)) {
+      return NextResponse.json({ error: "role must be organization_admin, issuer, or viewer." }, { status: 400 });
     }
 
-    const requestedOrgId = body.organizationId?.trim();
+    const requestedOrgId = parsed.input.organizationId;
     if (requestedOrgId && requestedOrgId !== user.organizationId && !isPlatformAdmin) {
       return NextResponse.json({ error: "Requires the platform-admin role to create issuers in another organization." }, { status: 403 });
     }
     const targetOrgId = requestedOrgId || user.organizationId;
+    if (parsed.input.status === "deleted" && !isPlatformAdmin) {
+      return NextResponse.json({ error: "Only platform administrators may delete issuers." }, { status: 403 });
+    }
 
     const input = {
+      ...parsed.input,
       organizationId: targetOrgId,
       name,
       slug,
       contactEmail,
       didUri: body.didUri?.trim() || undefined,
     };
-    if (body.role === "issuer-admin" || body.role === "issuer-operator") {
+    if (body.role === "issuer-admin" || body.role === "issuer-operator" || body.role === "organization_admin" || body.role === "issuer" || body.role === "viewer") {
       const issuer = await IssuerService.createWithInvitation(
         { ...input, contactEmail: contactEmail.toLowerCase() },
         body.role,
@@ -107,103 +92,49 @@ export async function POST(request: Request) {
     }
     const issuer = await IssuerService.create(input);
 
-    await AuditService.record({
-      organizationId: targetOrgId,
-      issuerId: issuer.id,
-      userId: user.id,
-      action: "issuer.created",
-      entityType: "issuer",
-      entityId: issuer.id,
-      metadata: { name, slug },
-    });
-
     return NextResponse.json({ issuer }, { status: 201 });
   } catch (error) {
     if (error instanceof IssuerInvitationError) {
       return NextResponse.json({ error: error.message }, { status: 502 });
     }
-    return errorResponse(error, "Unable to create issuer.");
+    return mutationError(error, "Unable to create issuer.");
   }
 }
 
 export async function PATCH(request: Request) {
-  const { user, response } = await authorize();
+  return updateIssuer(request);
+}
+
+export async function updateIssuer(request: Request, issuerId?: string) {
+  const { user, response } = await authorize("issuers.manage");
   if (response) return response;
   try {
-    const body = (await request.json()) as {
-      id?: string;
-      status?: IssuerRecord["status"];
-      name?: string;
-      contactEmail?: string;
-      didUri?: string;
-      organizationId?: string;
-    };
-
-    const id = body.id?.trim();
+    const body = await request.json();
+    const id = issuerId || (typeof body?.id === "string" ? body.id.trim() : "");
     if (!id) return NextResponse.json({ error: "id is required." }, { status: 400 });
 
-    // --- Transfer ---
-    if (body.organizationId) {
-      if (!user.roles.includes("platform-admin")) {
+    if (body?.organizationId) {
+      if (!isPlatformAdministrator(user)) {
         return NextResponse.json({ error: "Requires the platform-admin role to transfer issuers." }, { status: 403 });
       }
-      const newOrgId = body.organizationId.trim();
-      if (!STATUSES.includes(body.status ?? "active")) {
-        return NextResponse.json({ error: `transfer requires a valid status (${STATUSES.join(", ")}).` }, { status: 400 });
-      }
-      const issuer = await IssuerService.transfer(id, newOrgId);
-      await AuditService.record({
-        organizationId: issuer.organizationId,
-        issuerId: issuer.id,
-        userId: user.id,
-        action: "issuer.transferred",
-        entityType: "issuer",
-        entityId: issuer.id,
-        metadata: { fromOrganizationId: user.organizationId, toOrganizationId: newOrgId },
-      });
-      return NextResponse.json({ issuer });
+      return NextResponse.json({ error: "Issuer transfers are not supported; organization ownership must be preserved." }, { status: 409 });
     }
 
-    if (!user.roles.includes("issuer-admin")) {
+    if (!hasPermission(user, "issuers.manage")) {
       return NextResponse.json({ error: "Requires the issuer-admin role." }, { status: 403 });
     }
 
-    if (body.status) {
-      if (!STATUSES.includes(body.status)) {
-        return NextResponse.json({ error: `status must be one of ${STATUSES.join(", ")}.` }, { status: 400 });
-      }
-      // Blocks an admin from locking their own organization out.
-      if (id === user.issuerId && body.status !== "active") {
-        return NextResponse.json({ error: "You cannot disable your own issuer." }, { status: 400 });
-      }
-      const issuer = await IssuerService.updateStatus(id, body.status, user.organizationId);
-      await AuditService.record({
-        organizationId: user.organizationId,
-        issuerId: issuer.id,
-        userId: user.id,
-        action: "issuer.status_changed",
-        entityType: "issuer",
-        entityId: issuer.id,
-        metadata: { status: body.status },
-      });
-      return NextResponse.json({ issuer });
+    const parsed = parseIssuerInput(body, true);
+    if (!parsed.input) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    if (!Object.keys(parsed.input).length) return NextResponse.json({ error: "At least one issuer field is required." }, { status: 400 });
+    const existing = await IssuerService.getById(id);
+    if (!existing || !canAccessIssuer(user, existing, "manage")) return NextResponse.json({ error: "Issuer not found." }, { status: 404 });
+    if (parsed.input.status === "deleted" && !isPlatformAdministrator(user)) {
+      return NextResponse.json({ error: "Only platform administrators may delete issuers." }, { status: 403 });
     }
-
-    const issuer = await IssuerService.update(id, user.organizationId, {
-      name: body.name?.trim(),
-      contactEmail: body.contactEmail?.trim(),
-      didUri: body.didUri?.trim(),
-    });
-    await AuditService.record({
-      organizationId: user.organizationId,
-      issuerId: issuer.id,
-      userId: user.id,
-      action: "issuer.updated",
-      entityType: "issuer",
-      entityId: issuer.id,
-    });
+    const issuer = await IssuerService.update(id, existing.organizationId, parsed.input);
     return NextResponse.json({ issuer });
   } catch (error) {
-    return errorResponse(error, "Unable to update issuer.");
+    return mutationError(error, "Unable to update issuer.");
   }
 }

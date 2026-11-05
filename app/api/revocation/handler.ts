@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { authorize, errorResponse } from "../../../lib/apiAuth";
 import { AuditService } from "../../../services/AuditService";
+import { CredentialService } from "../../../services/CredentialService";
+import { requireIssuerAccess } from "../../../lib/issuer-access";
 import {
   CredentialNotFoundError,
   DocumentStoreRevocationError,
@@ -20,7 +22,7 @@ export async function GET(request: Request) {
   try {
     const limit = new URL(request.url).searchParams.get("limit");
     return NextResponse.json({
-      records: await RevocationService.list(user.issuerId, limit ? Number(limit) : undefined),
+      records: await RevocationService.list(undefined, limit ? Number(limit) : undefined),
     });
   } catch (error) {
     return errorResponse(error, "Unable to load revocation records.", 500);
@@ -28,7 +30,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { user, response } = await authorize();
+  const { user, response } = await authorize("credentials.revoke");
   if (response) return response;
   try {
     const body = (await request.json()) as {
@@ -46,17 +48,22 @@ export async function POST(request: Request) {
     const reason = body.reason?.trim();
     if (!reason) return NextResponse.json({ error: "reason is required." }, { status: 400 });
 
+    const credential = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(credentialRef)
+      ? await CredentialService.get(credentialRef) : await CredentialService.findByExternalId(credentialRef);
+    if (!credential) return NextResponse.json({ error: "Credential not found." }, { status: 404 });
+    await requireIssuerAccess(user, credential.issuerId, "operate", true);
+    const { issuerId, organizationId } = credential;
     const record = await RevocationService.apply({
       credentialRef,
-      issuerId: user.issuerId,
+      issuerId,
       action: body.action,
       reason,
       transactionHash: body.transactionHash,
     });
 
     await AuditService.record({
-      organizationId: user.organizationId,
-      issuerId: user.issuerId,
+      organizationId,
+      issuerId,
       userId: user.id,
       action: `credential.${body.action}`,
       entityType: "credential",

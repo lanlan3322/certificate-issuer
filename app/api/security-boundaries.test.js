@@ -11,7 +11,11 @@ function load(filename, mocks) {
   instance.filename = filename;
   instance.paths = Module._nodeModulePaths(path.dirname(filename));
   const normalRequire = instance.require.bind(instance);
-  instance.require = (name) => Object.hasOwn(mocks, name) ? mocks[name] : normalRequire(name);
+  instance.require = (name) => {
+    if (Object.hasOwn(mocks, name)) return mocks[name];
+    if (/\/lib\/(permissions|organization-input|issuer-input|issuer-presentation)$/.test(name)) return normalRequire(`${name}.ts`);
+    return normalRequire(name);
+  };
   instance._compile(ts.transpileModule(readFileSync(filename, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
       esModuleInterop: true },
@@ -19,7 +23,7 @@ function load(filename, mocks) {
   return instance.exports;
 }
 
-const routeError = (_error, fallback) => NextResponse.json({ error: fallback }, { status: 500 });
+const routeError = (_error, fallback, status = 500) => NextResponse.json({ error: fallback }, { status });
 
 test("organization directory requires platform-admin authorization", async () => {
   const calls = [];
@@ -39,7 +43,7 @@ test("organization directory requires platform-admin authorization", async () =>
 
   const response = await handler.GET();
   assert.equal(response.status, 403);
-  assert.deepEqual(calls, [["authorize", "platform-admin"]]);
+  assert.deepEqual(calls, [["authorize", "organizations.manage"]]);
 });
 
 test("organization creation requires platform-admin authorization", async () => {
@@ -66,7 +70,7 @@ test("organization creation requires platform-admin authorization", async () => 
   }));
 
   assert.equal(response.status, 403);
-  assert.deepEqual(calls, [["authorize", "platform-admin"]]);
+  assert.deepEqual(calls, [["authorize", "organizations.manage"]]);
 });
 
 test("organization status changes require platform-admin and a valid status", async () => {
@@ -87,14 +91,14 @@ test("organization status changes require platform-admin and a valid status", as
     },
     "../../../../services/OrganizationService": {
       OrganizationService: {
-        updateStatus: async (...args) => {
-          calls.push(["updateStatus", ...args]);
+        update: async (...args) => {
+          calls.push(["update", ...args]);
           return { id: args[0], status: args[1] };
         },
       },
     },
   });
-  const request = (status) => new Request("https://verifiable.sg/api/organizations/tenant-b", {
+  const request = (status) => new Request("https://verifiable.sg/api/organizations/00000000-0000-4000-8000-000000000002", {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ status }),
@@ -111,10 +115,10 @@ test("organization status changes require platform-admin and a valid status", as
 
   const allowed = await handler.PATCH(request("disabled"));
   assert.equal(allowed.status, 200);
-  assert.deepEqual(calls.find(([name]) => name === "updateStatus"), [
-    "updateStatus", "tenant-b", "disabled",
+  assert.deepEqual(calls.find(([name]) => name === "update"), [
+    "update", "00000000-0000-4000-8000-000000000002", { status: "disabled" },
   ]);
-  assert.equal(calls[0][1], "platform-admin");
+  assert.equal(calls[0][1], "organizations.manage");
 });
 
 test("issuer directory scopes issuer-admins to their organization and denies transfers", async () => {

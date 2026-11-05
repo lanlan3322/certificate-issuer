@@ -13,9 +13,13 @@ function harness({ issued = true, revoked = false, unavailable = false, mismatch
   const record = {
     id: "row-id", status: "issued", issuingMethods: methods, documentHash: mismatch ? `0x${"b".repeat(64)}` : hash,
     documentStoreAddress: missingStore ? null : "0x1111111111111111111111111111111111111111",
-    documentStoreNetwork: "sepolia", credential: { id: "certificate-id" },
+    documentStoreNetwork: "sepolia", issuerSnapshot: { issuerDisplayName: "Not the signed label" },
+    credential: { id: "certificate-id", credentialSubject: {
+      issuerDisplayName: "Issuer at issuance", organizationDisplayName: "Organization at issuance",
+    } },
   };
   const mocks = {
+    "../../../lib/issuer-presentation": require("../../../lib/issuer-presentation.ts"),
     "next/server": { NextResponse },
     "../../../lib/trustvc": {
       computeDocumentStoreHash: () => hash,
@@ -62,6 +66,8 @@ test("uploaded and ID-based status-list credentials check the exact saved hash a
     const result = await post(byId);
     assert.equal(result.details.blockchainVerification, "passed");
     assert.equal(result.valid, true);
+    assert.equal(result.credential.issuerDisplayName,"Issuer at issuance");
+    assert.equal(result.credential.organizationDisplayName,"Organization at issuance");
     assert.deepEqual(calls, [[hash, {
       address: "0x1111111111111111111111111111111111111111", network: "sepolia",
     }]]);

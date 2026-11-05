@@ -5,6 +5,7 @@ export type CertEntry = {
   recipientEmail: string;
   certificateType: string;
   issuerName: string;
+  organizationDisplayName?: string;
   issueDate: string;
   signedDate?: string;
   description: string;

@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { authorize, errorResponse } from "../../../../lib/apiAuth";
-import { enforceRateLimit, RateLimitError } from "../../../../lib/auth";
+import { enforceRateLimit, ForbiddenError, RateLimitError } from "../../../../lib/auth";
 import { CredentialService } from "../../../../services/CredentialService";
 import { AuditService } from "../../../../services/AuditService";
 import { randomUUID } from "node:crypto";
 import { createTransport } from "nodemailer";
+import { hasPermission } from "../../../../lib/permissions";
+import { requireIssuerAccess } from "../../../../lib/issuer-access";
 
 export async function POST(request: Request) {
   const { user, response } = await authorize();
   if (response) return response;
-  if (!user.roles.some((role) => ["platform-admin", "issuer-admin", "issuer-operator"].includes(role))) {
+  if (!hasPermission(user, "credentials.send")) {
     return NextResponse.json({ error: "Issuer permission required." }, { status: 403 });
   }
   if (request.headers.get("origin") && request.headers.get("origin") !== new URL(request.url).origin) {
@@ -30,8 +32,9 @@ export async function POST(request: Request) {
   }
   try {
     await enforceRateLimit("credential-email", user.id, 20, 15);
-    const credential = await CredentialService.get(body.credentialId, user.issuerId);
+    const credential = await CredentialService.get(body.credentialId);
     if (!credential) return NextResponse.json({ error: "Certificate not found." }, { status: 404 });
+    await requireIssuerAccess(user, credential.issuerId, "operate", true);
     if (credential.status !== "issued" ||
         (credential.validUntil && Date.parse(credential.validUntil) <= Date.now())) {
       return NextResponse.json({ error: "Only issued, unexpired certificates can be sent." }, { status: 409 });
@@ -80,12 +83,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "The email provider did not accept the request. Please try again later." }, { status: 502 });
     }
     await AuditService.record({
-      organizationId: user.organizationId, issuerId: user.issuerId, userId: user.id,
+      organizationId: credential.organizationId, issuerId: credential.issuerId, userId: user.id,
       action: "credential.email.accepted", entityType: "credential", entityId: credential.id,
       metadata: { messageId: delivery.messageId, requestId: body.requestId },
     });
     return NextResponse.json({ message: "Email accepted for delivery. Inbox delivery is not yet confirmed." });
   } catch (error) {
+    if (error instanceof ForbiddenError) return errorResponse(error, "Issuer access denied.", 403);
     if (error instanceof RateLimitError) return errorResponse(error, "Email rate limit reached.", 429);
     // Keep unexpected transport/provider details out of application logs.
     const incidentId = randomUUID();

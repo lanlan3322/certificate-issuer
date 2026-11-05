@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { authorize, errorResponse } from "../../../lib/apiAuth";
 import { AuditService } from "../../../services/AuditService";
 import { CredentialService, DuplicateCredentialError } from "../../../services/CredentialService";
+import { canAccessIssuer, hasPermission, isPlatformAdmin } from "../../../lib/permissions";
+import { requireIssuerAccess } from "../../../lib/issuer-access";
+import { TemplateService } from "../../../services/TemplateService";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,13 +14,17 @@ export async function GET(request: Request) {
   if (response) return response;
   try {
     const params = new URL(request.url).searchParams;
-    await CredentialService.expireOverdue(user.issuerId);
+    if (hasPermission(user, "credentials.revoke")) await CredentialService.expireOverdue(user.issuerId);
     return NextResponse.json({
-      credentials: await CredentialService.list(user.issuerId, {
+      credentials: (await CredentialService.list(user.issuerId, {
         status: params.get("status") ?? undefined,
         limit: params.get("limit") ? Number(params.get("limit")) : undefined,
-        platformAdmin: user.roles.includes("platform-admin"),
-      }),
+        platformAdmin: isPlatformAdmin(user),
+        organizationId: user.organizationId,
+      })).filter((record) => canAccessIssuer(user, { id: record.issuerId, organizationId: record.organizationId }))
+        .map((record) => ({ ...record, canManage: canAccessIssuer(user, {
+          id: record.issuerId, organizationId: record.organizationId,
+        }, "operate") })),
     });
   } catch (error) {
     return errorResponse(error, "Unable to load credentials.", 500);
@@ -25,7 +32,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { user, response } = await authorize();
+  const { user, response } = await authorize("credentials.issue");
   if (response) return response;
   try {
     const body = (await request.json()) as {
@@ -47,10 +54,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // issuerId always comes from the session, never the body.
+    if (!body.templateId) return NextResponse.json({ error: "Select a saved template." }, { status: 400 });
+    const template = await TemplateService.getAvailableForIssuance(body.templateId, {
+      organizationId: user.organizationId, platformAdmin: isPlatformAdmin(user),
+    });
+    if (!template?.issuerId) return NextResponse.json({ error: "Active template not found." }, { status: 404 });
+    const issuer = await requireIssuerAccess(user, template.issuerId, "operate", true);
     const credential = await CredentialService.create({
-      issuerId: user.issuerId,
-      templateId: body.templateId,
+      issuerId: issuer.id,
+      templateId: template.id,
       externalId: body.externalId,
       recipientName: body.recipientName,
       recipientEmail: body.recipientEmail,
@@ -62,8 +74,8 @@ export async function POST(request: Request) {
     });
 
     await AuditService.record({
-      organizationId: user.organizationId,
-      issuerId: user.issuerId,
+      organizationId: issuer.organizationId,
+      issuerId: issuer.id,
       userId: user.id,
       action: "credential.stored",
       entityType: "credential",
@@ -82,7 +94,7 @@ export async function POST(request: Request) {
 
 /** Attaches the on-chain document hash once the wallet transaction confirms. */
 export async function PATCH(request: Request) {
-  const { user, response } = await authorize();
+  const { user, response } = await authorize("credentials.issue");
   if (response) return response;
   try {
     const body = (await request.json()) as { externalId?: string; documentHash?: string };
@@ -90,12 +102,15 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "externalId and documentHash are required." }, { status: 400 });
     }
 
-    const credential = await CredentialService.attachDocumentHash(body.externalId, user.issuerId, body.documentHash);
+    const existing = await CredentialService.findByExternalId(body.externalId);
+    if (!existing) return NextResponse.json({ error: "Credential not found." }, { status: 404 });
+    await requireIssuerAccess(user, existing.issuerId, "operate", true);
+    const credential = await CredentialService.attachDocumentHash(body.externalId, existing.issuerId, body.documentHash);
     if (!credential) return NextResponse.json({ error: "Credential not found." }, { status: 404 });
 
     await AuditService.record({
-      organizationId: user.organizationId,
-      issuerId: user.issuerId,
+      organizationId: credential.organizationId,
+      issuerId: credential.issuerId,
       userId: user.id,
       action: "credential.anchored",
       entityType: "credential",

@@ -1,4 +1,5 @@
 import { ArrowRight, CheckCircle, FileText, Shield, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 
 export default function HomePage() {
   return (
@@ -21,10 +22,10 @@ export default function HomePage() {
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <a
-                  href="/insurance"
+                  href="/dashboard"
                   className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100 min-h-[48px]"
                 >
-                  Issue a credential
+                  Open your workspace
                   <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                 </a>
                 <a
@@ -65,6 +66,24 @@ export default function HomePage() {
       </section>
 
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:space-y-10 sm:px-6 sm:py-10 lg:px-8">
+        <section aria-labelledby="workspace-heading">
+          <div className="mb-5 max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">One platform, clear workflows</p>
+            <h2 id="workspace-heading" className="mt-2 text-2xl font-bold">Built around your credential programme</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">A focused workspace for your team. A public verification service for everyone who needs to trust your credentials.</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              ["/dashboard", "Manage credentials", "Find issued records, review status and share with recipients."],
+              ["/branding", "Design your credentials", "Browse organization templates and preview your certificate design."],
+              ["/organizations", "Organize your team", "Keep organization memberships, issuer access and roles in one place."],
+              ["/verify", "Verify with confidence", "Check signatures, issuer identity and relevant lifecycle evidence."],
+            ].map(([href, title, description]) => <Link key={href} href={href} prefetch={false} className="group rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-cyan-500 dark:border-slate-700 dark:bg-slate-900">
+              <h3 className="flex items-center justify-between gap-3 font-semibold">{title}<ArrowRight size={16} aria-hidden="true" className="shrink-0 text-cyan-700" /></h3>
+              <p className="mt-3 text-sm leading-6 text-slate-500">{description}</p>
+            </Link>)}
+          </div>
+        </section>
         <section aria-labelledby="standards-heading" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-6">
           <h2 id="standards-heading" className="text-lg font-bold text-slate-900 dark:text-slate-100">Built on open standards</h2>
           <div className="mt-4 grid gap-5 md:grid-cols-3">

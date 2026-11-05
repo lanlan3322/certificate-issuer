@@ -10,7 +10,7 @@ const javascript = ts.transpileModule(readFileSync(`${__dirname}/page.tsx`, "utf
 }).outputText;
 
 const templates = [
-  { id: "saved-fta", slug: "fta", name: "Fintech Academy", description: "Academy certificate." },
+  { id: "saved-fta", slug: "fta", name: "Fintech Academy", issuerDisplayName: "Fintech Issuer", organizationDisplayName: "Fintech Academy", description: "Academy certificate." },
   { id: "saved-modern", slug: "modern", name: "Modern Training", description: "Modern certificate." },
 ];
 
@@ -23,6 +23,9 @@ function setup(catalog = { templates, loading: false, error: null }) {
       useState: () => [selectedId, (value) => { selectedId = value; }],
     };
     if (name === "../../hooks/useIssuanceTemplates") return { useIssuanceTemplates: () => catalog };
+    if (name === "../../components/WorkspaceSession") return { useWorkspaceSession: () => ({ user: { roles: ["issuer"] } }) };
+    if (name === "../../lib/permissions") return require("../../lib/permissions.ts");
+    if (name === "next/link") return { default: "a" };
     if (name === "../templates/CertificateTemplateRenderer") return {
       default: ({ certificate }) => {
         previews.push(certificate);
@@ -51,6 +54,8 @@ test("Branding defaults to the first saved template and passes its layout slug t
   assert.match(output, /value="saved-fta" selected=""/);
   assert.match(output, /Fintech Academy preview/);
   assert.match(output, /Academy certificate/);
+  assert.match(output, /Owned by Fintech Issuer · Fintech Academy/);
+  assert.match(output, /Fintech Issuer/);
   assert.equal(previews.length, 1);
   assert.equal(previews[0].templateId, "fta");
   assert.equal(previews[0].recipientName, "Sample Recipient");

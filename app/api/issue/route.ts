@@ -1,5 +1,6 @@
 import { after, NextResponse } from "next/server";
 import { authorize, errorResponse } from "../../../lib/apiAuth";
+import { isPlatformAdmin } from "../../../lib/permissions";
 import {
   buildVCPayload,
   computeDocumentStoreHash,
@@ -17,6 +18,8 @@ import { StatusListService, requireStatusListConfiguration } from "../../../serv
 import { IssuerProfileService } from "../../../services/IssuerProfileService";
 import { TemplateService } from "../../../services/TemplateService";
 import { NETWORKS } from "../../../lib/constants";
+import { requireIssuerAccess } from "../../../lib/issuer-access";
+import { OrganizationService } from "../../../services/OrganizationService";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,7 +87,7 @@ function validate(data: Record<string, unknown>): { ok: true; value: Certificate
 }
 
 export async function POST(request: Request) {
-  const { user, response } = await authorize();
+  const { user, response } = await authorize("credentials.issue");
   if (response) return response;
 
   try {
@@ -133,12 +136,15 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    if (body.persist === false) {
+      return NextResponse.json({ error: "Issuer credentials must be persisted to preserve ownership and revocation records." }, { status: 400 });
+    }
 
     const templateReference = body.templateId?.trim() || data.templateId?.trim();
     const template = templateReference
       ? await TemplateService.getAvailableForIssuance(templateReference, {
         organizationId: user.organizationId,
-        platformAdmin: user.roles.includes("platform-admin"),
+        platformAdmin: isPlatformAdmin(user),
       })
       : null;
     if (!template) {
@@ -147,10 +153,14 @@ export async function POST(request: Request) {
     if (template && !template.isActive) {
       return NextResponse.json({ error: "Template is inactive and cannot issue credentials." }, { status: 409 });
     }
+    if (!template.issuerId) return NextResponse.json({ error: "Template has no issuer assignment." }, { status: 409 });
+    const issuingIssuer = await requireIssuerAccess(user, template.issuerId, "operate", true);
+    const issuingOrganization = await OrganizationService.getById(issuingIssuer.organizationId);
+    if (!issuingOrganization) return NextResponse.json({ error: "Issuer organization not found." }, { status: 409 });
 
-    const usesOwnProfile = template.issuerId === user.issuerId && !!template.issuerProfileId;
+    const usesOwnProfile = !!template.issuerProfileId;
     const issuerProfile = usesOwnProfile && template.issuerProfileId
-      ? await IssuerProfileService.get(template.issuerProfileId, user.issuerId)
+      ? await IssuerProfileService.get(template.issuerProfileId, issuingIssuer.id)
       : null;
     if (usesOwnProfile && (!issuerProfile || !issuerProfile.active)) {
       return NextResponse.json(
@@ -158,13 +168,6 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
-    if (issuerProfile && body.persist === false) {
-      return NextResponse.json(
-        { error: "Issuer-profile credentials must be persisted to preserve issuance and revocation records." },
-        { status: 400 }
-      );
-    }
-
     if (issuerProfile &&
         (!issuerProfile.documentStoreAddress ||
           !/^0x[0-9a-f]{40}$/i.test(issuerProfile.documentStoreAddress) ||
@@ -221,8 +224,9 @@ export async function POST(request: Request) {
       ...data,
       templateId: resolveTemplateId(template.slug),
       issuerDid: issuerProfile?.did,
-      issuerDisplayName: issuerProfile?.displayName,
-      issuerName: issuerProfile?.displayName ?? user.issuerName,
+      issuerDisplayName: issuingIssuer.displayName,
+      issuerName: issuingIssuer.displayName,
+      organizationDisplayName: issuingOrganization.displayName,
       documentStoreAddress: documentStore.address,
       documentStoreNetwork: documentStore.network,
     };
@@ -230,7 +234,7 @@ export async function POST(request: Request) {
     const payload = buildVCPayload(trustvcProfile ? { ...data, issuingMethods: ["did"] } : data,
       trustvcProfile ? "standard" : body.certificateFormat);
     const statusCredential: Record<string, unknown> = usesStatusList
-      ? { ...payload, credentialStatus: await StatusListService.reserve(user.issuerId, data.id, statusListIssuer) }
+      ? { ...payload, credentialStatus: await StatusListService.reserve(issuingIssuer.id, data.id, statusListIssuer) }
       : payload;
     const credential = body.renderMethod === "embedded"
       ? withEmbeddedRenderMethod(statusCredential, resolveTemplateId(template.slug))
@@ -258,41 +262,39 @@ export async function POST(request: Request) {
       ? computeDocumentStoreHash(result.credential)
       : extractTargetHash(result.credential);
     let stored: { id: string } | null = null;
-    if (body.persist !== false) {
-      try {
-        const record = await CredentialService.create({
-          issuerId: user.issuerId,
-          templateId: template?.id,
-          issuerProfileId: issuerProfile?.id,
-          issuerDid: issuerProfile?.did,
-          documentStoreAddress: documentStore.address,
-          documentStoreNetwork: documentStore.network,
-          verificationMethod: issuerProfile?.verificationMethod,
-          externalId: data.id,
-          recipientName: data.recipientName,
-          recipientEmail: data.recipientEmail,
-          credential: result.credential,
-          documentHash: targetHash ?? undefined,
-          issuingMethods: data.issuingMethods,
-          validFrom: data.validFrom,
-          validUntil: data.validUntil,
-        });
-        stored = { id: record.id };
-        await AuditService.record({
-          organizationId: user.organizationId,
-          issuerId: user.issuerId,
-          userId: user.id,
-          action: "credential.issued",
-          entityType: "credential",
-          entityId: record.id,
-          metadata: { externalId: data.id, methods: data.issuingMethods, statusProfile: body.statusProfile },
-        });
-      } catch (storeError) {
-        if (storeError instanceof DuplicateCredentialError) {
-          return NextResponse.json({ signed: false, error: storeError.message }, { status: 409 });
-        }
-        throw storeError;
+    try {
+      const record = await CredentialService.create({
+        issuerId: issuingIssuer.id,
+        templateId: template.id,
+        issuerProfileId: issuerProfile?.id,
+        issuerDid: issuerProfile?.did ?? legacyKeyPair?.controller,
+        documentStoreAddress: documentStore.address,
+        documentStoreNetwork: documentStore.network,
+        verificationMethod: issuerProfile?.verificationMethod ?? legacyKeyPair?.id,
+        externalId: data.id,
+        recipientName: data.recipientName,
+        recipientEmail: data.recipientEmail,
+        credential: result.credential,
+        documentHash: targetHash ?? undefined,
+        issuingMethods: data.issuingMethods,
+        validFrom: data.validFrom,
+        validUntil: data.validUntil,
+      });
+      stored = { id: record.id };
+      await AuditService.record({
+        organizationId: issuingIssuer.organizationId,
+        issuerId: issuingIssuer.id,
+        userId: user.id,
+        action: "credential.issued",
+        entityType: "credential",
+        entityId: record.id,
+        metadata: { externalId: data.id, methods: data.issuingMethods, statusProfile: body.statusProfile },
+      });
+    } catch (storeError) {
+      if (storeError instanceof DuplicateCredentialError) {
+        return NextResponse.json({ signed: false, error: storeError.message }, { status: 409 });
       }
+      throw storeError;
     }
 
     const ethereumSelected = data.issuingMethods?.includes("ethereum") === true;
@@ -304,11 +306,11 @@ export async function POST(request: Request) {
             credentialId: data.id,
             externalId: data.id,
             recipientEmail: data.recipientEmail,
-            issuerId: user.issuerId,
+            issuerId: issuingIssuer.id,
           }, documentStore, async (txHash) => {
             await AuditService.record({
-              organizationId: user.organizationId,
-              issuerId: user.issuerId,
+              organizationId: issuingIssuer.organizationId,
+              issuerId: issuingIssuer.id,
               userId: user.id,
               action: "credential.registration_submitted",
               entityType: "credential",
@@ -323,8 +325,8 @@ export async function POST(request: Request) {
             });
           }, { required: ethereumSelected });
           await AuditService.record({
-            organizationId: user.organizationId,
-            issuerId: user.issuerId,
+            organizationId: issuingIssuer.organizationId,
+            issuerId: issuingIssuer.id,
             userId: user.id,
             action: registration.error ? "credential.registration_failed" : "credential.registered",
             entityType: "credential",

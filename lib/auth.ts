@@ -2,6 +2,7 @@ import { getSupabaseAdmin, getSupabasePasswordResetClient, getSupabaseServerClie
 import { getUserSafely } from "./supabase/session";
 import { isValidPassword, PASSWORD_REQUIREMENTS } from "./password-policy";
 import { withBasePath } from "./site";
+import { hasLegacyRole, isPlatformAdmin, normalizeRoles, type IssuerMembership } from "./permissions";
 
 export interface AuthUser {
   id: string;
@@ -11,6 +12,7 @@ export interface AuthUser {
   displayName: string;
   issuerName: string;
   roles: string[];
+  issuerMemberships?: IssuerMembership[];
 }
 
 export class PasswordResetDeliveryError extends Error {}
@@ -172,30 +174,58 @@ export async function getCurrentIssuerUser(): Promise<AuthUser | null> {
     .maybeSingle();
   if (appUserError || !appUser?.organization_id) return null;
 
-  let issuerQuery = supabase
+  const platformAdmin = isPlatformAdmin({ roles: appUser.roles ?? [] });
+  const { data: organization, error: organizationError } = await supabase
+    .from("organizations")
+    .select("id, name, status, soft_deleted_at")
+    .eq("id", appUser.organization_id)
+    .maybeSingle();
+  if (organizationError || !organization || (!platformAdmin &&
+      (organization.status !== "active" || organization.soft_deleted_at))) return null;
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("organization_id", appUser.organization_id)
+    .eq("user_id", appUser.id)
+    .maybeSingle();
+  if (membershipError || (!membership && !platformAdmin)) return null;
+  const roles = platformAdmin ? ["platform_admin"] : normalizeRoles(membership ? [membership.role] : []);
+  const { data: assignments, error: assignmentError } = await supabase
+    .from("issuer_members").select("issuer_id, role").eq("user_id", appUser.id);
+  if (assignmentError) {
+    console.error("[auth] Unable to resolve issuer memberships", assignmentError);
+    return null;
+  }
+  const issuerMemberships: IssuerMembership[] = (assignments ?? [])
+    .filter((entry) => ["issuer_admin", "issuer_operator", "viewer"].includes(entry.role))
+    .map((entry) => ({ issuerId: String(entry.issuer_id), role: entry.role }));
+
+  const issuerQuery = supabase
     .from("issuers")
     .select("id, name")
     .eq("organization_id", appUser.organization_id)
     .eq("status", "active");
-  if (appUser.issuer_id) issuerQuery = issuerQuery.eq("id", appUser.issuer_id);
-  const { data: issuer, error: issuerError } = await issuerQuery.maybeSingle();
-  if (issuerError || !issuer) return null;
+  const { data: issuer, error: issuerError } = appUser.issuer_id
+    ? await issuerQuery.eq("id", appUser.issuer_id).maybeSingle()
+    : { data: null, error: null };
+  if (issuerError) return null;
 
   return {
     id: appUser.id,
-    issuerId: issuer.id,
+    issuerId: issuer?.id ?? "",
     organizationId: appUser.organization_id,
     email: appUser.email,
     displayName: appUser.display_name,
-    roles: appUser.roles ?? [],
-    issuerName: issuer.name,
+    roles,
+    issuerMemberships,
+    issuerName: issuer?.name ?? organization.name,
   };
 }
 
 export async function requireIssuerUser(role?: string): Promise<AuthUser> {
   const user = await getCurrentIssuerUser();
   if (!user) throw new UnauthorizedError("Issuer login required.");
-  if (role && !user.roles.includes(role)) throw new ForbiddenError(`Requires the ${role} role.`);
+  if (role && !hasLegacyRole(user, role)) throw new ForbiddenError(`Requires the ${role} role.`);
   return user;
 }
 

@@ -14,35 +14,36 @@ export default function UserManualPage() {
       </header>
       <nav aria-label="User manual sections" className="mb-8 flex flex-wrap gap-2 text-sm font-semibold">
         {[["getting-started", "Start here"], ["templates", "Templates"], ["issuance", "Issue"], ["dashboard", "Manage & share"], ["profile", "My Profile"]].map(([id, title]) => (
-          <a key={id} href={`#${id}`} className="rounded-lg border border-slate-300 px-3 py-2 text-cyan-800 hover:bg-cyan-50 dark:border-slate-600 dark:text-cyan-300 dark:hover:bg-slate-800">{title}</a>
+          <a key={id} href={`#${id}`} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 py-2 text-cyan-800 hover:bg-cyan-50 dark:border-slate-600 dark:text-cyan-300 dark:hover:bg-slate-800">{title}</a>
         ))}
       </nav>
       <div className="space-y-6 text-sm leading-6">
         <section id="getting-started" aria-labelledby="getting-started-heading" className={sectionStyle}>
           <h2 id="getting-started-heading" className="text-xl font-bold">1. Start here</h2>
           <ManualFlow label="Your credential journey" steps={[
-            ["Preview", "Branding: choose a saved template and check its sample layout."],
+            ["Preview", "Templates: choose a saved template and check its sample layout."],
             ["Issue", "Enter recipient details, review dates, then sign."],
             ["Share", "Download the credential or email its signed JSON."],
             ["Verify", "Check signature, status and any blockchain evidence."],
           ]} />
-          <p className="mt-4"><strong>Sign in → eServices → Dashboard.</strong> Overview stays public. Use Verify before sending or accepting a credential.</p>
+          <p className="mt-4"><strong>Sign in → Credential overview.</strong> On desktop, use the workspace sidebar; on mobile, open the navigation menu. Platform and Verify stay public. Use Verify before sending or accepting a credential.</p>
+          <p className="mt-3">Your active organization and issuer memberships determine access. Issuer operators may issue, revoke and send for their assigned issuers; issuer admins manage templates for their assigned issuers; viewers have read-only access. Organization admins manage organization-level members and issuer profiles but have read-only credential access. Contact your administrator if an issuer assignment is missing.</p>
         </section>
 
         <section id="templates" aria-labelledby="templates-heading" className={sectionStyle}>
           <h2 id="templates-heading" className="text-xl font-bold">2. Choose a template</h2>
           <ManualReference caption="Preview is not issuance" headings={["Where", "What to do"]} rows={[
-            ["Branding", "Choose a saved template; the first is selected automatically. Sample previews do not save changes or sign anything."],
-            ["Template Style", "Choose an active saved template from your organization for single or batch issuance. Platform admins can select across organizations."],
-            ["Nothing listed?", "Ask an administrator to save an active template under an issuer in your organization. Issuance stays disabled until one is available."],
+            ["Templates", "Choose a saved template; the first is selected automatically. Sample previews do not save changes or sign anything. Administrators can open Template builder here."],
+            ["Template Style", "Choose an active saved template from an issuer you are allowed to use. The template list identifies its issuer and organization when available."],
+            ["Nothing listed?", "Ask an administrator to save an active template under an issuer and assign your account the required access. Issuance stays disabled until one is available."],
           ]} />
-          <aside className={noteStyle}><strong>Shared style ≠ shared identity.</strong> A shared template does not transfer signing identity, Document Store or credential permissions. Credentials belong to your logged-in issuer.</aside>
+          <aside className={noteStyle}><strong>Issuer ownership is explicit.</strong> Administrators choose an allowed issuer when creating a template. Existing templates retain their issuer owner; assigning a template does not grant users issuer membership or alter signing configuration. Shared visual style does not imply shared identity or access.</aside>
           <details className="mt-4 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
             <summary className="cursor-pointer font-semibold">Layout and signing details</summary>
             <ul className="mt-3 list-disc space-y-2 pl-5">
               <li>Layouts: <code>classic</code>, <code>modern</code>, <code>minimal</code>, <code>fta</code>. Other slugs render as classic.</li>
               <li>The signed style controls previews; the saved template database ID tracks ownership. Legacy style names remain supported.</li>
-              <li>New issuance requires a saved template. Your own template&apos;s signing-profile mapping applies; shared templates use the existing default signing configuration.</li>
+              <li>New issuance requires an available saved template. Any signing profile is selected from the owning issuer&apos;s profiles; template ownership and issuer membership control access.</li>
             </ul>
           </details>
         </section>
@@ -64,7 +65,7 @@ export default function UserManualPage() {
 
         <section id="dashboard" aria-labelledby="dashboard-heading" className={sectionStyle}>
           <h2 id="dashboard-heading" className="text-xl font-bold">4. Find, share and manage</h2>
-          <p className="mt-3">Dashboard and Issuer Portal use the same table.</p>
+          <p className="mt-3">Credential overview shows records from your active organization. Platform admins see all organizations. On mobile, each record becomes a labelled card with the same actions. Summary counts reflect loaded records, not lifetime totals. Actions appear only when your role and issuer assignment permit them.</p>
           <figure className="mt-4 rounded-xl border border-dashed border-cyan-500 p-4">
             <figcaption className="font-semibold">Table controls at a glance (illustration)</figcaption>
             <div className="mt-3 rounded-lg bg-slate-100 p-3 dark:bg-slate-800">Search credentials: <span className="font-mono">name / email / template / status / ID / date</span></div>
