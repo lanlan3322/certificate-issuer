@@ -4,7 +4,7 @@ import type { MarketingEntry } from "../lib/marketing";
 export function ConversionCTA() {
   return <section aria-labelledby="consultation-heading" className="theme-fixed rounded-2xl bg-slate-950 p-6 text-white sm:p-10">
     <h2 id="consultation-heading" className="text-2xl font-bold text-white">Build your credential ecosystem</h2>
-    <p className="mt-3 max-w-2xl text-slate-300">Discuss your organization, issuer governance and verification needs with IBS Digital Credential Services.</p>
+    <p className="mt-3 max-w-2xl text-slate-300">Discuss your organization, issuer governance and verification needs with the Verifiable.sg team.</p>
     <div className="mt-6 flex flex-wrap gap-3">
       <Link href="/contact#demo" className="inline-flex min-h-11 items-center rounded-xl bg-cyan-300 px-5 py-3 font-semibold text-slate-950 hover:bg-cyan-200">Book Demo</Link>
       <Link href="/contact#consultation" className="inline-flex min-h-11 items-center rounded-xl border border-slate-500 px-5 py-3 font-semibold text-white hover:bg-slate-800">Start Free Consultation</Link>

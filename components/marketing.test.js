@@ -93,6 +93,24 @@ test("demo, consultation and sales links target explicit mailbox-backed flows", 
   assert.doesNotMatch(html, /<strong>Legal entity name:<\/strong>/);
 });
 
+test("public company and partnership pages identify Verifiable.sg independently", async () => {
+  const about = load("app/about/page.tsx");
+  const aboutHtml = renderToStaticMarkup(React.createElement(about.default));
+  assert.match(aboutHtml, /About Verifiable\.sg/);
+  assert.match(aboutHtml, /independent Credential-as-a-Service platform/);
+  assert.match(about.metadata.title, /Verifiable\.sg/);
+  assert.doesNotMatch(aboutHtml, /\bIBS\b|Powered by Verifiable\.sg/);
+
+  const partners = load("app/partners/page.tsx");
+  const partnersHtml = renderToStaticMarkup(React.createElement(partners.default));
+  assert.match(partnersHtml, /not a directory of established partnerships/);
+  assert.match(partners.metadata.description, /Verifiable\.sg/);
+  assert.doesNotMatch(partnersHtml, /\bIBS\b|Powered by Verifiable\.sg/);
+
+  const contactHtml = renderToStaticMarkup(React.createElement(load("app/contact/page.tsx").default));
+  assert.doesNotMatch(contactHtml, /\bIBS\b|Powered by Verifiable\.sg/);
+});
+
 test("dark primary buttons meet WCAG AA normal-text contrast in default and hover states", () => {
   const css = readFileSync(path.join(root, "app/globals.css"), "utf8");
   function luminance(hex) {

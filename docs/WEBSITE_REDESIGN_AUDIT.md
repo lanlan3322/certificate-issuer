@@ -65,7 +65,7 @@ flowchart TD
 - `/partners`: prospective ecosystem, not a claim of existing partnerships.
 - `/resources`: faqs, case-studies, documentation, blog, whitepapers.
   Unpublished resources are explicitly marked planned, never fabricated.
-- `/about`: IBS Digital Credential Services, powered by Verifiable.sg.
+- `/about`: Verifiable.sg as an independent Credential-as-a-Service platform.
 - `/contact`: demo, consultation, sales and support, using the existing mailbox.
 - `/verify`: existing public verifier, unchanged.
 - Existing application routes remain; `/platform/dashboard` replaces the previous

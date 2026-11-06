@@ -14,7 +14,7 @@ export const publicNavigation: NavigationItem[] = [
   { href: "/pricing", label: "Pricing", description: "Plans for organizational growth" },
   { href: "/partners", label: "Partners", description: "Build a digital credential ecosystem" },
   { href: "/resources", label: "Resources", description: "Guides and answers for credential teams" },
-  { href: "/about", label: "About", description: "IBS Digital Credential Services" },
+  { href: "/about", label: "About", description: "About Verifiable.sg" },
   { href: "/contact", label: "Contact", description: "Demo, consultation and support" },
 ];
 

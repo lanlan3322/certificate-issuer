@@ -5,7 +5,7 @@ import { openCookiePreferences } from "../lib/cookie-consent";
 
 const groups = [
   { title: "Platform", links: [["/platform", "Platform capabilities"], ["/solutions", "Industry solutions"], ["/pricing", "Pricing"], ["/partners", "Partner ecosystem"], ["/verify", "Verify a credential"], ["/issuer/", "Workspace sign in"]] },
-  { title: "Resources", links: [["/resources", "Resource centre"], ["/docs/user-manual", "User guide"], ["/docs/admin-manual", "Admin guide"], ["/release-notes", "Release notes"], ["/about", "About IBS Digital Credential Services"], ["/contact", "Contact support"]] },
+  { title: "Resources", links: [["/resources", "Resource centre"], ["/docs/user-manual", "User guide"], ["/docs/admin-manual", "Admin guide"], ["/release-notes", "Release notes"], ["/about", "About Verifiable.sg"], ["/contact", "Contact support"]] },
   { title: "Legal", links: [["/privacy", "Privacy policy"], ["/terms", "Terms of service"]] },
 ];
 
@@ -23,7 +23,7 @@ export default function Footer() {
         <div>
           <p className="text-lg font-bold text-white" translate="no">Verifiable.sg</p>
           <p className="mt-3 max-w-xs text-sm leading-6 text-slate-400">Credential-as-a-Service to issue, manage, revoke and verify digital credentials under your organization&apos;s identity and brand.</p>
-          <p className="mt-3 text-xs text-slate-400">IBS Digital Credential Services<br />Powered by Verifiable.sg</p>
+          <p className="mt-3 text-xs text-slate-400">An independent digital credential platform.</p>
         </div>
         {groups.map((group) => <nav key={group.title} aria-label={`${group.title} links`}>
           <h2 className="mb-3 text-sm font-semibold text-white">{group.title}</h2>

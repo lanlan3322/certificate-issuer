@@ -24,6 +24,8 @@ test("public footer groups platform, resources and legal links without session r
   const html = renderToStaticMarkup(footer.render());
   for (const label of ["Platform links", "Resources links", "Legal links", "User guide", "Admin guide", "Privacy policy", "Terms of service", "Cookie preferences"]) assert.ok(html.includes(label), label);
   assert.match(html, /Credential-as-a-Service/);
+  assert.match(html, /About Verifiable\.sg/);
+  assert.doesNotMatch(html, /\bIBS\b|Powered by Verifiable\.sg/);
   assert.equal((html.match(/<nav\b/g) ?? []).length, 3);
 });
 

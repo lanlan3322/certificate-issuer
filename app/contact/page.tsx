@@ -17,7 +17,6 @@ export default function ContactPage() {
       { id: "business", title: "Business Enquiries", content: <p>For organization onboarding, integrations, and commercial discussions, email <a href="mailto:support@verifiable.sg?subject=Business%20enquiry">support@verifiable.sg</a>. This mailbox currently routes all enquiries.</p> },
       { id: "company", title: "About Us", content: <>
         <p>Verifiable.sg is a Credential-as-a-Service (CaaS) platform that enables organizations to issue, manage, revoke, and verify trusted digital credentials under their own brand. From professional certifications and memberships to training records and academic achievements, Verifiable.sg provides the infrastructure needed to build a secure and scalable credential ecosystem.</p>
-        <p>IBS Digital Credential Services — powered by Verifiable.sg.</p>
         <p>Data protection contact: support@verifiable.sg. Legal operator registration and address details are pending publication; request current contracting information before entering an agreement.</p>
       </> },
     ]}
