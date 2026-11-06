@@ -183,6 +183,13 @@ const CERTIFICATE_SUBJECT_CONTEXT = {
   templateId: "https://schemas.tradetrust.io/credentials#templateId",
   issuerDisplayName: "https://verifiable.sg/credentials#issuerDisplayName",
   organizationDisplayName: "https://verifiable.sg/credentials#organizationDisplayName",
+  organization_id: "https://verifiable.sg/credentials#organization_id",
+  issuer_id: "https://verifiable.sg/credentials#issuer_id",
+  issuer_name: "https://verifiable.sg/credentials#issuer_name",
+  did_used: "https://verifiable.sg/credentials#did_used",
+  verification_method: "https://verifiable.sg/credentials#verification_method",
+  key_fingerprint: "https://verifiable.sg/credentials#key_fingerprint",
+  key_version: "https://verifiable.sg/credentials#key_version",
   certificateNo: "https://verifiable.sg/credentials#certificateNo",
   courseLength: "https://verifiable.sg/credentials#courseLength",
   signedDate: "https://verifiable.sg/credentials#signedDate",
@@ -333,6 +340,11 @@ export interface CertificateData {
   issuerDid?: string;
   issuerDisplayName?: string;
   organizationDisplayName?: string;
+  organizationId?: string;
+  issuerId?: string;
+  verificationMethod?: string;
+  keyFingerprint?: string;
+  keyVersion?: number;
   documentStoreAddress?: string;
   documentStoreNetwork?: string;
   issueDate: string;
@@ -383,6 +395,15 @@ export function toOpenCertsCredentialSubject(
   if (data.certificateNo) result.certificateNo = data.certificateNo;
   if (data.courseLength != null) result.courseLength = data.courseLength;
   if (data.signedDate) result.signedDate = data.signedDate;
+  if (data.organizationId) result.organization_id = data.organizationId;
+  if (data.issuerId) {
+    result.issuer_id = data.issuerId;
+    result.issuer_name = data.issuerName;
+  }
+  if (data.issuerDid) result.did_used = data.issuerDid;
+  if (data.verificationMethod) result.verification_method = data.verificationMethod;
+  if (data.keyFingerprint) result.key_fingerprint = data.keyFingerprint;
+  if (data.keyVersion !== undefined) result.key_version = data.keyVersion;
 
   return result;
 }
@@ -936,7 +957,9 @@ function getMandatoryCredentialPointers(document: Record<string, unknown>): stri
 
   if (credentialSubject && typeof credentialSubject === "object") {
     for (const key of Object.keys(credentialSubject)) {
-      if (["id", "certificateId", "name", "email", "certificateType"].includes(key)) {
+      if (["id", "certificateId", "name", "email", "certificateType",
+        "organization_id", "issuer_id", "issuer_name", "did_used", "verification_method",
+        "key_fingerprint", "key_version", "issuerDisplayName", "organizationDisplayName"].includes(key)) {
         pointers.add(`/credentialSubject/${key.replace(/~/g, "~0").replace(/\//g, "~1")}`);
       }
     }
@@ -1477,15 +1500,9 @@ export interface DIDIssuanceResult {
 }
 
 /**
- * Signs an arbitrary credential document using the DID key pair configured
- * via the server-side DID_* environment variables.
- *
- * The `secretKeyOverride` parameter can be used to supply the
- * `secretKeyMultibase` value directly (e.g. entered by the user in the Sign
- * page).  When provided it takes precedence over the env var.  The other
- * three key fields (id, controller, publicKeyMultibase) are always read from
- * environment variables so there is no hardcoded issuer DID in the signing
- * flow.
+ * Production issuance supplies an issuer-owned signing context. It never mixes
+ * missing context fields with deployment keys. The context-free path is retained
+ * for legacy integrations, not used by the saved-template issuance endpoint.
  *
  * Returns `{ signed: true, credential }` on success or
  * `{ signed: false, error }` with an actionable message on failure.
@@ -1495,14 +1512,18 @@ export async function signDocumentWithDID(
   secretKeyOverride?: string,
   signingContext?: DIDSigningContext
 ): Promise<DIDIssuanceResult> {
-  const id = signingContext?.verificationMethod ??
+  const id = signingContext ? signingContext.verificationMethod :
     (process.env.DID_KEY_ID || process.env.NEXT_PUBLIC_DID_KEY_ID);
-  const controller = signingContext?.did ??
+  const controller = signingContext ? signingContext.did :
     (process.env.DID_CONTROLLER || process.env.NEXT_PUBLIC_DID_CONTROLLER);
-  const publicKeyMultibase = signingContext?.publicKeyMultibase ?? resolvePublicKeyMultibase();
-  const secretKeyMultibase = signingContext?.secretKeyMultibase ??
+  const publicKeyMultibase = signingContext ? signingContext.publicKeyMultibase : resolvePublicKeyMultibase();
+  const secretKeyMultibase = signingContext ? signingContext.secretKeyMultibase :
     (secretKeyOverride?.trim() || process.env.DID_PRIVATE_KEY_MULTIBASE);
 
+  if (signingContext && (!id || !controller || !publicKeyMultibase || !secretKeyMultibase ||
+      !id.startsWith(`${controller}#`) || credential.issuer !== controller)) {
+    return {credential,signed:false,error:"Issuer signing context is incomplete or does not match the credential issuer."};
+  }
   const missing: string[] = [];
   if (!id) missing.push("DID_KEY_ID");
   if (!controller) missing.push("DID_CONTROLLER");

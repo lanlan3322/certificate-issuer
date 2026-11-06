@@ -102,11 +102,16 @@ export const IssuerKeyService = {
     if (activationError) throw new IssuerKeyError("Managed key activation failed; refresh the issuer and its organization status.",409);
   },
 
-  async signer(issuerId: string): Promise<DIDSigningContext & {keyId:string}> {
+  async signer(issuerId: string): Promise<DIDSigningContext & {keyId:string; keyFingerprint:string; keyVersion:number}> {
     const key = await stored(issuerId);
+    const shared=await getSupabaseAdmin().from("issuer_keys").select("id")
+      .eq("fingerprint",key.fingerprint).eq("status","active").neq("issuer_id",issuerId).limit(1);
+    if(shared.error)throw new IssuerKeyError("Issuer signing key isolation could not be checked.");
+    if(shared.data?.length)throw new IssuerKeyError("This legacy signing key is shared by multiple issuers. Rotate and activate a dedicated issuer key before new issuance.",409);
     const binding=await ManagedDIDService.binding(issuerId,key.id);
     const {privateKey} = await material(key);
-    return {...signingMultikey(privateKey,binding.did,binding.verificationMethod),keyId:key.id};
+    return {...signingMultikey(privateKey,binding.did,binding.verificationMethod),
+      keyId:key.id,keyFingerprint:key.fingerprint,keyVersion:key.key_version};
   },
 
   async signerForStatus(did: string, issuerId?: string): Promise<DIDSigningContext> {

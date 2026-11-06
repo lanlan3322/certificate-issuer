@@ -25,6 +25,11 @@ export interface CredentialRecord {
   organizationId: string;
   issuerId: string;
   templateId: string | null;
+  issuerName: string | null;
+  didUsed: string | null;
+  keyFingerprint: string | null;
+  keyVersion: number | null;
+  signingKeyId: string | null;
   issuerProfileId: string | null;
   issuerDid: string | null;
   documentStoreAddress: string | null;
@@ -49,6 +54,11 @@ const mapRow = (row: Record<string, unknown>): CredentialRecord => ({
   id: String(row.id),
   organizationId: String(row.organization_id),
   issuerId: String(row.issuer_id),
+  issuerName: typeof row.issuer_name === "string" ? row.issuer_name : null,
+  didUsed: typeof row.did_used === "string" ? row.did_used : null,
+  keyFingerprint: typeof row.key_fingerprint === "string" ? row.key_fingerprint : null,
+  keyVersion: typeof row.key_version === "number" ? row.key_version : null,
+  signingKeyId: typeof row.signing_key_id === "string" ? row.signing_key_id : null,
   templateId: row.template_id ? String(row.template_id) : null,
   issuerProfileId: row.issuer_profile_id ? String(row.issuer_profile_id) : null,
   issuerDid: row.issuer_did ? String(row.issuer_did) : null,

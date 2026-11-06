@@ -54,7 +54,8 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
       calls.push(["issuer-owned-key",id,expected]);
       return {did:managedDid,
         verificationMethod:managedMethod,
-        publicKeyMultibase:"zPublic",secretKeyMultibase:"zSecret"};
+        publicKeyMultibase:"zPublic",secretKeyMultibase:"zSecret",keyId:`${id}-key-1`,
+        keyFingerprint:`SHA256:${id}`,keyVersion:1};
     }}},
     "../../../lib/issuer-access": { requireIssuerAccess: async (_user, id) => {
       if (id !== "issuer-id" && !roles.includes("platform-admin")) throw new Error("Issuer access denied.");
@@ -164,6 +165,8 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
     issuerName: "untrusted client name",
     issuerDid: "did:web:attacker.example",
     issuerDisplayName: "Attacker",
+    organizationId:"attacker-org",issuerId:"attacker-issuer",verificationMethod:"did:web:attacker.example#key",
+    keyFingerprint:"SHA256:attacker",keyVersion:99,
     documentStoreAddress: "0x0000000000000000000000000000000000000002",
     issueDate: "2026-10-20",
     description: "",
@@ -205,6 +208,7 @@ test("issue route uses managed organization signing while retaining the template
     verificationMethod: managedMethod,
     publicKeyMultibase: "zPublic",
     secretKeyMultibase: "zSecret",
+    keyId:"issuer-id-key-1",keyFingerprint:"SHA256:issuer-id",keyVersion:1,
   });
   assert.equal(calls.some(([name]) => name === "legacy-key"), false);
 
@@ -221,6 +225,21 @@ test("issue route uses managed organization signing while retaining the template
   const registration = calls.find(([name]) => name === "register-store");
   assert.equal(registration[3].address, profile.documentStoreAddress);
   assert.equal(registration[3].network, profile.documentStoreNetwork);
+});
+
+test("template owner controls signed attribution and persisted key automatically; client signer metadata is ignored",async()=>{
+  for(const owner of ["issuer-id","other-issuer"]) {
+    const app=createRoute({templateOwner:owner,roles:["platform-admin"],profileMapped:false});
+    assert.equal((await app.post()).status,200);
+    const payload=app.calls.find(c=>c[0]==="payload")[1],saved=app.calls.find(c=>c[0]==="persist")[1];
+    assert.equal(payload.organizationId,"org-id");assert.equal(payload.issuerId,owner);
+    assert.equal(payload.issuerName,"Fintech Academy");assert.equal(payload.organizationDisplayName,"Example Organization");
+    assert.equal(payload.issuerDid,managedDid);assert.equal(payload.verificationMethod,managedMethod);
+    assert.equal(payload.keyFingerprint,`SHA256:${owner}`);assert.equal(payload.keyVersion,1);
+    assert.equal(saved.signingKeyId,`${owner}-key-1`);assert.equal(saved.issuerId,owner);
+    assert.equal(app.calls.find(c=>c[0]==="issuer-owned-key")[1],owner);
+    assert.equal(app.calls.some(c=>c[0]==="legacy-key"||c[0]==="profile-key"),false);
+  }
 });
 
 test("template owner controls issuance and sibling issuer access requires an assignment or platform permission", async () => {

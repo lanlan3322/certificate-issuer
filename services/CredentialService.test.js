@@ -57,6 +57,15 @@ const rows = Array.from({ length: 1205 }, (_, index) => ({
   status: index % 3 ? "issued" : "revoked", issued_at: "2026-11-05T00:00:00Z",
 }));
 
+test("credential records expose immutable signer metadata and preserve unknown legacy values",async()=>{
+  const {service}=loadService([{...rows[0],issuer_name:"Issuer at issuance",did_used:"did:web:academy.com",
+    key_fingerprint:"SHA256:public",key_version:2,signing_key_id:"key-2"},rows[1]]);
+  const [current,legacy]=await service.list("own-issuer",{platformAdmin:true});
+  assert.equal(current.issuerName,"Issuer at issuance");assert.equal(current.didUsed,"did:web:academy.com");
+  assert.equal(current.keyFingerprint,"SHA256:public");assert.equal(current.keyVersion,2);assert.equal(current.signingKeyId,"key-2");
+  for(const field of ["issuerName","didUsed","keyFingerprint","keyVersion","signingKeyId"])assert.equal(legacy[field],null);
+});
+
 test("platform admins read all issuers beyond the 100, 500 and 1000 record limits", async () => {
   const { service, calls } = loadService(rows);
   const credentials = await service.list("own-issuer", { platformAdmin: true });

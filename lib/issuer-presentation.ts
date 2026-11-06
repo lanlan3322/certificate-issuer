@@ -6,7 +6,7 @@ export function issuerPresentation(credential: Record<string, unknown> | null) {
   const issuerObject = issuer && typeof issuer === "object" ? issuer as Record<string, unknown> : {};
   const text = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : null;
   return {
-    issuerDisplayName: text(fields.issuerDisplayName) ?? text(issuerObject.name) ?? text(issuer) ?? "Not recorded",
+    issuerDisplayName: text(fields.issuer_name) ?? text(fields.issuerDisplayName) ?? text(issuerObject.name) ?? text(issuer) ?? "Not recorded",
     organizationDisplayName: text(fields.organizationDisplayName) ?? "Not recorded",
   };
 }

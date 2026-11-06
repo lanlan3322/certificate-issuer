@@ -138,6 +138,15 @@ test("issuer-specific signer resolves encrypted material, denies pending keys an
   app.key.status="active";app.owner.organization_id="other-org";
   await assert.rejects(app.service.signer(issuerId),/authentication failed/);
 });
+test("new issuance rejects shared active legacy material without disabling retained historical signing",async t=>{
+  const app=setup(t);
+  app.tables.issuer_keys.push({...app.key,id:"other-key",issuer_id:"other-issuer"});
+  await assert.rejects(app.service.signer(issuerId),error=>error.status===409&&/dedicated issuer key/.test(error.message));
+  app.tables.issuer_keys[1].status="retired";
+  const signer=await app.service.signer(issuerId);
+  assert.equal(signer.keyFingerprint,app.key.fingerprint);assert.equal(signer.keyVersion,1);
+});
+
 test("one-time ZIP contains a matching PKCS8 private PEM, public SPKI PEM and non-secret metadata",async t=>{
   const app=setup(t);
   const claims=await Promise.allSettled([1,2].map(()=>app.service.download(issuerId,actor,"192.0.2.1")));
