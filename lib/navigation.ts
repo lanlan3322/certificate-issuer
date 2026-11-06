@@ -26,6 +26,7 @@ const groups: Array<{ label: string; items: NavigationItem[] }> = [
     { href: "/verification", label: "JSON inspector", description: "Inspect credential data without verification" },
   ] },
   { label: "Administration", items: [
+    { href: "/billing", label: "Billing & usage", description: "Review subscription, limits and usage", permission: "billing.read" },
     { href: "/organizations", label: "Organizations", description: "Manage organizations and memberships", permission: "members.manage" },
     { href: "/admin", label: "Issuers", description: "Manage issuer profiles and user assignments", permission: "issuers.manage" },
     { href: "/organization-did", label: "DID Management", description: "Configure managed or customer-hosted identity and validate issuer methods" },

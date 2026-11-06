@@ -14,7 +14,7 @@ export default function AdminManualPage() {
         <p className="mt-3 text-slate-600 dark:text-slate-300">Configure your organization&apos;s CaaS workspace: set up issuer access, test credential workflows, and operate with appropriate controls.</p>
       </header>
       <nav aria-label="Admin manual sections" className="mb-8 flex flex-wrap gap-2 text-sm font-semibold">
-        {[["organizations", "Structure"], ["rbac", "RBAC"], ["issuer-members", "Issuer members"], ["issuer-keys", "Issuer keys"], ["document-stores", "Document Stores"], ["recovery", "Recovery"], ["operations", "Operations"], ["legal", "Legal & email"], ["pdpa", "PDPA procedures"], ["sign-off", "Sign-off status"]].map(([id, title]) => (
+        {[["organizations", "Structure"], ["rbac", "RBAC"], ["billing", "Billing & usage"], ["issuer-members", "Issuer members"], ["issuer-keys", "Issuer keys"], ["document-stores", "Document Stores"], ["recovery", "Recovery"], ["operations", "Operations"], ["legal", "Legal & email"], ["pdpa", "PDPA procedures"], ["sign-off", "Sign-off status"]].map(([id, title]) => (
           <a key={id} href={`#${id}`} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 py-2 text-cyan-800 hover:bg-cyan-50 dark:border-slate-600 dark:text-cyan-300 dark:hover:bg-slate-800">{title}</a>
         ))}
       </nav>
@@ -58,6 +58,19 @@ export default function AdminManualPage() {
             ]} />
             <aside className={noteStyle}><strong>Operational checks.</strong> Issuance resolves the issuer from the saved template; users do not choose a different issuer while issuing. Issuing, revoking and sending require an active issuer and organization. Deactivation retains historical records and does not change cryptographic verification.</aside>
           </div>
+        </section>
+
+        <section id="billing" aria-labelledby="billing-heading" className={sectionStyle}>
+          <h2 id="billing-heading" className="text-xl font-bold">Billing, subscriptions and usage</h2>
+          <p className="mt-3">Open Administration → Billing &amp; usage for your current plan, status, last/next renewal, expiry, usage and limits. Starter is SGD 49/month (1 issuer, 5 templates, 100 certificates/month); Professional is SGD 299/month (5 issuers, 10 templates, 1,000 certificates/month); Enterprise starts at SGD 899/month with unlimited resources.</p>
+          <ManualReference caption="Billing RBAC" headings={["Role", "Access"]} rows={[
+            ["platform_admin", "View all subscriptions and contracted MRR/ARR, review requests, assign plans/status/prices/renewals/expiry. No payment is collected by assigning a plan."],
+            ["organization_admin", "View own subscription and usage; request a plan change. Cannot grant a paid plan or mark payments complete."],
+            ["issuer / viewer", "No billing administration or financial dashboard access. Existing issuer permissions still govern credential operations."],
+          ]} />
+          <p className="mt-3">Warnings appear at 80% of finite allowances; the next creation is blocked once the allowance is used. Monthly issuance resets at the first day of each UTC month with no carry-forward. Non-deleted issuers and all saved templates, including inactive ones, consume resource slots. Revocation does not refund usage. Storage reports credential/template JSON bytes only and has no plan cap.</p>
+          <p className="mt-3">Existing organizations retain non-billable Enterprise access until explicitly assigned a contract. New organizations start on pending Starter and need platform activation. Pending, suspended, expired and canceled subscriptions block new creation, not reading, verification or revocation. A downgrade may immediately block creation without removing historical records.</p>
+          <aside className={noteStyle}>Online payments are not connected. Platform administrators record manually agreed contracts and renewal dates; assignment does not charge a card or reset monthly usage. MRR/ARR are contracted recurring run rates, not collected cash. Unpaid grandfathered access is excluded.</aside>
         </section>
 
         <section id="issuer-keys" aria-labelledby="issuer-keys-heading" className={sectionStyle}>

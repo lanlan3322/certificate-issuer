@@ -24,8 +24,8 @@ test("pricing page displays exact plan allowances, charges and reset terms", () 
   const cards = html.split('aria-labelledby="comparison-heading"')[0].split('<h3 class="text-lg font-semibold">').slice(1);
   assert.equal(cards.length, 3);
   const expected = [
-    ["Starter", "SGD 49", "/ Month", "1 Issuer", "3 Credential Templates", "100 Credentials Per Month", "resets each month", "Managed DID", "Basic Reporting", "Standard Support", "Start Free Consultation", "Membership organizations"],
-    ["Professional", "SGD 299", "/ Month", "★ Most Popular", "Up to 5 Issuers", "Up to 10 Credential Templates", "1,000 Credentials Per Month", "accumulate throughout the subscription year", "resets upon annual renewal", "Managed DID", "Advanced Reporting", "Priority Support", "Book a Demo", "Corporate learning departments"],
+    ["Starter", "SGD 49", "/ Month", "1 Issuer", "5 Credential Templates", "100 Credentials Per Month", "resets each month", "Managed DID", "Basic Reporting", "Standard Support", "Start Free Consultation", "Membership organizations"],
+    ["Professional", "SGD 299", "/ Month", "★ Most Popular", "Up to 5 Issuers", "Up to 10 Credential Templates", "1,000 Credentials Per Month", "first day of each UTC month", "does not carry forward", "Managed DID", "Advanced Reporting", "Priority Support", "Book a Demo", "Corporate learning departments"],
     ["Enterprise", "From SGD 899", "/ Month", "Unlimited Issuers", "Unlimited Templates", "Unlimited Credentials", "Dedicated Organization Portal", "Self-Managed DID", "Multi-Issuer DID Management", "DID Document Generator", "Verification Key Management", "Custom Branding", "Bulk Issuance", "Priority Support", "Dedicated Onboarding", "Universities", "Regulatory bodies", "Enterprises", "Government projects", "Professional licensing authorities", "Contact Sales"],
   ];
   cards.forEach((card, index) => {
@@ -55,7 +55,7 @@ test("final comparison, benefits, custom contact and metadata match enterprise c
     "Open Standards Compatible", "Need a Custom Solution?", "mailto:support@verifiable.sg",
     "All plans include credential verification, revocation support, and secure digital credential hosting.",
     "100 Credentials/Month", "1,000 Credentials/Month", "Credit Carry Forward",
-    "SGD 49/month", "SGD 299/month", "From SGD 899/month", "3 Templates", "Dedicated Support",
+    "SGD 49/month", "SGD 299/month", "From SGD 899/month", "5 Templates", "Dedicated Support",
   ]) assert.ok(html.includes(text), `Missing content: ${text}`);
   assert.match(html, /<table/);
   assert.equal((html.match(/scope="col"/g) ?? []).length, 4);

@@ -50,7 +50,10 @@ export const IssuerService = {
     const { data: reservation, error: reservationError } = await supabase.rpc("phase3_prepare_invitation", {
       p_input:{...input,id},p_key:{...key,keyVersion:1},p_role:role,p_actor:actorId,p_ip:ip,
     });
-    if (reservationError) throw new IssuerKeyError("Issuer and encrypted key could not be reserved; check for an existing invitation or issuer code.",409);
+    if (reservationError) {
+      if (reservationError.code === "P0001" && /^SUBSCRIPTION_(LIMIT|INACTIVE):/.test(reservationError.message)) throw reservationError;
+      throw new IssuerKeyError("Issuer and encrypted key could not be reserved; check for an existing invitation or issuer code.",409);
+    }
     if (!reservation?.issuer || !reservation.user_id) {
       throw new Error("Issuer invitation reservation is incomplete.");
     }
@@ -89,7 +92,10 @@ export const IssuerService = {
     const {data,error} = await getSupabaseAdmin().rpc("phase3_create_issuer",{
       p_input:{...input,id},p_key:{...key,keyVersion:1},p_actor:actorId,p_ip:ip,
     });
-    if (error) throw new IssuerKeyError("Issuer and encrypted key could not be created; check its organization and unique issuer code.",409);
+    if (error) {
+      if (error.code === "P0001" && /^SUBSCRIPTION_(LIMIT|INACTIVE):/.test(error.message)) throw error;
+      throw new IssuerKeyError("Issuer and encrypted key could not be created; check its organization and unique issuer code.",409);
+    }
     return mapRow(data);
   },
 

@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { getPlatformStats } from "@/lib/platform";
 import { getCurrentIssuerUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
+import { BillingMetricsPanel } from "../../components/BillingDashboard";
 
 export default async function PlatformPage() {
   const user = await getCurrentIssuerUser();
@@ -14,6 +15,7 @@ export default async function PlatformPage() {
   ] as const;
   const actions = [
     ["/organizations", "Organizations & members", "Create organizations, manage memberships and review access."],
+    ["/billing", "Subscriptions & usage", "Review contracted revenue, subscription requests and organization capacity."],
     ["/admin", "Issuer accounts", "Invite issuer users and manage account status."],
     ["/dashboard", "Credential oversight", "Review issued credentials across organizations."],
     ["/templates/builder", "Template management", "Maintain credential designs and organization ownership."],
@@ -29,6 +31,7 @@ export default async function PlatformPage() {
     <section aria-label="Platform summary" className="mb-8 grid grid-cols-2 gap-3 xl:grid-cols-4">
       {metrics.map(([label, value]) => <div key={label} className="stat-card"><p className="text-xs font-medium text-slate-500">{label}</p><p className="mt-2 text-3xl font-semibold tabular-nums">{value.toLocaleString()}</p></div>)}
     </section>
+    <div className="mb-8"><BillingMetricsPanel /></div>
     <section aria-labelledby="operations-heading">
       <h2 id="operations-heading" className="mb-4 text-xl font-semibold">Operations</h2>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

@@ -100,7 +100,7 @@ test("managed organization DID and status paths are public, host-independent and
     assert.equal((await proxy({nextUrl:{pathname:path},url:`https://verifiable.sg${path}`})).kind,"next");
   }
   const protectedProxy=load({authenticated:false}).proxy;
-  for(const path of ["/organizations/academy/private/","/organization-did/","/document-stores/"]) {
+  for(const path of ["/organizations/academy/private/","/organization-did/","/document-stores/","/billing/"]) {
     const result=await protectedProxy({nextUrl:{pathname:path,search:""},url:`https://verifiable.sg${path}`,
       cookies:{getAll:()=>[]}});
     assert.equal(result.kind,"redirect");
@@ -110,13 +110,13 @@ test("managed organization DID and status paths are public, host-independent and
 test("API calls avoid trailing-slash redirect requests while retaining authentication", async () => {
   for (const authenticated of [false, true]) {
     const { proxy } = load({ authenticated });
-    for (const pathname of ["/api/auth/me", "/api/verify", "/api/templates", "/api/credentials","/api/self-managed-dids","/api/organization-document-stores"]) {
+    for (const pathname of ["/api/auth/me", "/api/verify", "/api/templates", "/api/credentials","/api/self-managed-dids","/api/organization-document-stores","/api/subscriptions"]) {
       const request = {
         nextUrl: { pathname, search: "" }, url: `https://verifiable.sg${pathname}`,
         cookies: { getAll: () => [] },
       };
       const result = await proxy(request);
-      const protectedApi = ["/api/templates", "/api/credentials","/api/self-managed-dids","/api/organization-document-stores"].includes(pathname);
+      const protectedApi = ["/api/templates", "/api/credentials","/api/self-managed-dids","/api/organization-document-stores","/api/subscriptions"].includes(pathname);
       assert.equal(result.kind, protectedApi && !authenticated ? "json" : "next");
       if (protectedApi && !authenticated) assert.equal(result.status, 401);
     }

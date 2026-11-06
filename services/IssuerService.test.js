@@ -74,3 +74,14 @@ test("mail and profile-link failures are explicit, not success-shaped", async ()
   await assert.rejects(link.IssuerService.createWithInvitation(input, "issuer-operator", "actor", "url"),
     /Invitation sent.*could not be linked/);
 });
+
+test("issuer key provisioning preserves quota errors and never sends invitations after rejection",async()=>{
+  for(const message of ["SUBSCRIPTION_LIMIT: issuers","SUBSCRIPTION_INACTIVE: New creation blocked"]) {
+    const error={code:"P0001",message};
+    const invitation=setup({reservationError:error});
+    await assert.rejects(invitation.IssuerService.createWithInvitation(input,"issuer","actor","url"),e=>e===error);
+    assert.equal(invitation.calls.length,1);
+    const {IssuerService}=load({rpc:async()=>({data:null,error})});
+    await assert.rejects(IssuerService.create(input,"actor"),e=>e===error);
+  }
+});

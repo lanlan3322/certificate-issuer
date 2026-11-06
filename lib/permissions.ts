@@ -10,7 +10,8 @@ interface PermissionUser {
 export type Permission =
   | "organizations.manage" | "organizations.read" | "members.manage" | "users.manage"
   | "issuers.manage" | "templates.manage" | "credentials.read"
-  | "credentials.issue" | "credentials.revoke" | "credentials.send";
+  | "credentials.issue" | "credentials.revoke" | "credentials.send"
+  | "billing.read" | "billing.manage";
 
 const aliases: Record<string, Role> = {
   platform_admin: "platform_admin", "platform-admin": "platform_admin",
@@ -21,8 +22,8 @@ const aliases: Record<string, Role> = {
 
 const grants: Record<Role, readonly Permission[]> = {
   platform_admin: ["organizations.manage", "organizations.read", "members.manage", "users.manage",
-    "issuers.manage", "templates.manage", "credentials.read", "credentials.issue", "credentials.revoke", "credentials.send"],
-  organization_admin: ["organizations.read", "members.manage", "issuers.manage", "templates.manage", "credentials.read"],
+    "issuers.manage", "templates.manage", "credentials.read", "credentials.issue", "credentials.revoke", "credentials.send", "billing.read", "billing.manage"],
+  organization_admin: ["organizations.read", "members.manage", "issuers.manage", "templates.manage", "credentials.read", "billing.read"],
   issuer: ["organizations.read", "credentials.read", "credentials.issue", "credentials.revoke", "credentials.send"],
   viewer: ["organizations.read", "credentials.read"],
 };

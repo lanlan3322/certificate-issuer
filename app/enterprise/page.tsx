@@ -15,7 +15,7 @@ const plans = [
     annualSavings: "Save SGD 88.20/year",
     billing: "/ Month",
     description: "Perfect for trainers, coaches, consultants and small training providers.",
-    features: ["1 Issuer", "3 Credential Templates", "100 Credentials Per Month", "Managed DID", "Credential Verification Portal", "Credential Revocation", "Basic Reporting", "Standard Support"],
+    features: ["1 Issuer", "5 Credential Templates", "100 Credentials Per Month", "Managed DID", "Credential Verification Portal", "Credential Revocation", "Basic Reporting", "Standard Support"],
     note: "Credential allowance resets each month.",
     idealFor: ["Training providers", "Coaches", "Professional trainers", "Small academies", "Membership organizations"],
     cta: "Start Free Consultation",
@@ -28,8 +28,8 @@ const plans = [
     annualSavings: "Save SGD 538.20/year",
     billing: "/ Month",
     description: "Designed for schools, academies, certification bodies and growing organizations.",
-    features: ["Up to 5 Issuers", "Up to 10 Credential Templates", "1,000 Credentials Per Month", "Annual Credential Credit Carry Forward", "Managed DID", "Organization Branding", "Credential Verification Portal", "Credential Revocation", "Advanced Reporting", "Priority Support"],
-    note: "Unused credential credits accumulate throughout the subscription year. Credential balance resets upon annual renewal.",
+    features: ["Up to 5 Issuers", "Up to 10 Credential Templates", "1,000 Credentials Per Month", "Managed DID", "Organization Branding", "Credential Verification Portal", "Credential Revocation", "Advanced Reporting", "Priority Support"],
+    note: "Credential allowance resets on the first day of each UTC month. Unused allowance does not carry forward.",
     idealFor: ["Private schools", "Training academies", "Certification providers", "Professional associations", "Corporate learning departments"],
     cta: "Book a Demo",
     featured: true,
@@ -57,7 +57,7 @@ const benefits = [
 
 const comparison = [
   ["Issuers", "1 Issuer", "Up to 5 Issuers", "Unlimited Issuers"],
-  ["Credential Templates", "3 Templates", "Up to 10 Templates", "Unlimited Templates"],
+  ["Credential Templates", "5 Templates", "Up to 10 Templates", "Unlimited Templates"],
   ["Credentials", "100 Credentials/Month", "1,000 Credentials/Month", "Unlimited Credentials"],
   ["Credit Carry Forward", "Monthly reset", "Monthly reset", "Unlimited Credentials"],
   ["Digital Identity", "Managed DID", "Managed DID", "Self-Managed DID"],
@@ -76,6 +76,7 @@ export default function EnterprisePage() {
         <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">Plans for digital credential programmes</h1>
         <p className="mt-3 text-sm text-slate-600">Issue, verify, and manage digital credentials under your organization&apos;s brand. Choose a plan based on your issuer, template, and credential volumes.</p>
         <p className="mt-3 text-sm text-slate-600">All prices are in Singapore dollars (SGD).</p>
+        <p className="mt-3 text-sm text-slate-600">Subscriptions and quoted annual arrangements are approved by platform administrators. Online checkout is not connected. Monthly credential limits reset in UTC, including for annual arrangements; add-ons require a separately agreed plan change.</p>
       </div>
 
       <section aria-labelledby="plans-heading" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">

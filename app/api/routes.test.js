@@ -83,6 +83,7 @@ for (const group of groups) {
       "../issuers/[id]/keys/handler": {},
       "../issuers/[id]/keys/download/handler": {},
       "../organizations/handler": {},
+      "../subscriptions/handler": {},
       "../organizations/[id]/handler": {},
       "../organizations/[id]/members/handler": {},
       "../users/handler": {},

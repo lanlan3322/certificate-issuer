@@ -39,6 +39,15 @@ export async function authorize(
 
 /** Maps known error types to status codes without leaking internals. */
 export function errorResponse(error: unknown, fallback: string, fallbackStatus = 400) {
+  if (error && typeof error === "object" && "code" in error && error.code === "P0001" && "message" in error) {
+    const message = String(error.message);
+    if (message.startsWith("SUBSCRIPTION_LIMIT:")) {
+      return NextResponse.json({ error: "Plan limit reached. Request an upgrade in Billing & usage.", code: "SUBSCRIPTION_LIMIT" }, { status: 409 });
+    }
+    if (message.startsWith("SUBSCRIPTION_INACTIVE:")) {
+      return NextResponse.json({ error: "An active subscription is required for new creation. Contact your organization administrator.", code: "SUBSCRIPTION_INACTIVE" }, { status: 403 });
+    }
+  }
   if (
     error instanceof SupabaseConfigurationError
   ) {
