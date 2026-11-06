@@ -88,6 +88,7 @@ for (const group of groups) {
       "../users/handler": {},
       "../managed-dids/handler": {},
       "../self-managed-dids/handler": {},
+      "../organization-document-stores/handler": {},
     });
     const router = load(group.route, mocks);
     for (const [endpoint, , supported] of group.endpoints) {

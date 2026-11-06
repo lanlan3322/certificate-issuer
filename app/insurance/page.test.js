@@ -94,6 +94,7 @@ function setup({
       ? "2026-10-14T00:00:00.000Z"
       : null,
     fetch: async (url, options) => {
+      if (!options.body) return { ok: true, json: async () => ({ blockchainRegistration: "wallet" }) };
       calls.requests.push({ url, body: JSON.parse(options.body) });
       return { ok: status >= 200 && status < 300, status, json: async () => body };
     },
@@ -220,7 +221,7 @@ test("unavailable, loading, and failed template catalogs prevent issuance", asyn
 test("Ethereum issuance still requires a connected wallet", async () => {
   const { run, state, calls } = setup({ methods: ["did", "ethereum"] });
   await run();
-  assert.match(state.Errors[0], /connect MetaMask/);
+  assert.match(state.Errors[0], /connect MetaMask/i);
   assert.equal(calls.requests.length, 0);
 });
 

@@ -22,7 +22,7 @@ function load(mocks) {
   return instance.exports;
 }
 
-function createRoute({ statusProfile = "legacy", profileMapped = true, registrationError = false, registrationEnabled = true, templateOwner = "issuer-id", roles = ["issuer-operator"], available = true } = {}) {
+function createRoute({ statusProfile = "legacy", profileMapped = true, registrationError = false, registrationEnabled = true, templateOwner = "issuer-id", roles = ["issuer-operator"], available = true, organizationStore=null, storeFailure=false } = {}) {
   const calls = [];
   const pending = [];
   const defaultStore = {
@@ -48,6 +48,12 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
     secretKeyMultibase: "zSecret",
   };
   const mocks = {
+    "../../../services/OrganizationDocumentStoreService":{
+      OrganizationDocumentStoreError:class extends Error{},
+      OrganizationDocumentStoreService:{active:async org=>{
+        calls.push(["organization-store",org]);if(storeFailure)throw new Error("Store lookup failed");return organizationStore;
+      }},
+    },
     "../../../lib/issuer-key-crypto":{IssuerKeyError:class extends Error{}},
     "../../../services/ManagedDIDService":{ManagedDIDError:class extends Error{}},
     "../../../services/IssuerKeyService":{IssuerKeyService:{signer:async(id,expected)=>{
@@ -183,7 +189,7 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
       ...overrides,
     }),
   }));
-  return { post, calls, profile, defaultStore, finish: async () => {
+  return { post, get:()=>route.GET(new Request("https://verifiable.sg/api/issue?templateId=template-row-id")), calls, profile, defaultStore, finish: async () => {
     for (const callback of pending) await callback();
   } };
 }
@@ -240,6 +246,23 @@ test("template owner controls signed attribution and persisted key automatically
     assert.equal(app.calls.find(c=>c[0]==="issuer-owned-key")[1],owner);
     assert.equal(app.calls.some(c=>c[0]==="legacy-key"||c[0]==="profile-key"),false);
   }
+});
+
+test("organization active store overrides profile/global configuration, is persisted and used for registration without trusting client input",async()=>{
+  const store={id:"store-a",address:"0x3333333333333333333333333333333333333333",network:"sepolia"};
+  for(const profileMapped of [true,false]) {
+    const app=createRoute({organizationStore:store,profileMapped});
+    assert.equal((await app.post()).status,200);
+    assert.deepEqual(app.calls.find(c=>c[0]==="organization-store"),["organization-store","org-id"]);
+    const payload=app.calls.find(c=>c[0]==="payload")[1],saved=app.calls.find(c=>c[0]==="persist")[1];
+    assert.equal(payload.documentStoreAddress,store.address);assert.equal(payload.documentStoreNetwork,"sepolia");
+    assert.equal(saved.organizationDocumentStoreId,store.id);assert.equal(saved.documentStoreAddress,store.address);
+    await app.finish();
+    assert.equal(app.calls.find(c=>c[0]==="register-store")[3].address,store.address);
+  }
+  const failed=createRoute({storeFailure:true});
+  assert.equal((await failed.post()).status,500);
+  assert.equal(failed.calls.some(c=>c[0]==="sign"||c[0]==="register-store"),false);
 });
 
 test("template owner controls issuance and sibling issuer access requires an assignment or platform permission", async () => {
@@ -352,6 +375,30 @@ test("TrustVC dual issuance uses signed status lists and persists separate block
   await finish();
   assert.equal(calls.some(([name]) => name === "register-store"), false);
   assert.equal(result.documentStore.address, record.documentStoreAddress);
+});
+
+test("organization TrustVC anchoring uses server wallet synchronously and returns explicit confirmation or failure",async()=>{
+  const store={id:"store-a",address:"0x3333333333333333333333333333333333333333",network:"sepolia"};
+  for(const registrationError of [false,true]) {
+    const app=createRoute({statusProfile:"trustvc",organizationStore:store,registrationError,registrationEnabled:false});
+    assert.equal((await (await app.get()).json()).blockchainRegistration,"server");
+    const response=await app.post({data:{id:"cert",recipientName:"Recipient",recipientEmail:"r@example.com",certificateType:"Course",issuingMethods:["did","ethereum"]}});
+    assert.equal(response.status,200);
+    const body=await response.json();
+    assert.equal(body.signed,true);assert.equal(body.stored.id,"credential-row-id");
+    assert.equal(body.blockchainRegistration,"server");
+    assert.equal(!!body.registration.error,registrationError);
+    assert.equal(body.registration.txHash,registrationError?undefined:"0xregistration");
+    const call=app.calls.find(c=>c[0]==="register-store");
+    assert.equal(call[1],`0x${"b".repeat(64)}`);
+    assert.equal(call[3].address,store.address);
+    assert.deepEqual(call[5],{required:true});
+    assert.ok(app.calls.some(c=>c[0]==="audit"&&c[1].action===(registrationError?"credential.registration_failed":"credential.registered")));
+    await app.finish();
+    assert.equal(app.calls.filter(c=>c[0]==="register-store").length,1);
+  }
+  assert.equal((await (await createRoute().get()).json()).blockchainRegistration,"wallet");
+  assert.equal((await createRoute({available:false}).get()).status,404);
 });
 
 test("TrustVC DID-only issuance signs list status without scheduling a blockchain registration", async () => {

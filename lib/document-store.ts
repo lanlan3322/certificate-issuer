@@ -3,7 +3,7 @@
 // Handles on-chain hash registration via the OpenAttestation Document Store contract.
 // All operations are non-blocking and optional.
 
-import { Contract, isAddress, JsonRpcProvider, Wallet } from "ethers";
+import { Contract, id, isAddress, JsonRpcProvider, Wallet } from "ethers";
 import { DOCUMENT_STORE_CONFIG, NETWORKS } from "./constants";
 
 const DOCUMENT_STORE_ABI = [
@@ -56,6 +56,31 @@ export interface DocumentStoreConfig {
 
 export function getDefaultDocumentStoreConfig(): DocumentStoreConfig {
   return { address: DOCUMENT_STORE_ADDRESS, network: DEFAULT_DOCUMENT_STORE_NETWORK };
+}
+
+export async function testDocumentStoreConnection(config: DocumentStoreConfig): Promise<{signerAddress:string}> {
+  if(config.network!=="sepolia")throw new Error("New organization Document Stores support Sepolia only.");
+  const provider=getProvider(config.address,config.network);
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      (async()=>{
+        if((await provider.getNetwork()).chainId!==BigInt(NETWORKS.sepolia.chainId))throw new Error("Wrong chain.");
+        if(await provider.getCode(config.address)==="0x")throw new Error("No contract.");
+        const key=process.env.DOCUMENT_STORE_PRIVATE_KEY || process.env.SEPOLIA_DEPLOYER_PRIVATE_KEY;
+        if(!key)throw new Error("Transaction wallet is not configured.");
+        const signerAddress=new Wallet(key).address;
+        const contract=new Contract(config.address,[...DOCUMENT_STORE_ABI,
+          "function hasRole(bytes32 role,address account) view returns (bool)"],provider);
+        const issued=await contract.isIssued(id("verifiable.sg/document-store/connection-test"));
+        if(typeof issued!=="boolean" ||
+          !await contract.hasRole(id("ISSUER_ROLE"),signerAddress) ||
+          !await contract.hasRole(id("REVOKER_ROLE"),signerAddress))throw new Error("Missing contract permissions.");
+        return {signerAddress};
+      })(),
+      new Promise<never>((_,reject)=>{deadline=setTimeout(()=>reject(new Error("Connection test timed out.")),10_000);}),
+    ]);
+  } finally {if(deadline)clearTimeout(deadline);provider.destroy();}
 }
 
 function getProvider(address: string, network: string): JsonRpcProvider {
@@ -232,8 +257,8 @@ export async function revokeHash(
   }
 
   const tx = await (contract as Contract).revoke(hash);
-  const receipt = await tx.wait();
-  if (receipt?.status !== undefined && receipt.status !== 1) {
+  const receipt = await tx.wait(1,60_000);
+  if (!receipt || receipt.status !== 1) {
     throw new Error("Document Store revocation transaction failed.");
   }
   return { txHash: tx.hash, alreadyRevoked: false };

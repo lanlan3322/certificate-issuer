@@ -129,7 +129,7 @@ test("profile revocation stops before changing database state if Document Store 
     harness.service.apply({
       credentialRef: "certificate-123", issuerId: "issuer", action: "revoke", reason: "policy",
     }),
-    /store rejected transaction/
+    /Document Store revocation failed/
   );
   assert.equal(harness.operations.some(([name]) => name === "insert" || name === "update"), false);
 });
@@ -156,6 +156,20 @@ test("legacy credentials keep database-only revocation behavior", async () => {
   assert.equal(harness.chainCalls.length, 0);
   assert.equal(harness.operations.find(([name]) => name === "insert")[1].transaction_hash, "0xlegacy-tx");
   assert.equal(result.credentialStatus, "revoked");
+});
+
+test("organization credentials revoke the issuance-time store without an issuer profile or current-store lookup",async()=>{
+  const address="0x3333333333333333333333333333333333333333",hash=`0x${"a".repeat(64)}`;
+  for(const bitstring of [false,true]) {
+    const harness=createHarness({id:"credential",status:"issued",external_id:"cert",issuer_profile_id:null,
+      organization_document_store_id:"retained-store",document_store_address:address,document_store_network:"sepolia",
+      document_hash:hash,issuing_methods:["did","ethereum"],
+      credential:bitstring?{credentialStatus:[{type:"BitstringStatusListEntry"}]}:{credentialStatus:[{targetHash:hash}]}});
+    await harness.service.apply({credentialRef:"cert",issuerId:"issuer",action:"revoke",reason:"test"});
+    assert.deepEqual(harness.chainCalls,[[hash,{address,network:"sepolia"}]]);
+    if(bitstring)assert.equal(harness.operations.find(c=>c[0]==="rpc")[2].p_transaction,"0xchain-tx");
+    else assert.equal(harness.operations.find(c=>c[0]==="insert")[1].transaction_hash,"0xchain-tx");
+  }
 });
 
 test("profile Bitstring revocation revokes the saved Document Store before the atomic status update", async () => {

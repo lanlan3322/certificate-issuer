@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { getUserSafely, isSupabaseAuthCookie } from "./lib/supabase/session";
 
-const protectedPages = ["/admin", "/organizations", "/organization-did", "/audit", "/branding", "/dashboard", "/delivery", "/did", "/insurance", "/profile", "/revocation", "/wallet"];
+const protectedPages = ["/admin", "/organizations", "/organization-did", "/document-stores", "/audit", "/branding", "/dashboard", "/delivery", "/did", "/insurance", "/profile", "/revocation", "/wallet"];
 const protectedApiPrefixes = [
   "/api/issuers",
   "/api/organizations",
@@ -15,6 +15,7 @@ const protectedApiPrefixes = [
   "/api/audit",
   "/api/managed-dids",
   "/api/self-managed-dids",
+  "/api/organization-document-stores",
 ];
 
 export async function proxy(request: NextRequest) {

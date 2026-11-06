@@ -204,7 +204,7 @@ export default function BatchIssuePanel({
     return getNextYearSameDateInputValue(today);
   });
   const certificateFormat = "v1";
-  const walletRequired = issuingMethods.includes("ethereum");
+  const walletRequired = issuingMethods.includes("ethereum") && !issuingMethods.includes("did");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validRows = rows.filter((r) => r.errors.length === 0);
@@ -336,7 +336,15 @@ export default function BatchIssuePanel({
         let payload = buildVCPayload(certData, certificateFormat);
         let txHash: string | undefined;
         let selectedStore: { address: string; network: string } | undefined;
+        let serverRegistered = false;
 
+        if (issuingMethods.includes("ethereum")) {
+          const preview = await fetch(withBasePath(`/api/issue?templateId=${encodeURIComponent(selectedTemplate.id)}`), { cache: "no-store" });
+          const mode = await preview.json();
+          if (!preview.ok) throw new Error(mode.error || "Unable to resolve issuance Document Store.");
+          if (mode.blockchainRegistration === "server" && !issuingMethods.includes("did")) throw new Error("Select DID issuance to use the organization's Document Store and issuer identity.");
+          if (mode.blockchainRegistration !== "server" && !connected) throw new Error("Connect MetaMask for legacy wallet-based Ethereum issuance.");
+        }
         if (issuingMethods.includes("did")) {
           const response = await fetch(withBasePath("/api/issue"), {
             method: "POST",
@@ -355,6 +363,8 @@ export default function BatchIssuePanel({
             credential?: Record<string, unknown>;
             error?: string;
             documentStore?: { address: string; network: string };
+            blockchainRegistration?: "server" | "wallet";
+            registration?: { txHash?: string; alreadyRegistered?: boolean; error?: string };
           };
           if (!response.ok || !result.signed || !result.credential?.proof) {
             throw new Error(
@@ -367,9 +377,16 @@ export default function BatchIssuePanel({
           payload = result.credential as ReturnType<typeof buildVCPayload>;
           selectedStore = result.documentStore;
           txHash = certData.id;
+          if (result.blockchainRegistration === "server") {
+            if (!result.registration) throw new Error("Server did not return blockchain registration status.");
+            if (result.registration.error) throw new Error(`Credential saved, but blockchain registration failed: ${result.registration.error}`);
+            if (!result.registration.txHash && !result.registration.alreadyRegistered) throw new Error("Credential saved without confirmed blockchain registration.");
+            serverRegistered = true;
+            txHash = result.registration.txHash;
+          }
         }
 
-        if (walletRequired) {
+        if (issuingMethods.includes("ethereum") && !serverRegistered) {
           await switchToSepolia();
           const signer = await getSigner();
           if (!issuingMethods.includes("did")) {

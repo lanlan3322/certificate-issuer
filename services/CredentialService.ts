@@ -4,6 +4,7 @@ import { parseStoredCredential } from "../lib/stored-credential";
 export interface CredentialInput {
   issuerId: string;
   signingKeyId?: string;
+  organizationDocumentStoreId?: string;
   templateId: string;
   issuerProfileId?: string;
   issuerDid?: string;
@@ -30,6 +31,7 @@ export interface CredentialRecord {
   keyFingerprint: string | null;
   keyVersion: number | null;
   signingKeyId: string | null;
+  organizationDocumentStoreId: string | null;
   issuerProfileId: string | null;
   issuerDid: string | null;
   documentStoreAddress: string | null;
@@ -59,6 +61,7 @@ const mapRow = (row: Record<string, unknown>): CredentialRecord => ({
   keyFingerprint: typeof row.key_fingerprint === "string" ? row.key_fingerprint : null,
   keyVersion: typeof row.key_version === "number" ? row.key_version : null,
   signingKeyId: typeof row.signing_key_id === "string" ? row.signing_key_id : null,
+  organizationDocumentStoreId: typeof row.organization_document_store_id === "string" ? row.organization_document_store_id : null,
   templateId: row.template_id ? String(row.template_id) : null,
   issuerProfileId: row.issuer_profile_id ? String(row.issuer_profile_id) : null,
   issuerDid: row.issuer_did ? String(row.issuer_did) : null,
@@ -149,6 +152,7 @@ export const CredentialService = {
     const payload = {
       issuer_id: input.issuerId,
       ...(input.signingKeyId ? {signing_key_id:input.signingKeyId} : {}),
+      ...(input.organizationDocumentStoreId ? {organization_document_store_id:input.organizationDocumentStoreId} : {}),
       template_id: input.templateId ?? null,
       issuer_profile_id: input.issuerProfileId ?? null,
       issuer_did: input.issuerDid ?? null,

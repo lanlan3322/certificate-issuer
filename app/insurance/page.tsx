@@ -304,7 +304,7 @@ export default function InsurancePage() {
 
     setErrors([]);
 
-    if (issuingMethods.includes("ethereum") && !connected) {
+    if (issuingMethods.includes("ethereum") && !issuingMethods.includes("did") && !connected) {
       setErrors(["Please connect MetaMask to sign the selected certificate."]);
       return;
     }
@@ -316,6 +316,13 @@ export default function InsurancePage() {
     setEthereumResult(null);
 
     try {
+      if (issuingMethods.includes("ethereum")) {
+        const preview = await fetch(withBasePath(`/api/issue?templateId=${encodeURIComponent(formData.templateId)}`), { cache: "no-store" });
+        const mode = await preview.json();
+        if (!preview.ok) throw new Error(mode.error || "Unable to resolve issuance Document Store.");
+        if (mode.blockchainRegistration === "server" && !issuingMethods.includes("did")) throw new Error("Select DID issuance to use the organization's Document Store and issuer identity.");
+        if (mode.blockchainRegistration !== "server" && !connected) throw new Error("Connect MetaMask for legacy wallet-based Ethereum issuance.");
+      }
       const now = getISODateString();
       const validFromIso = formData.hasValidity
         ? dateInputToISO(formData.validFrom)
@@ -350,6 +357,7 @@ export default function InsurancePage() {
 
       let didCredential: Record<string, unknown> | undefined;
       let selectedStore: { address: string; network: string } | undefined;
+      let serverRegistered = false;
       if (issuingMethods.includes("did")) {
         // Signing and persistence both happen server-side; there is no browser
         // fallback because the signing key is never sent to the client.
@@ -373,6 +381,8 @@ export default function InsurancePage() {
           credential?: Record<string, unknown>;
           error?: string;
           documentStore?: { address: string; network: string };
+          blockchainRegistration?: "server" | "wallet";
+          registration?: { txHash?: string; alreadyRegistered?: boolean; error?: string };
         };
 
         if (!response.ok || resultPayload.error || !resultPayload.signed || !resultPayload.credential?.proof) {
@@ -394,9 +404,15 @@ export default function InsurancePage() {
         });
         didCredential = resultPayload.credential;
         selectedStore = resultPayload.documentStore;
+        if (resultPayload.blockchainRegistration === "server") {
+          serverRegistered = true;
+          if (!resultPayload.registration) throw new Error("Server did not return blockchain registration status.");
+          setEthereumResult({ ...resultPayload.registration, documentStoreAddress: selectedStore?.address });
+          if (resultPayload.registration.txHash) setIssuedTxHash(resultPayload.registration.txHash);
+        }
       }
 
-      if (issuingMethods.includes("ethereum")) {
+      if (issuingMethods.includes("ethereum") && !serverRegistered) {
         try {
           if (network !== "sepolia") {
             await switchToSepolia();
@@ -831,12 +847,12 @@ export default function InsurancePage() {
                   )}
 
                   <div className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs text-cyan-800">
-                    DID credentials are signed by the server. MetaMask is required only for Ethereum issuance; it does not replace the issuer DID proof.
+                    Organization-owned stores use the server transaction wallet. MetaMask is required for legacy wallet-based Ethereum issuance only; it does not replace the issuer DID proof.
                   </div>
 
                   <button
                     onClick={handleIssue}
-                    disabled={issuing || templatesLoading || !!templateError || !availableTemplates.some((template) => template.id === formData.templateId) || (issuingMethods.includes("ethereum") && !connected)}
+                    disabled={issuing || templatesLoading || !!templateError || !availableTemplates.some((template) => template.id === formData.templateId) || (issuingMethods.includes("ethereum") && !issuingMethods.includes("did") && !connected)}
                     className="btn-primary w-full flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
                   >
                     {issuing ? (
@@ -916,19 +932,19 @@ export default function InsurancePage() {
                     {ethereumResult && (
                       <div
                         className={`p-3 rounded-lg border ${
-                          ethereumResult.txHash || ethereumResult.alreadyRegistered
+                          !ethereumResult.error && (ethereumResult.txHash || ethereumResult.alreadyRegistered)
                             ? "bg-green-50 border-green-200"
                             : "bg-red-50 border-red-200"
                         }`}
                       >
                         <div className="flex items-start space-x-2">
-                          {ethereumResult.txHash || ethereumResult.alreadyRegistered ? (
+                          {!ethereumResult.error && (ethereumResult.txHash || ethereumResult.alreadyRegistered) ? (
                             <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                           ) : (
                             <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                           )}
                           <div className="flex-1 min-w-0">
-                            {ethereumResult.txHash || ethereumResult.alreadyRegistered ? (
+                            {!ethereumResult.error && (ethereumResult.txHash || ethereumResult.alreadyRegistered) ? (
                               <>
                                 <p className="font-medium text-green-800 text-sm">
                                   {ethereumResult.alreadyRegistered

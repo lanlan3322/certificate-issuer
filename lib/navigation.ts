@@ -29,6 +29,7 @@ const groups: Array<{ label: string; items: NavigationItem[] }> = [
     { href: "/organizations", label: "Organizations", description: "Manage organizations and memberships", permission: "members.manage" },
     { href: "/admin", label: "Issuers", description: "Manage issuer profiles and user assignments", permission: "issuers.manage" },
     { href: "/organization-did", label: "DID Management", description: "Configure managed or customer-hosted identity and validate issuer methods" },
+    { href: "/document-stores", label: "Document Stores", description: "Manage organization blockchain anchoring contracts" },
     { href: "/audit", label: "Activity & audit", description: "Review organization activity", permission: "members.manage" },
     { href: "/platform", label: "Platform overview", description: "Review platform operations", permission: "organizations.manage" },
   ] },

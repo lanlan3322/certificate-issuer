@@ -67,12 +67,12 @@ export const RevocationService = {
     let lookup: { data: any; error: Error | null };
     if (isUuid) {
       lookup = await supabase.from("credentials").select(
-        "id, status, external_id, credential, issuer_profile_id, document_store_address, document_store_network"
+        "id, status, external_id, credential, issuer_profile_id, organization_document_store_id, document_hash, issuing_methods, document_store_address, document_store_network"
       )
         .eq("issuer_id", input.issuerId).eq("id", input.credentialRef).maybeSingle();
     } else {
       lookup = await supabase.from("credentials").select(
-        "id, status, external_id, credential, issuer_profile_id, document_store_address, document_store_network"
+        "id, status, external_id, credential, issuer_profile_id, organization_document_store_id, document_hash, issuing_methods, document_store_address, document_store_network"
       )
         .eq("issuer_id", input.issuerId).eq("external_id", input.credentialRef).maybeSingle();
     }
@@ -98,9 +98,10 @@ export const RevocationService = {
     if (Array.isArray(statuses) && statuses.some((entry: { type?: string }) =>
       entry?.type === "BitstringStatusListEntry")) {
       let transactionHash = input.transactionHash ?? null;
-      if (input.action === "revoke" && credential.issuer_profile_id &&
+      if (input.action === "revoke" && (credential.issuer_profile_id || credential.organization_document_store_id) &&
           (typeof document?.signature?.targetHash === "string" ||
-            statuses.some((entry: { targetHash?: unknown }) => typeof entry?.targetHash === "string"))) {
+            statuses.some((entry: { targetHash?: unknown }) => typeof entry?.targetHash === "string") ||
+            Array.isArray(credential.issuing_methods) && credential.issuing_methods.includes("ethereum") && credential.document_hash)) {
         transactionHash = await revokeProfileDocumentStore(credential, document);
       }
       const { data, error } = await getSupabaseAdmin().rpc("apply_bitstring_revocation", {
@@ -123,7 +124,7 @@ export const RevocationService = {
     }
 
     let transactionHash = input.transactionHash ?? null;
-    if (input.action === "revoke" && credential.issuer_profile_id) {
+    if (input.action === "revoke" && (credential.issuer_profile_id || credential.organization_document_store_id)) {
       transactionHash = await revokeProfileDocumentStore(credential, document);
     }
 
@@ -159,17 +160,19 @@ async function revokeProfileDocumentStore(
   }
   try {
     const result = await revokeHash(
-      extractCredentialTargetHash(document),
+      Array.isArray(credential.issuing_methods) && credential.issuing_methods.includes("ethereum") &&
+        typeof credential.document_hash==="string" && /^0x[\da-f]{64}$/i.test(credential.document_hash)
+        ? credential.document_hash : extractCredentialTargetHash(document),
       {
         address: String(credential.document_store_address),
         network: String(credential.document_store_network),
       }
     );
     return result.txHash ?? null;
-  } catch (error) {
-    console.error("[revocation] profile Document Store revocation failed", error);
+  } catch {
+    console.error("[revocation] Document Store revocation failed.",{code:"DOCUMENT_STORE_REVOCATION_FAILED"});
     throw new DocumentStoreRevocationError(
-      error instanceof Error ? error.message : "Document Store revocation failed."
+      "Document Store revocation failed. Check the issuance-time contract, RPC and server wallet permissions."
     );
   }
 }

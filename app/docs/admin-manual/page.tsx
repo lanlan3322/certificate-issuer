@@ -14,7 +14,7 @@ export default function AdminManualPage() {
         <p className="mt-3 text-slate-600 dark:text-slate-300">Configure your organization&apos;s CaaS workspace: set up issuer access, test credential workflows, and operate with appropriate controls.</p>
       </header>
       <nav aria-label="Admin manual sections" className="mb-8 flex flex-wrap gap-2 text-sm font-semibold">
-        {[["organizations", "Structure"], ["rbac", "RBAC"], ["issuer-members", "Issuer members"], ["issuer-keys", "Issuer keys"], ["recovery", "Recovery"], ["operations", "Operations"], ["legal", "Legal & email"], ["pdpa", "PDPA procedures"], ["sign-off", "Sign-off status"]].map(([id, title]) => (
+        {[["organizations", "Structure"], ["rbac", "RBAC"], ["issuer-members", "Issuer members"], ["issuer-keys", "Issuer keys"], ["document-stores", "Document Stores"], ["recovery", "Recovery"], ["operations", "Operations"], ["legal", "Legal & email"], ["pdpa", "PDPA procedures"], ["sign-off", "Sign-off status"]].map(([id, title]) => (
           <a key={id} href={`#${id}`} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 py-2 text-cyan-800 hover:bg-cyan-50 dark:border-slate-600 dark:text-cyan-300 dark:hover:bg-slate-800">{title}</a>
         ))}
       </nav>
@@ -81,6 +81,23 @@ export default function AdminManualPage() {
             ["Maintain verification", "Keep customer files and historical public methods online permanently. Republish and revalidate after issuer/key changes; renew the signed linkage before expiry. Every new self-managed issuance rechecks both live files. Stale, expired or unreachable deployment blocks issuance without automatic fallback; an administrator may explicitly select Managed DID."],
           ]} />
           <aside className={noteStyle}><strong>One retrieval only.</strong> The private ZIP cannot be retrieved again. A lost response cannot be retried, even if the browser did not save the file. Download failures may already have consumed the export; contact your administrator rather than retrying. Rotated versions do not receive another initial key export.</aside>
+        </section>
+
+        <section id="document-stores" aria-labelledby="document-stores-heading" className={sectionStyle}>
+          <h2 id="document-stores-heading" className="text-xl font-bold">Organization Document Stores</h2>
+          <p className="mt-3">Open Administration → Document Stores. An active organization contract overrides template-profile and platform legacy stores for new server-issued credentials only. Existing credentials retain their original contract and network for verification and revocation.</p>
+          <ManualReference caption="Document Store RBAC" headings={["Role", "Permissions"]} rows={[
+            ["platform_admin", "View/manage all organizations' stores; independently confirm contract authority and approve the assignment."],
+            ["organization_admin", "Add Sepolia contracts, test connection, activate approved stores or deactivate own stores."],
+            ["issuer / viewer", "Read own organization's Document Store status only. No configuration or blockchain tests."],
+          ]} />
+          <ManualFlow label="Activate an organization-owned Document Store" steps={[
+            ["Grant roles", "The contract owner grants the existing server transaction wallet ISSUER_ROLE and REVOKER_ROLE on an AccessControl-compatible Sepolia Document Store. Keep the funded wallet and RPC configured on the server; never enter private keys in the portal."],
+            ["Add and approve", "Add the contract address. A platform administrator independently confirms the organization's authority before approving. A successful connection test is not ownership proof."],
+            ["Test and activate", "Test Connection checks chain, deployed code, contract reads and wallet roles without sending a transaction or spending gas. Set Active Store repeats this test and switches stores atomically."],
+            ["Issue and retain", "Select DID plus Ethereum for automatic issuer signing and server registration; no MetaMask transaction is needed for organization stores. Check the returned blockchain result and audit events. Retain historical stores and revocation permissions after switching."],
+          ]} />
+          <aside className={noteStyle}>A failed active-store test blocks new issuance without fallback. Deactivating the store explicitly restores existing template-profile/platform selection for new issuance. A registration failure may leave a saved signed credential or submitted transaction; reconcile its audit record before reissuing. No contract is deployed automatically.</aside>
         </section>
 
         <section id="issuer-members" aria-labelledby="issuer-members-heading" className={sectionStyle}>

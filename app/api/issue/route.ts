@@ -21,12 +21,36 @@ import { OrganizationService } from "../../../services/OrganizationService";
 import { IssuerKeyService } from "../../../services/IssuerKeyService";
 import { IssuerKeyError } from "../../../lib/issuer-key-crypto";
 import { ManagedDIDError } from "../../../services/ManagedDIDService";
+import { OrganizationDocumentStoreService, OrganizationDocumentStoreError } from "../../../services/OrganizationDocumentStoreService";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 const MAX_FIELD = 512;
+
+export async function GET(request: Request) {
+  const auth = await authorize("credentials.issue");
+  if (auth.response) return auth.response;
+  try {
+    const template = await TemplateService.getAvailableForIssuance(
+      new URL(request.url).searchParams.get("templateId") ?? "",
+      { organizationId: auth.user.organizationId, platformAdmin: isPlatformAdmin(auth.user) }
+    );
+    if (!template?.isActive || !template.issuerId) {
+      return NextResponse.json({ error: "Select an active saved template." }, { status: 404 });
+    }
+    const issuer = await requireIssuerAccess(auth.user, template.issuerId, "operate", true);
+    const store = await OrganizationDocumentStoreService.active(issuer.organizationId);
+    return NextResponse.json({ blockchainRegistration: store ? "server" : "wallet" },
+      { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    if (error instanceof OrganizationDocumentStoreError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return errorResponse(error, "Unable to resolve issuance Document Store.", 500);
+  }
+}
 
 /**
  * Extracts the OpenCerts targetHash (bytes32) from a signed VC.
@@ -169,7 +193,8 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
-    if (issuerProfile &&
+    const organizationStore=await OrganizationDocumentStoreService.active(issuingIssuer.organizationId);
+    if (!organizationStore && issuerProfile &&
         (!issuerProfile.documentStoreAddress ||
           !/^0x[0-9a-f]{40}$/i.test(issuerProfile.documentStoreAddress) ||
           !issuerProfile.documentStoreNetwork ||
@@ -191,10 +216,10 @@ export async function POST(request: Request) {
       return errorResponse(error,"Issuer signing key could not be resolved.",503);
     }
 
-    const documentStore = issuerProfile ? {
+    const documentStore = organizationStore ?? (issuerProfile ? {
       address: issuerProfile.documentStoreAddress!,
       network: issuerProfile.documentStoreNetwork!,
-    } : getDefaultDocumentStoreConfig();
+    } : getDefaultDocumentStoreConfig());
     data = {
       ...data,
       templateId: resolveTemplateId(template.slug),
@@ -239,6 +264,7 @@ export async function POST(request: Request) {
       const record = await CredentialService.create({
         issuerId: issuingIssuer.id,
         signingKeyId:signingContext.keyId,
+        organizationDocumentStoreId:organizationStore?.id,
         templateId: template.id,
         issuerProfileId: issuerProfile?.id,
         issuerDid: signingContext.did,
@@ -272,7 +298,24 @@ export async function POST(request: Request) {
     }
 
     const ethereumSelected = data.issuingMethods?.includes("ethereum") === true;
-    if (!trustvcProfile && (ethereumSelected || isRegistered()) && targetHash) {
+    let serverRegistration: Awaited<ReturnType<typeof registerHash>> | undefined;
+    if (organizationStore && ethereumSelected && targetHash) {
+      serverRegistration = await registerHash(targetHash, {
+        credentialId: data.id, externalId: data.id, recipientEmail: data.recipientEmail, issuerId: issuingIssuer.id,
+      }, documentStore, async txHash => {
+        await AuditService.record({
+          organizationId: issuingIssuer.organizationId, issuerId: issuingIssuer.id, userId: user.id,
+          action: "credential.registration_submitted", entityType: "credential", entityId: stored.id,
+          metadata: { targetHash, documentStoreAddress: documentStore.address, documentStoreNetwork: documentStore.network, txHash },
+        });
+      }, { required: true });
+      await AuditService.record({
+        organizationId: issuingIssuer.organizationId, issuerId: issuingIssuer.id, userId: user.id,
+        action: serverRegistration.error ? "credential.registration_failed" : "credential.registered",
+        entityType: "credential", entityId: stored.id,
+        metadata: { targetHash, documentStoreAddress: documentStore.address, documentStoreNetwork: documentStore.network, ...serverRegistration },
+      });
+    } else if (!trustvcProfile && (ethereumSelected || isRegistered()) && targetHash) {
       const entityId = stored?.id;
       after(async () => {
         try {
@@ -320,9 +363,14 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ signed: true, credential: result.credential, stored,
-      ...(trustvcProfile && data.issuingMethods?.includes("ethereum")
+      ...(serverRegistration
+        ? { blockchainRegistration: "server", registration: {
+          ...serverRegistration, alreadyRegistered: serverRegistration.hashExists && !serverRegistration.registered,
+        }, documentStore }
+        : trustvcProfile && data.issuingMethods?.includes("ethereum")
         ? { blockchainRegistration: "wallet", documentStore } : {}) });
   } catch (error) {
+    if(error instanceof OrganizationDocumentStoreError)return NextResponse.json({error:error.message},{status:error.status});
     if (error instanceof DuplicateCredentialError) {
       return NextResponse.json({ signed: false, error: error.message }, { status: 409 });
     }

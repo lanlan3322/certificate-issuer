@@ -90,6 +90,7 @@ test("wallet action appears next to Issuing Methods only when Ethereum is select
 });
 
 test("TrustVC dual issuance registers the unchanged DID credential through MetaMask and reports rejection", async () => {
+  for (const server of [false, true]) {
   for (const rejected of [false, true]) {
   for (const relativePath of ["app/insurance/page.tsx"]) {
     const source = sourceFile(relativePath);
@@ -105,7 +106,7 @@ test("TrustVC dual issuance registers the unchanged DID credential through MetaM
     let ethereumResult;
     const store = { address: "0x1111111111111111111111111111111111111111", network: "sepolia" };
     const dependencies = {
-      issuingMethods: ["did", "ethereum"], connected: true, network: "sepolia",
+      issuingMethods: ["did", "ethereum"], connected: !server, network: "sepolia",
       templatesLoading: false, templateError: null,
       availableTemplates: [{ id: "fta", slug: "fta" }],
       withBasePath: (url) => url,
@@ -131,30 +132,33 @@ test("TrustVC dual issuance registers the unchanged DID credential through MetaM
         return rejected ? { error: "Transaction rejected by user." } : { credential, txHash: "0xtx" };
       },
       fetch: async (url, options) => {
+        if (!options.body) return { ok: true, json: async () => ({ blockchainRegistration: server ? "server" : "wallet" }) };
         requestBody = JSON.parse(options.body);
         return { ok: true, status: 200, json: async () => ({ signed: true, credential: signed,
-          documentStore: store, blockchainRegistration: "wallet" }) };
+          documentStore: store, blockchainRegistration: server ? "server" : "wallet",
+          ...(server ? { registration: rejected ? {error:"Transaction rejected by user.",txHash:"0xsubmitted"} : {txHash:"0xtx"} } : {}) }) };
       },
     };
     const run = new Function(...Object.keys(dependencies), `${javascript}\nreturn run;`)(
       ...Object.values(dependencies));
     await run();
     assert.deepEqual(error, []);
-    assert.strictEqual(anchored, signed);
+    assert.strictEqual(anchored, server ? undefined : signed);
     assert.equal(requestBody.statusProfile, "trustvc");
     assert.equal(ethereumResult.error, rejected ? "Transaction rejected by user." : undefined);
-    assert.equal(ethereumResult.txHash, rejected ? undefined : "0xtx");
+    assert.equal(ethereumResult.txHash, rejected ? (server?"0xsubmitted":undefined) : "0xtx");
+  }
   }
   }
 });
 
-test("Ethereum selection requires a connected wallet for the issuance button", () => {
+test("Ethereum-only requires a wallet; dual issuance can resolve an organization server wallet without MetaMask", () => {
   const source = sourceFile("app/insurance/page.tsx");
   assert.equal(source.text.includes("registration is pending on the platform"), false);
   const issueButton = findNode(source, (node) => ts.isJsxOpeningElement(node) &&
     node.tagName.getText(source) === "button" &&
     node.getText(source).includes("onClick={handleIssue}"));
-  assert.match(issueButton.getText(source), /issuingMethods\.includes\("ethereum"\) && !connected/);
+  assert.match(issueButton.getText(source), /issuingMethods\.includes\("ethereum"\) && !issuingMethods\.includes\("did"\) && !connected/);
 });
 
 test("FTA certificate displays date-only values in both date positions", () => {
@@ -363,6 +367,7 @@ test("Ethereum batches request MetaMask per row and never replace the DID proof"
   const javascript = ts.transpileModule(`const run = ${handler.initializer.getText(source)};`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
   }).outputText;
+  for (const server of [false,true]) {
   for (const rejected of [false, true]) {
     const signed = { proof: { proofValue: "did-proof" } };
     const store = { address: "0x1111111111111111111111111111111111111111", network: "sepolia" };
@@ -370,7 +375,7 @@ test("Ethereum batches request MetaMask per row and never replace the DID proof"
     let issued = [];
     let rows;
     const dependencies = {
-      connected: true, walletRequired: true, issuing: false, hasValidity: false,
+      connected: !server, walletRequired: false, issuing: false, hasValidity: false,
       issueDate: "2026-10-20",
       signedDate: "2026-10-20",
       templatesLoading: false, templateError: null,
@@ -395,20 +400,23 @@ test("Ethereum batches request MetaMask per row and never replace the DID proof"
         assert.equal(address, store.address);
         return rejected ? { error: "Transaction rejected by user." } : { txHash: "0xbatch" };
       },
-      fetch: async () => ({ ok: true, json: async () => ({
+      fetch: async (url,options) => ({ ok: true, json: async () => options.body ? ({
         signed: true, credential: signed, documentStore: store,
-      }) }),
+        blockchainRegistration:server?"server":"wallet",
+        ...(server?{registration:rejected?{error:"Transaction rejected by user."}:{txHash:"0xbatch"}}:{}),
+      }) : ({blockchainRegistration:server?"server":"wallet"}) }),
     };
     const run = new Function(...Object.keys(dependencies), `${javascript}\nreturn run;`)(
       ...Object.values(dependencies));
     await run();
-    assert.equal(walletRequests, 1);
+    assert.equal(walletRequests, server ? 0 : 1);
     assert.equal(rows[0].status, rejected ? "error" : "success");
     if (rejected) assert.match(rows[0].issueError, /rejected/);
     else {
       assert.equal(rows[0].txHash, "0xbatch");
       assert.strictEqual(issued[0].certificate, signed);
     }
+  }
   }
 });
 
