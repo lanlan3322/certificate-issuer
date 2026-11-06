@@ -84,8 +84,8 @@ export default function NavBar({ agentAvailable = false }: { agentAvailable?: bo
     {isNavigating && <PageLoadingIndicator />}
     <div className="mx-auto flex h-[72px] max-w-[1600px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
       <Link href="/" prefetch={false} onNavigate={() => navigate("/")} className="shrink-0 rounded-lg" aria-label="Verifiable.sg home">
-        <img src={withBasePath("/vs-light.png")} alt="Verifiable.sg" width={1420} height={300} className="h-auto w-[144px] dark:hidden sm:w-[185px]" />
-        <img src={withBasePath("/vs-dark.png")} alt="Verifiable.sg" width={1420} height={300} className="hidden h-auto w-[144px] dark:block sm:w-[185px]" />
+        <img src={withBasePath("/vs-light.png")} alt="Verifiable.sg" width={1084} height={236} className="h-auto w-[144px] dark:hidden sm:w-[185px]" />
+        <img src={withBasePath("/vs-dark.png")} alt="Verifiable.sg" width={1084} height={236} className="hidden h-auto w-[144px] dark:block sm:w-[185px]" />
       </Link>
       <nav aria-label="Primary navigation" className="hidden items-center gap-1 xl:flex">
         {primaryNavigation.map((item) => <Link key={item.href} href={item.href} prefetch={false}

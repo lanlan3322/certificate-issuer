@@ -30,8 +30,8 @@ test("NavBar displays the matching cropped logo for each theme", () => {
   for (const name of ["vs-light.png", "vs-dark.png"]) {
     const png = fs.readFileSync(path.join(root, "public", name));
     assert.equal(png.subarray(1, 4).toString(), "PNG");
-    assert.equal(png.readUInt32BE(16), 1420);
-    assert.equal(png.readUInt32BE(20), 300);
+    assert.equal(png.readUInt32BE(16), 1084);
+    assert.equal(png.readUInt32BE(20), 236);
   }
 });
 
