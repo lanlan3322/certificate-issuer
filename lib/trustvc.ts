@@ -1237,10 +1237,15 @@ async function verifyBitstringStatuses(
     purposes.add(entry.statusPurpose);
     indices.add(entry.statusListIndex);
     const url = new URL(entry.statusListCredential);
-    const domain = managedSlug?"verifiable.sg":issuer.slice("did:web:".length);
+    const customerStatus=!managedSlug && issuer.slice(8)!=="verifiable.sg" &&
+      url.origin==="https://verifiable.sg" &&
+      /^\/organizations\/[a-z0-9][a-z0-9-]{0,62}\/self-managed\/status-list\//.test(url.pathname);
+    const domain = managedSlug || customerStatus?"verifiable.sg":issuer.slice("did:web:".length);
     const path = managedSlug
       ? new RegExp(`^/organizations/${managedSlug}/status-list/(0|[1-9][0-9]{0,9})/(revocation|suspension)$`).exec(url.pathname)
-      : /^\/api\/status-list\/(0|[1-9][0-9]{0,9})\/(revocation|suspension)$/.exec(url.pathname);
+      : customerStatus
+        ? /^\/organizations\/[a-z0-9][a-z0-9-]{0,62}\/self-managed\/status-list\/(0|[1-9][0-9]{0,9})\/(revocation|suspension)$/.exec(url.pathname)
+        : /^\/api\/status-list\/(0|[1-9][0-9]{0,9})\/(revocation|suspension)$/.exec(url.pathname);
     if (url.origin !== `https://${domain}` || url.search || url.hash || url.username || url.password ||
         !path || Number(path[1]) > 2147483647 || path[2] !== entry.statusPurpose ||
         entry.id !== `${url.href}#${entry.statusListIndex}` ||
@@ -1250,7 +1255,7 @@ async function verifyBitstringStatuses(
     if (managedSlug && url.href!==managedStatusURL(issuer,Number(path[1]),entry.statusPurpose)) {
       return {valid:false,message:"Managed status URL does not match the organization DID."};
     }
-    pages.add(path[1]);
+    pages.add(`${url.origin}${url.pathname.replace(/\/(revocation|suspension)$/,"")}`);
     const response = await loader(url.href);
     const listDocument: unknown = response.document;
     if (!isRecord(listDocument) || listDocument.id !== url.href || listDocument.issuer !== issuer ||

@@ -69,7 +69,8 @@ export async function statusGET(request:Request) {
       Number(page)>2147483647 || !["revocation","suspension"].includes(purpose||"")) {
       throw new ManagedDIDError("Invalid managed status-list identifier.",400);
     }
-    const document=await StatusListService.publishManaged(Number(page),purpose as "revocation"|"suspension",`${MANAGED_DID_PREFIX}${slug}`);
+    const did=params.get("hosting")==="self-managed"?await ManagedDIDService.customerStatusDID(slug):`${MANAGED_DID_PREFIX}${slug}`;
+    const document=await StatusListService.publishManaged(Number(page),purpose as "revocation"|"suspension",did);
     if (!document) throw new ManagedDIDError("Status list not found.",404);
     return NextResponse.json(document,{headers:{"Cache-Control":"no-store","Access-Control-Allow-Origin":"*","Content-Type":"application/vc+ld+json"}});
   }catch(error){return failure(error,true);}

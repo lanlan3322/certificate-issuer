@@ -6,6 +6,7 @@ import { isPlatformAdmin } from "../lib/permissions";
 import { withBasePath } from "../lib/site";
 import { managedDocumentURL } from "../lib/managed-did-urls";
 import type { ManagedDIDDocument } from "../lib/managed-did";
+import SelfManagedDIDPanel from "./SelfManagedDIDPanel";
 
 interface Identity {
   id:string;organizationId:string;did:string;status:string;method:string;hostingMode:string;
@@ -81,6 +82,7 @@ export default function OrganizationDIDPanel() {
       </select>
     </label>}
     {identity&&<>
+      <SelfManagedDIDPanel key={identity.organizationId} organizationId={identity.organizationId} />
       <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
         <h2 className="text-lg font-bold">Managed DID</h2>
         <p className="mt-3 break-all font-mono text-sm">{identity.did}</p>
@@ -111,7 +113,7 @@ export default function OrganizationDIDPanel() {
         <summary className="cursor-pointer font-semibold">Raw DID document (public keys only)</summary>
         <pre className="mt-4 max-h-[32rem] overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(identity.document,null,2)}</pre>
       </details>
-      <p className="text-sm text-slate-600 dark:text-slate-400">This view is read-only. DID editing, customer-hosted identities and self-managed DIDs are not available. Existing credentials and legacy DID URLs remain unchanged.</p>
+      <p className="text-sm text-slate-600 dark:text-slate-400">The managed identity remains read-only and available for historical verification even when customer-hosted issuance is selected. Existing credentials and legacy DID URLs remain unchanged.</p>
     </>}
   </section>;
 }

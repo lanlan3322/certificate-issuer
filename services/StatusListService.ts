@@ -45,7 +45,7 @@ export function requireStatusListConfiguration(profile?: StatusIssuerProfile) {
 
 export const StatusListService = {
   async reserveManaged(issuerId:string,externalId:string,did:string) {
-    if (process.env.ENABLE_BITSTRING_STATUS_LIST!=="true" || !managedDIDSlug(did)) {
+    if (process.env.ENABLE_BITSTRING_STATUS_LIST!=="true") {
       throw new Error("Managed Bitstring Status List issuance is not configured.");
     }
     const org=await ManagedDIDService.statusOwner(did);
@@ -56,16 +56,17 @@ export const StatusListService = {
     if (error || (typeof data!=="number" && (typeof data!=="string" || !/^(0|[1-9][0-9]*)$/.test(data))) ||
       !Number.isSafeInteger(Number(data)) || Number(data)<0) throw new Error("Managed status allocation failed.");
     const allocation=Number(data);
-    return (["revocation","suspension"] as const).map(purpose=>{
-      const url=managedStatusURL(did,Math.floor(allocation/131072),purpose);
+    return Promise.all((["revocation","suspension"] as const).map(async purpose=>{
+      const page=Math.floor(allocation/131072);
+      const url=managedDIDSlug(did)?managedStatusURL(did,page,purpose):await ManagedDIDService.statusURL(did,page,purpose);
       return{id:`${url}#${allocation%131072}`,type:"BitstringStatusListEntry",statusPurpose:purpose,
         statusListIndex:String(allocation%131072),statusListCredential:url};
-    });
+    }));
   },
   async publishManaged(page:number,purpose:StatusPurpose,did:string) {
     if (process.env.ENABLE_BITSTRING_STATUS_LIST!=="true") throw new Error("Status list publication is not enabled.");
     const org=await ManagedDIDService.statusOwner(did);
-    const url=managedStatusURL(did,page,purpose);
+    const url=managedDIDSlug(did)?managedStatusURL(did,page,purpose):await ManagedDIDService.statusURL(did,page,purpose);
     const {data,error}=await getSupabaseAdmin().rpc("phase4_read_status",{p_org:org,p_page:page});
     if (error) throw new Error("Managed status snapshot is unavailable.");
     if (data===null) return null;

@@ -14,17 +14,19 @@ const protectedApiPrefixes = [
   "/api/agent/analytics",
   "/api/audit",
   "/api/managed-dids",
+  "/api/self-managed-dids",
 ];
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const managedDocument=/^\/organizations\/([a-z0-9][a-z0-9-]{0,62})\/did\.json$/.exec(pathname);
-  const managedStatus=/^\/organizations\/([a-z0-9][a-z0-9-]{0,62})\/status-list\/(0|[1-9][0-9]{0,9})\/(revocation|suspension)\/?$/.exec(pathname);
+  const managedStatus=/^\/organizations\/([a-z0-9][a-z0-9-]{0,62})\/(self-managed\/)?status-list\/(0|[1-9][0-9]{0,9})\/(revocation|suspension)\/?$/.exec(pathname);
   if (managedDocument || managedStatus) {
     const target=new URL(managedDocument?"/api/public/managed-did":"/api/public/managed-status",request.url);
     target.searchParams.set("slug",(managedDocument||managedStatus)![1]);
     if (managedStatus) {
-      target.searchParams.set("page",managedStatus[2]);target.searchParams.set("purpose",managedStatus[3]);
+      target.searchParams.set("page",managedStatus[3]);target.searchParams.set("purpose",managedStatus[4]);
+      if(managedStatus[2])target.searchParams.set("hosting","self-managed");
     }
     const response=NextResponse.rewrite(target);
     response.headers.set("Access-Control-Allow-Origin","*");

@@ -23,6 +23,7 @@ function setup({platform=false,identities=[identity],fail=false}={}) {
   const module={exports:{}};
   new Function("require","module","exports","fetch","URL","document",javascript)(name=>{
     if(name==="react")return react;
+    if(name==="./SelfManagedDIDPanel")return{default:()=>null};
     if(name==="./WorkspaceSession")return{useWorkspaceSession:()=>({user:{id:"actor",organizationId:"org",roles:platform?["platform-admin"]:["issuer"]}})};
     if(name==="../lib/permissions")return{isPlatformAdmin:user=>user.roles.includes("platform-admin")};
     if(name==="../lib/site")return{withBasePath:path=>`/portal${path}`};

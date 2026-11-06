@@ -32,6 +32,7 @@ function document() {
 function setup(rows={}) {
   const requests=[];
   let error=null;
+  let deploymentError=false;
   const client={from(table) {
     let columns,range=[0,999];const filters=[];
     const query={
@@ -50,8 +51,10 @@ function setup(rows={}) {
   const {ManagedDIDService:service,ManagedDIDError}=load("ManagedDIDService.ts",{
     "../lib/supabase/server":{getSupabaseAdmin:()=>client,getSupabaseServerClient:async()=>client},
     "../lib/managed-did":{...urls,...validator},
+    "../lib/managed-did-urls":urls,
+    "../lib/self-managed-did":{assertCustomerDeployment:async()=>{if(deploymentError)throw new Error("Unreachable domain");},customerDomain:value=>value},
   });
-  return{service,ManagedDIDError,requests,setError:value=>error=value};
+  return{service,ManagedDIDError,requests,setError:value=>error=value,setDeploymentError:value=>deploymentError=value};
 }
 test("managed document allowlist rejects secret-bearing fields, foreign relationships and malformed curve keys",()=>{
   const valid=document();assert.deepEqual(validator.validateManagedDocument(valid,did),valid);
@@ -105,6 +108,32 @@ test("managed signing binding denies inactive methods/identities while historica
   identity.status="inactive";assert.equal((await app.service.binding(issuer,"key",true)).did,did);
   binding.status="active";await assert.rejects(app.service.binding(issuer,"key"),error=>error.status===409);
 });
+
+test("selected self-managed signer validates live deployment, blocks stale/unreachable data and never falls back to managed",async()=>{
+  const identity={id:"did-id",organization_id:org,did,status:"active"};
+  const binding={issuer_id:issuer,key_id:"key",organization_id:org,organization_did_id:identity.id,verification_method:method,status:"active"};
+  const config={organization_id:org,domain:"academy.com",did:"did:web:academy.com",selected:true,revision:1,validated_revision:1,
+    validation_status:"valid",linkage_expires_at:"2099-01-01"};
+  const app=setup({organization_dids:[identity],organization_verification_methods:[binding],self_managed_dids:[config]});
+  const resolved=await app.service.binding(issuer,"key");
+  assert.equal(resolved.did,config.did);assert.equal(resolved.verificationMethod,method.replace(did,config.did));
+  assert.equal((await app.service.binding(issuer,"key",true)).did,did);
+  app.setDeploymentError(true);await assert.rejects(app.service.binding(issuer,"key"),error=>error.status===409);
+  app.setDeploymentError(false);
+  config.validated_revision=0;await assert.rejects(app.service.binding(issuer,"key"),/needs validation/);
+  config.selected=false;assert.equal((await app.service.binding(issuer,"key")).did,did);
+});
+test("customer status routing resolves retained organization ownership, not caller domains, even after deselection",async()=>{
+  const app=setup({organization_dids:[{organization_id:org,path_slug:"academy",did}],
+    self_managed_dids:[{organization_id:org,did:"did:web:academy.com",selected:false}]});
+  assert.equal(await app.service.statusOwner("did:web:academy.com"),org);
+  assert.equal(await app.service.customerStatusDID("academy"),"did:web:academy.com");
+  assert.equal(await app.service.statusURL("did:web:academy.com",1,"suspension"),
+    "https://verifiable.sg/organizations/academy/self-managed/status-list/1/suspension");
+  assert.equal(await app.service.statusURL(did,1,"suspension"),urls.managedStatusURL(did,1,"suspension"));
+  await assert.rejects(app.service.statusOwner("did:web:unknown.com"),error=>error.status===404);
+  await assert.rejects(app.service.customerStatusDID("unknown"),error=>error.status===404);
+});
 test("managed APIs enforce tenant scope, expose public-only documents, audit explicit downloads and never audit HEAD",async()=>{
   const {ManagedDIDError}=setup();
   let user={id:"actor",organizationId:org,roles:["issuer"]},deny=false;
@@ -116,6 +145,7 @@ test("managed APIs enforce tenant scope, expose public-only documents, audit exp
       list:async scope=>{calls.push(["list",scope]);return[identity];},
       methods:async(...args)=>{calls.push(["methods",...args]);return[];},
       auditDownload:async(...args)=>calls.push(["audit",...args]),
+      customerStatusDID:async slug=>{calls.push(["customer",slug]);return"did:web:academy.com";},
       publicDocument:async slug=>{assert.equal(slug,"academy");return identity.document;},
     }},
     "../../../services/StatusListService":{StatusListService:{publishManaged:async(...args)=>{calls.push(["status",...args]);return{issuer:did};}}},
@@ -146,6 +176,9 @@ test("managed APIs enforce tenant scope, expose public-only documents, audit exp
   assert.deepEqual(await published.json(),identity.document);
   assert.equal((await handler.statusGET(req("?slug=academy&page=0&purpose=revocation"))).status,200);
   assert.deepEqual(calls.at(-1),["status",0,"revocation",did]);
+  assert.equal((await handler.statusGET(req("?slug=academy&page=1&purpose=suspension&hosting=self-managed&did=did:web:attacker.com"))).status,200);
+  assert.deepEqual(calls.at(-2),["customer","academy"]);
+  assert.deepEqual(calls.at(-1),["status",1,"suspension","did:web:academy.com"]);
   for(const query of ["?slug=academy&page=01&purpose=revocation","?slug=academy&page=2147483648&purpose=revocation",
     "?slug=academy:foreign&page=0&purpose=revocation","?slug=academy&page=0&purpose=invalid"]) {
     assert.equal((await handler.statusGET(req(query))).status,400);

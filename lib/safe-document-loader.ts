@@ -16,6 +16,7 @@ type PinnedLookupCallback = (
   family?: number
 ) => void;
 type SafeLoaderOptions = {
+  allowRedirects?: boolean;
   lookupAll?: (hostname: string) => Promise<Address[]>;
   fetchJson?: (url: URL, address: Address) => Promise<{ document: unknown; redirect?: string }>;
 };
@@ -126,7 +127,13 @@ export function didWebDocumentUrl(did: string): string {
 
 async function resolvePublicAddresses(hostname: string): Promise<Address[]> {
   if (!hostname || isIP(hostname)) throw new Error("Remote document host must be a DNS name.");
-  const records = await lookup(hostname, { all: true, verbatim: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const records = await Promise.race([
+    lookup(hostname, { all: true, verbatim: true }),
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("Remote document DNS lookup timed out.")), REQUEST_TIMEOUT_MS);
+    }),
+  ]).finally(() => { if (timer) clearTimeout(timer); });
   const addresses = records.map(({ address, family }) => ({
     address,
     family: family as 4 | 6,
@@ -157,6 +164,8 @@ function requestJson(url: URL, pinnedAddress: Address): Promise<{ document: unkn
       }
       const chunks: Buffer[] = [];
       let size = 0;
+      response.on("error", reject);
+      response.on("aborted", () => reject(new Error("Remote document response was interrupted.")));
       response.on("data", (chunk: Buffer | string) => {
         const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
         size += buffer.length;
@@ -177,6 +186,8 @@ function requestJson(url: URL, pinnedAddress: Address): Promise<{ document: unkn
     req.setTimeout(REQUEST_TIMEOUT_MS, () =>
       req.destroy(new Error("Remote document request timed out."))
     );
+    const deadline = setTimeout(() => req.destroy(new Error("Remote document request exceeded its deadline.")), REQUEST_TIMEOUT_MS);
+    req.on("close", () => clearTimeout(deadline));
     req.on("error", reject);
     req.end();
   });
@@ -196,6 +207,7 @@ async function fetchPublicJson(
   }
   const response = await (options.fetchJson ?? requestJson)(url, addresses[0]);
   if (response.redirect) {
+    if (options.allowRedirects === false) throw new Error("Redirects are not allowed for domain deployment validation.");
     if (redirectCount >= MAX_REDIRECTS) throw new Error("Remote document exceeded the redirect limit.");
     return fetchPublicJson(new URL(response.redirect, url), options, redirectCount + 1);
   }

@@ -1,5 +1,9 @@
 # Phase 4: Managed organization DID infrastructure
 
+The later [self-managed DID extension](SELF_MANAGED_DID_ARCHITECTURE.md) adds
+customer hosting alongside this retained managed identity. Statements below about
+excluding customer hosting describe the original Phase 4 scope only.
+
 ## Architecture review (before implementation)
 
 The existing application already uses DID Core, did:web, Multikey and TrustVC's

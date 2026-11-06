@@ -16,6 +16,7 @@ import * as organizationsId from "../organizations/[id]/handler";
 import * as organizationMembers from "../organizations/[id]/members/handler";
 import * as users from "../users/handler";
 import * as managedDIDs from "../managed-dids/handler";
+import * as selfManagedDIDs from "../self-managed-dids/handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,7 @@ const routes: Record<string, any> = {
   "organizations/[id]/members": organizationMembers,
   users,
   "managed-dids":managedDIDs,
+  "self-managed-dids":selfManagedDIDs,
   "managed-dids/methods":{GET:managedDIDs.methodsGET},
   "managed-dids/download":{POST:managedDIDs.downloadPOST},
   "public/managed-did":{GET:managedDIDs.publicGET},

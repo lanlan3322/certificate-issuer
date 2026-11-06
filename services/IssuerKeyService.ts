@@ -4,6 +4,8 @@ import { createSafeDocumentLoader } from "../lib/safe-document-loader";
 import type { DIDSigningContext } from "../lib/trustvc";
 import JSZip from "jszip";
 import { ManagedDIDService } from "./ManagedDIDService";
+import { createDomainLinkage, fetchCustomerDocument } from "../lib/self-managed-did";
+import { managedDIDSlug } from "../lib/managed-did-urls";
 
 interface StoredKey {
   id: string; issuer_id: string; public_key: string; public_key_multibase: string;
@@ -130,16 +132,38 @@ export const IssuerKeyService = {
 
   async signerForManagedStatus(did:string):Promise<DIDSigningContext> {
     const org=await ManagedDIDService.statusOwner(did);
-    const {data,error}=await getSupabaseAdmin().from("organization_verification_methods")
-      .select("issuer_id,key_id,verification_method").eq("organization_id",org)
-      .order("created_at",{ascending:false}).order("id").limit(1).maybeSingle();
-    if (error || !data) throw new IssuerKeyError("Managed status-list signer is unavailable.");
+    const customer=managedDIDSlug(did)?null:await fetchCustomerDocument(did.slice(8));
+    const permitted=customer?new Set(customer.assertionMethod):null;
+    let data: { issuer_id:string; key_id:string; verification_method:string } | undefined;
+    const pageSize=customer?200:1;
+    for(let offset=0;!data;offset+=pageSize) {
+      const {data:rows,error}=await getSupabaseAdmin().from("organization_verification_methods")
+        .select("issuer_id,key_id,verification_method").eq("organization_id",org)
+        .order("created_at",{ascending:false}).order("id").range(offset,offset+pageSize-1);
+      if(error)throw new IssuerKeyError("Managed status-list signer is unavailable.");
+      data=rows?.find(row=>!permitted || permitted.has(`${did}#${row.verification_method.split("#")[1]}`));
+      if(!rows || rows.length<pageSize || !customer)break;
+    }
+    if (!data) throw new IssuerKeyError("Managed status-list signer is unavailable.");
     const key=await stored(data.issuer_id,data.key_id);
     if (!["active","retired"].includes(key.status)) throw new IssuerKeyError("Managed status-list key is unusable.");
     const binding=await ManagedDIDService.binding(data.issuer_id,data.key_id,true);
-    if (binding.did!==did) throw new IssuerKeyError("Managed status-list ownership mismatch.");
+    if (!customer && binding.did!==did) throw new IssuerKeyError("Managed status-list ownership mismatch.");
     const {privateKey}=await material(key);
-    return signingMultikey(privateKey,did,binding.verificationMethod);
+    const method=customer?`${did}#${binding.verificationMethod.split("#")[1]}`:binding.verificationMethod;
+    if(customer && !customer.verificationMethod.some(entry=>entry.id===method && entry.publicKeyMultibase===key.public_key_multibase)) {
+      throw new IssuerKeyError("Customer status-list public key mismatch.");
+    }
+    return signingMultikey(privateKey,did,method);
+  },
+
+  async domainLinkage(issuerId:string,keyId:string,did:string,method:string) {
+    const key=await stored(issuerId,keyId);
+    if(key.status!=="active")throw new IssuerKeyError("An active issuer key is required for domain linkage.",409);
+    const binding=await ManagedDIDService.binding(issuerId,keyId,true);
+    if(method!==`${did}#${binding.verificationMethod.split("#")[1]}`)throw new IssuerKeyError("Domain linkage method mismatch.");
+    const {privateKey}=await material(key);
+    return createDomainLinkage(privateKey,did,method);
   },
 
   async download(issuerId: string,actorId: string,ip: string) {

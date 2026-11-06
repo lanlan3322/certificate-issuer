@@ -1,5 +1,6 @@
 import { getSupabaseAdmin, getSupabaseServerClient } from "../lib/supabase/server";
-import { managedDIDSlug, validateManagedDocument } from "../lib/managed-did";
+import { managedDIDSlug, managedStatusURL, validateManagedDocument } from "../lib/managed-did";
+import { assertCustomerDeployment, customerDomain } from "../lib/self-managed-did";
 
 export class ManagedDIDError extends Error {
   constructor(message="Managed organization identity is unavailable.",public readonly status=503){super(message);}
@@ -57,15 +58,49 @@ export const ManagedDIDService = {
     if (identity.error || !identity.data || !allowHistorical && identity.data.status!=="active") {
       throw new ManagedDIDError("Organization managed DID is inactive or missing.",409);
     }
+    if (!allowHistorical) {
+      const customer=await getSupabaseAdmin().from("self_managed_dids")
+        .select("domain,did,selected,revision,validated_revision,validation_status,expected_document,linkage_document,linkage_expires_at")
+        .eq("organization_id",data.organization_id).maybeSingle();
+      if(customer.error) throw new ManagedDIDError();
+      if(customer.data?.selected) {
+        const config=customer.data;
+        if(config.validation_status!=="valid" || config.revision!==config.validated_revision ||
+          !config.linkage_expires_at || Date.parse(config.linkage_expires_at)<=Date.now()) {
+          throw new ManagedDIDError("Self-managed DID deployment needs validation. No managed signing fallback is used.",409);
+        }
+        try {await assertCustomerDeployment(config);}
+        catch {throw new ManagedDIDError("Self-managed DID deployment is unavailable, expired or out of date. Republish and validate both files.",409);}
+        return {did:String(config.did),verificationMethod:`${config.did}${String(data.verification_method).slice(String(identity.data.did).length)}`};
+      }
+    }
     return {did:String(identity.data.did),verificationMethod:String(data.verification_method)};
   },
   async statusOwner(did:string) {
-    if (!managedDIDSlug(did)) throw new ManagedDIDError("Managed DID not found.",404);
-    const {data,error}=await getSupabaseAdmin().from("organization_dids").select("organization_id")
+    const managed=!!managedDIDSlug(did);
+    if (!managed) {
+      try {if(`did:web:${customerDomain(did.slice(8))}`!==did)throw new Error();}
+      catch {throw new ManagedDIDError("Organization DID not found.",404);}
+    }
+    const {data,error}=await getSupabaseAdmin().from(managed?"organization_dids":"self_managed_dids").select("organization_id")
       .eq("did",did).maybeSingle();
     if (error) throw new ManagedDIDError();
     if (!data) throw new ManagedDIDError("Managed DID not found.",404);
     return String(data.organization_id);
+  },
+  async statusURL(did:string,page:number,purpose:string) {
+    if(managedDIDSlug(did))return managedStatusURL(did,page,purpose);
+    const org=await this.statusOwner(did);
+    const {data,error}=await getSupabaseAdmin().from("organization_dids").select("did").eq("organization_id",org).single();
+    if(error || !data)throw new ManagedDIDError();
+    return managedStatusURL(data.did,page,purpose).replace("/status-list/","/self-managed/status-list/");
+  },
+  async customerStatusDID(slug:string) {
+    const {data,error}=await getSupabaseAdmin().from("organization_dids").select("organization_id").eq("path_slug",slug).maybeSingle();
+    if(error || !data)throw new ManagedDIDError("Organization DID not found.",404);
+    const customer=await getSupabaseAdmin().from("self_managed_dids").select("did").eq("organization_id",data.organization_id).maybeSingle();
+    if(customer.error || !customer.data)throw new ManagedDIDError("Customer DID not found.",404);
+    return String(customer.data.did);
   },
   async auditDownload(organizationId:string,actorId:string) {
     const {error}=await getSupabaseAdmin().rpc("phase4_audit_download",{p_org:organizationId,p_actor:actorId});

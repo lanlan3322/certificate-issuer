@@ -36,14 +36,15 @@ function setup(t,{status="active"}={}) {
     did_uri:"did:web:issuer.example",verification_method:"did:web:issuer.example#v1",
     organizations:{display_name:"Organization"}};
   const tables={issuers:[owner],issuer_keys:[key],issuer_profiles:[],
-    organization_verification_methods:[{id:"method",organization_id:org,issuer_id:issuerId,key_id:key.id,created_at:key.created_at}]};
+    organization_verification_methods:[{id:"method",organization_id:org,issuer_id:issuerId,key_id:key.id,created_at:key.created_at,
+      verification_method:`did:web:verifiable.sg:organizations:academy#issuer-${issuerId}-key-1`}]};
   const rpcCalls=[];
   let published={id:owner.did_uri,verificationMethod:[{id:owner.verification_method,type:"Multikey",
     controller:owner.did_uri,publicKeyMultibase:key.public_key_multibase}],assertionMethod:[owner.verification_method]};
   let rpcError=null;
   const client={
     from(table) {
-      const filters=[];let max=Infinity,sort;
+      const filters=[];let max=Infinity,sort,offset=0;
       const query={
         select(){return query;},eq(k,v){filters.push(r=>r[k]===v);return query;},
         neq(k,v){filters.push(r=>r[k]!==v);return query;},
@@ -52,10 +53,11 @@ function setup(t,{status="active"}={}) {
         gt(k,v){filters.push(r=>r[k]>v);return query;},
         order(k,{ascending=true}={}){sort={k,ascending};return query;},
         limit(n){max=n;return query;},
+        range(start,end){offset=start;max=end-start+1;return query;},
         result() {
           let data=tables[table].filter(r=>filters.every(filter=>filter(r)));
           if(sort)data=[...data].sort((a,b)=>(a[sort.k]>b[sort.k]?1:-1)*(sort.ascending?1:-1));
-          return{data:data.slice(0,max),error:null};
+          return{data:data.slice(offset,offset+max),error:null};
         },
         async single(){const result=query.result();return{data:result.data[0]??null,error:result.data.length===1?null:{message:"sensitive database diagnostics"}};},
         async maybeSingle(){const result=query.result();return{data:result.data[0]??null,error:result.data.length<=1?null:{message:"multiple rows"}};},
@@ -77,6 +79,9 @@ function setup(t,{status="active"}={}) {
   const {IssuerKeyService:service,assertPublishedKey}=load("IssuerKeyService.ts",{
     "../lib/supabase/server":{getSupabaseAdmin:()=>client},
     "../lib/issuer-key-crypto":crypto,
+    "../lib/managed-did-urls":{managedDIDSlug:did=>did.startsWith("did:web:verifiable.sg:organizations:")?"academy":null},
+    "../lib/self-managed-did":{fetchCustomerDocument:async()=>published,
+      createDomainLinkage:(privateKey,did,method)=>({document:{id:did,kid:method},expiresAt:"2099-01-01"})},
     "./ManagedDIDService":{ManagedDIDService:{statusOwner:async()=>org,binding:async(id,keyId)=>{
       assert.equal(id,issuerId);assert.equal(keyId,key.id);
       return{did:"did:web:verifiable.sg:organizations:academy",verificationMethod:`did:web:verifiable.sg:organizations:academy#issuer-${issuerId}-key-1`};
@@ -99,6 +104,27 @@ test("safe key reads expose only fingerprints to members and never serialize cip
     for(const field of ["encrypted_private_key","encryptedPrivateKey","created_by","export_claimed_at","PRIVATE KEY"])assert.ok(!text.includes(field));
     assert.ok(!text.includes(app.key.encrypted_private_key));
   }
+});
+test("customer status publication paginates retained history and uses a deployed owned method even after switching back or key retirement",async t=>{
+  const app=setup(t),did="did:web:academy.com",method=`${did}#issuer-${issuerId}-key-1`;
+  app.key.status="retired";
+  app.setPublished({id:did,verificationMethod:[{id:method,type:"Multikey",controller:did,
+    publicKeyMultibase:app.key.public_key_multibase}],assertionMethod:[method],authentication:[]});
+  const retained=app.tables.organization_verification_methods[0];retained.id="zretained";
+  app.tables.organization_verification_methods.unshift(...Array.from({length:1100},(_,i)=>({...retained,
+    id:`method-${String(i).padStart(4,"0")}`,verification_method:`did:web:verifiable.sg:organizations:academy#issuer-${issuerId}-key-${i+2}`})));
+  const signer=await app.service.signerForManagedStatus(did);
+  assert.equal(signer.did,did);assert.equal(signer.verificationMethod,method);
+  assert.equal(signer.publicKeyMultibase,app.key.public_key_multibase);
+  app.setPublished({id:did,verificationMethod:[],assertionMethod:[]});
+  await assert.rejects(app.service.signerForManagedStatus(did),/unavailable/);
+});
+test("domain linkage requires an active issuer-owned key and the exact retained method",async t=>{
+  const app=setup(t),did="did:web:academy.com",method=`${did}#issuer-${issuerId}-key-1`;
+  assert.equal((await app.service.domainLinkage(issuerId,app.key.id,did,method)).document.kid,method);
+  await assert.rejects(app.service.domainLinkage(issuerId,app.key.id,did,`${did}#foreign`),/mismatch/);
+  app.key.status="retired";
+  await assert.rejects(app.service.domainLinkage(issuerId,app.key.id,did,method),/active/);
 });
 test("issuer-specific signer resolves encrypted material, denies pending keys and never falls back to deployment secrets",async t=>{
   const app=setup(t);

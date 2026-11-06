@@ -50,6 +50,11 @@ export default function AdminManualPage() {
             ]} />
             <p className="mt-4">Organization and issuer permissions are separate and combine when both are assigned. A user has one membership role per issuer and may have different roles for different issuers. Removing a membership removes that assignment&apos;s grants on the next authorized request; organization or platform administrator grants still apply.</p>
             <p className="mt-4">Issuer key management is administrator-only and controlled by the key service&apos;s authorization. Issuer membership permits reading key metadata but does not itself grant rotation or export rights; non-managers see fingerprints only. The one-time initial export is further restricted to the original creating administrator.</p>
+            <ManualReference caption="DID Management RBAC" headings={["Role", "DID permissions"]} rows={[
+              ["platform_admin", "View organization DIDs across the platform; configure a customer domain, download generated public files, validate deployment and select issuance hosting mode for any organization."],
+              ["organization_admin", "View the organization's identities; configure its immutable customer domain, download public DID/linkage files, validate deployment and select managed or self-managed issuance."],
+              ["issuer / viewer", "Read the organization's public DID configuration and validation state. No configuration, downloads through the portal, validation requests or mode changes. Publicly hosted documents remain publicly readable."],
+            ]} />
             <aside className={noteStyle}><strong>Operational checks.</strong> Issuance resolves the issuer from the saved template; users do not choose a different issuer while issuing. Issuing, revoking and sending require an active issuer and organization. Deactivation retains historical records and does not change cryptographic verification.</aside>
           </div>
         </section>
@@ -64,9 +69,15 @@ export default function AdminManualPage() {
             ["Activate pending key", "An organization or platform administrator can explicitly activate a pending version. Activation publishes its managed verification method, retires the previous signing version and retains historical public methods for verification."],
           ]} />
           <ManualFlow label="Review managed organization identity" steps={[
-            ["Organization DID", "Open Organization DID from the workspace navigation. Platform administrators can select any organization; other members can view their own managed identity and assigned issuer method metadata."],
+            ["DID Management", "Open DID Management from the workspace navigation. Platform administrators can select any organization; other members can view their own managed identity and assigned issuer method metadata."],
             ["Public verification", "Each organization has one immutable did:web identity hosted by Verifiable.sg. Issuer methods contain only public keys. Disabling an issuer or organization blocks new signing without erasing historical verification methods."],
-            ["Read-only documents", "View the raw public DID document or explicitly download did.json. Downloads are audited. DID editing, customer-hosted and self-managed identities are not available."],
+            ["Read-only managed document", "View the raw public managed document or explicitly download did.json. Downloads are audited. The managed DID is retained permanently even when new issuance uses a customer-hosted identity."],
+          ]} />
+          <ManualFlow label="Configure a customer-hosted DID" steps={[
+            ["Configure domain", "An organization or platform administrator opens DID Management and enters a public domain such as academy.com, without scheme or path. The resulting did:web:academy.com and domain cannot be renamed. Self-managed controls hosting, not private-key custody."],
+            ["Download and deploy", "Create an active issuer, then download customer did.json and did-configuration.json. Publish both under https://academy.com/.well-known/ with valid HTTPS, HTTP 200, no redirects and browser-readable CORS headers. Files contain public issuer methods and a signed, expiring domain-linkage credential only."],
+            ["Validate and select", "Validate deployment and explicitly select Self-Managed DID. Server-side checks require the generated DID, public methods and valid linkage signature. Only new credentials use this DID; managed and legacy credentials are not rewritten. Status lists remain hosted by Verifiable.sg and signed under the customer's DID."],
+            ["Maintain verification", "Keep customer files and historical public methods online permanently. Republish and revalidate after issuer/key changes; renew the signed linkage before expiry. Every new self-managed issuance rechecks both live files. Stale, expired or unreachable deployment blocks issuance without automatic fallback; an administrator may explicitly select Managed DID."],
           ]} />
           <aside className={noteStyle}><strong>One retrieval only.</strong> The private ZIP cannot be retrieved again. A lost response cannot be retried, even if the browser did not save the file. Download failures may already have consumed the export; contact your administrator rather than retrying. Rotated versions do not receive another initial key export.</aside>
         </section>

@@ -16,7 +16,7 @@ function load(relative, mocks) {
   const requireWithMocks=instance.require;
   instance.require=name=>{
     if(name==="../lib/managed-did-urls")return load("../lib/managed-did-urls.ts",{});
-    if(name==="./ManagedDIDService")return{ManagedDIDService:{statusOwner:async()=> "org"}};
+    if(name==="./ManagedDIDService"&&!Object.hasOwn(mocks,name))return{ManagedDIDService:{statusOwner:async()=> "org"}};
     return requireWithMocks(name);
   };
   instance._compile(ts.transpileModule(readFileSync(filename, "utf8"), {
@@ -25,6 +25,47 @@ function load(relative, mocks) {
   }).outputText, filename);
   return instance.exports;
 }
+
+test("managed and customer status allocation share owned snapshots without changing each identity's URL or signer",async t=>{
+  const previous=process.env.ENABLE_BITSTRING_STATUS_LIST;
+  process.env.ENABLE_BITSTRING_STATUS_LIST="true";
+  t.after(()=>previous===undefined?delete process.env.ENABLE_BITSTRING_STATUS_LIST:process.env.ENABLE_BITSTRING_STATUS_LIST=previous);
+  const managed="did:web:verifiable.sg:organizations:academy",customer="did:web:academy.com";
+  for(const did of [managed,customer]) {
+    const calls=[],base=`https://verifiable.sg/organizations/academy${did===customer?"/self-managed":""}/status-list/1`;
+    const {StatusListService:service}=load("StatusListService.ts",{
+      "../lib/supabase/server":{getSupabaseAdmin:()=>({rpc:async(name,args)=>{
+        calls.push(["rpc",name,args]);return{data:name==="phase4_reserve_status"?131077:[{index:5,status:"issued"}],error:null};
+      }})},
+      "./ManagedDIDService":{ManagedDIDService:{
+        statusOwner:async identity=>{assert.equal(identity,did);return"org";},
+        statusURL:async(identity,page,purpose)=>{
+          assert.equal(identity,customer);assert.equal(page,1);return`${base}/${purpose}`;
+        },
+      }},
+      "./IssuerKeyService":{IssuerKeyService:{signerForManagedStatus:async identity=>{
+        calls.push(["signer",identity]);return{did:identity,verificationMethod:`${identity}#owned-key`};
+      }}},
+      "../lib/bitstring-status":{createStatusListDocument:async(id,issuer,purpose,entries)=>({id,issuer,purpose,entries})},
+      "../lib/trustvc":{signDocumentWithDID:async(document,secret,context)=>{
+        assert.equal(secret,undefined);assert.equal(context.did,did);return{signed:true,credential:document};
+      }},
+      "../lib/did-utils":{},"../lib/did-publication":{},"./IssuerProfileService":{},"./CredentialService":{},
+    });
+    const allocated=await service.reserveManaged("issuer","external",did);
+    for(const entry of allocated) {
+      assert.equal(entry.statusListIndex,"5");assert.equal(entry.statusListCredential,`${base}/${entry.statusPurpose}`);
+      assert.equal(entry.id,`${entry.statusListCredential}#5`);
+    }
+    const published=await service.publishManaged(1,"revocation",did);
+    assert.equal(published.id,`${base}/revocation`);assert.equal(published.issuer,did);
+    assert.deepEqual(calls.find(c=>c[0]==="signer"),["signer",did]);
+    assert.deepEqual(calls.filter(c=>c[0]==="rpc"),[
+      ["rpc","phase4_reserve_status",{p_org:"org",p_issuer:"issuer",p_external:"external"}],
+      ["rpc","phase4_read_status",{p_org:"org",p_page:1}],
+    ]);
+  }
+});
 
 test("status service is disabled by default, validates configuration and propagates RPC/signing failures", async (t) => {
   const names = ["ENABLE_BITSTRING_STATUS_LIST", "STATUS_LIST_BASE_URL"];
@@ -60,6 +101,7 @@ test("status service is disabled by default, validates configuration and propaga
       }),
     },
   });
+
   delete process.env.ENABLE_BITSTRING_STATUS_LIST;
   await assert.rejects(service.reserve("issuer", "external"), /not enabled/);
   assert.equal(calls.length, 0);

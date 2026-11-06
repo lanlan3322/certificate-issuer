@@ -85,6 +85,8 @@ test("managed organization DID and status paths are public, host-independent and
     ["/organizations/academy/did.json","/api/public/managed-did"],
     ["/organizations/academy/status-list/0/revocation","/api/public/managed-status"],
     ["/organizations/academy/status-list/1/suspension/","/api/public/managed-status"],
+    ["/organizations/academy/self-managed/status-list/0/revocation","/api/public/managed-status"],
+    ["/organizations/academy/self-managed/status-list/1/suspension/","/api/public/managed-status"],
   ]) {
     const result=await proxy({nextUrl:{pathname:path,search:"?slug=attacker"},url:`https://evil.example${path}?slug=attacker`,
       headers:new Headers({"x-forwarded-host":"foreign.example"})});
@@ -92,6 +94,7 @@ test("managed organization DID and status paths are public, host-independent and
     assert.equal(result.destination.searchParams.get("slug"),"academy");
     assert.equal(result.headers.get("access-control-allow-origin"),"*");
     if(path.includes("status-list"))assert.ok(result.destination.searchParams.has("purpose"));
+    assert.equal(result.destination.searchParams.get("hosting"),path.includes("/self-managed/")?"self-managed":null);
   }
   for(const path of ["/api/public/managed-did","/api/public/managed-status"]) {
     assert.equal((await proxy({nextUrl:{pathname:path},url:`https://verifiable.sg${path}`})).kind,"next");
@@ -107,13 +110,13 @@ test("managed organization DID and status paths are public, host-independent and
 test("API calls avoid trailing-slash redirect requests while retaining authentication", async () => {
   for (const authenticated of [false, true]) {
     const { proxy } = load({ authenticated });
-    for (const pathname of ["/api/auth/me", "/api/verify", "/api/templates", "/api/credentials"]) {
+    for (const pathname of ["/api/auth/me", "/api/verify", "/api/templates", "/api/credentials","/api/self-managed-dids"]) {
       const request = {
         nextUrl: { pathname, search: "" }, url: `https://verifiable.sg${pathname}`,
         cookies: { getAll: () => [] },
       };
       const result = await proxy(request);
-      const protectedApi = ["/api/templates", "/api/credentials"].includes(pathname);
+      const protectedApi = ["/api/templates", "/api/credentials","/api/self-managed-dids"].includes(pathname);
       assert.equal(result.kind, protectedApi && !authenticated ? "json" : "next");
       if (protectedApi && !authenticated) assert.equal(result.status, 401);
     }
