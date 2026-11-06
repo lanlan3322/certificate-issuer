@@ -88,12 +88,13 @@ export const IssuerProfileService = {
   async getForPublicDID(did: string) {
     const { data, error } = await getSupabaseAdmin()
       .from("issuer_profiles")
-      .select("id, did, verification_method, key_reference")
+      .select("id, owner_issuer_id, did, verification_method, key_reference")
       .eq("did", did)
       .maybeSingle();
     if (error) throw error;
     return data ? {
       id: String(data.id),
+      ownerIssuerId: String(data.owner_issuer_id),
       did: String(data.did),
       verificationMethod: String(data.verification_method),
       keyReference: String(data.key_reference),

@@ -38,6 +38,7 @@ test("status service is disabled by default, validates configuration and propaga
     "../lib/did-utils": { resolveDIDController: () => "did:web:verifiable.sg" },
     "../lib/did-publication": { isRootDidWeb: (did) => /^did:web:[a-z0-9.-]+$/.test(did) },
     "./IssuerProfileService": { IssuerProfileService: { getForPublicDID: async () => null } },
+    "./IssuerKeyService":{IssuerKeyService:{signerForStatus:async()=>({did:"did:web:verifiable.sg"})}},
     "../lib/bitstring-status": {
       statusListURL: (base) => {
         if (!base.startsWith("https://")) throw new Error("Invalid HTTPS origin");
@@ -94,6 +95,7 @@ test("profile status lists allocate, publish and sign with the selected issuer D
   const calls = [];
   const profile = {
     id: "profile-id",
+    ownerIssuerId:"issuer-id",
     did: "did:web:fta.verifiable.sg",
     verificationMethod: "did:web:fta.verifiable.sg#key-fta",
     keyReference: "FTA_SIGNING_KEY",
@@ -105,6 +107,11 @@ test("profile status lists allocate, publish and sign with the selected issuer D
     secretKeyMultibase: "zSecret",
   };
   const { StatusListService: service } = load("StatusListService.ts", {
+    "./IssuerKeyService":{IssuerKeyService:{signerForStatus:async(did,issuerId)=>{
+      calls.push(["load-owned-key",did,issuerId]);
+      return{did,verificationMethod:profile.verificationMethod,
+        publicKeyMultibase:keyPair.publicKeyMultibase,secretKeyMultibase:keyPair.secretKeyMultibase};
+    }}},
     "./CredentialService": { DuplicateCredentialError: class extends Error {} },
     "../lib/supabase/server": { getSupabaseAdmin: () => ({
       rpc: async (name, input) => {
@@ -154,6 +161,7 @@ test("profile status lists allocate, publish and sign with the selected issuer D
   const published = await service.publish(0, "revocation", profile.did);
   assert.equal(published.issuer, profile.did);
   assert.equal(published.id, "https://fta.verifiable.sg/api/status-list/0/revocation");
+  assert.deepEqual(calls.find(call=>call[0]==="load-owned-key"),["load-owned-key",profile.did,"issuer-id"]);
   assert.deepEqual(calls.find((call) => call[0] === "rpc" && call[1] === "read_profile_bitstring_status"), [
     "rpc", "read_profile_bitstring_status", { p_page: 0, p_profile: "profile-id" },
   ]);

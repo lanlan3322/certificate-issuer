@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { authorize, errorResponse } from "../../../lib/apiAuth";
+import { authorize, clientIp, errorResponse } from "../../../lib/apiAuth";
+import { IssuerKeyError } from "../../../lib/issuer-key-crypto";
 import { IssuerService, IssuerInvitationError, mapIssuerRow } from "../../../services/IssuerService";
 import { getSupabaseServerClient } from "../../../lib/supabase/server";
 import { withBasePath } from "../../../lib/site";
@@ -10,6 +11,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function mutationError(error: unknown, fallback: string) {
+  if (error instanceof IssuerKeyError) return NextResponse.json({error:error.message},{status:error.status});
   if (error && typeof error === "object" && "code" in error && error.code === "23505" &&
     "message" in error && String(error.message).includes("issuers_organization_code_key")) {
     return NextResponse.json({ error: "Issuer code is already used in this organization." }, { status: 409 });
@@ -86,11 +88,12 @@ export async function POST(request: Request) {
         { ...input, contactEmail: contactEmail.toLowerCase() },
         body.role,
         user.id,
-        new URL(withBasePath("/issuer/?mode=reset"), request.url).href
+        new URL(withBasePath("/issuer/?mode=reset"), request.url).href,
+        clientIp(request),
       );
       return NextResponse.json({ issuer, invitationSent: true }, { status: 201 });
     }
-    const issuer = await IssuerService.create(input);
+    const issuer = await IssuerService.create(input,user.id,clientIp(request));
 
     return NextResponse.json({ issuer }, { status: 201 });
   } catch (error) {

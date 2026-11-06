@@ -5,9 +5,7 @@ import {
   Building2,
   CheckCircle2,
   ExternalLink,
-  KeyRound,
   LoaderCircle,
-  Plus,
   RefreshCw,
   Save,
   ShieldAlert,
@@ -34,13 +32,10 @@ interface IssuerProfile {
 interface ProfileForm {
   issuerName: string;
   displayName: string;
-  did: string;
-  verificationMethod: string;
   documentStoreAddress: string;
   documentStoreNetwork: string;
   logoUrl: string;
   website: string;
-  keyReference: string;
 }
 
 interface ProfileResponse {
@@ -53,26 +48,20 @@ interface ProfileResponse {
 const emptyForm: ProfileForm = {
   issuerName: "",
   displayName: "",
-  did: "",
-  verificationMethod: "",
   documentStoreAddress: "",
   documentStoreNetwork: "",
   logoUrl: "",
   website: "",
-  keyReference: "",
 };
 
 function profilePayload(form: ProfileForm) {
   return {
     issuerName: form.issuerName.trim(),
     displayName: form.displayName.trim(),
-    did: form.did.trim(),
-    verificationMethod: form.verificationMethod.trim(),
     documentStoreAddress: form.documentStoreAddress.trim() || null,
     documentStoreNetwork: form.documentStoreNetwork.trim() || null,
     logoUrl: form.logoUrl.trim() || null,
     website: form.website.trim() || null,
-    ...(form.keyReference.trim() ? { keyReference: form.keyReference.trim() } : {}),
   };
 }
 
@@ -94,11 +83,9 @@ function didDocumentUrl(did: string) {
 function ProfileFormFields({
   form,
   setForm,
-  creating,
 }: {
   form: ProfileForm;
   setForm: (form: ProfileForm) => void;
-  creating: boolean;
 }) {
   const update = (field: keyof ProfileForm, value: string) =>
     setForm({ ...form, [field]: value });
@@ -124,49 +111,6 @@ function ProfileFormFields({
           className="input-field mt-1"
         />
       </label>
-      {creating && (
-        <>
-          <label className="text-sm font-medium text-slate-700 sm:col-span-2">
-            Issuer DID
-            <input
-              required
-              value={form.did}
-              onChange={(event) => update("did", event.target.value)}
-              className="input-field mt-1"
-              placeholder="did:web:academy.verifiable.sg"
-              autoCapitalize="none"
-              spellCheck={false}
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700 sm:col-span-2">
-            Verification method
-            <input
-              required
-              value={form.verificationMethod}
-              onChange={(event) => update("verificationMethod", event.target.value)}
-              className="input-field mt-1"
-              placeholder="did:web:academy.verifiable.sg#key-1"
-              autoCapitalize="none"
-              spellCheck={false}
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700 sm:col-span-2">
-            Signing key reference
-            <input
-              required
-              value={form.keyReference}
-              onChange={(event) => update("keyReference", event.target.value.toUpperCase())}
-              className="input-field mt-1 font-mono"
-              placeholder="ACADEMY_SIGNING_KEY"
-              autoCapitalize="characters"
-              spellCheck={false}
-            />
-            <span className="mt-1 block text-xs font-normal text-slate-500">
-              Enter the server-side secret reference only. Never enter or upload private-key material here.
-            </span>
-          </label>
-        </>
-      )}
       <label className="text-sm font-medium text-slate-700 sm:col-span-2">
         Document Store address
         <input
@@ -219,9 +163,7 @@ export default function DIDPage() {
   const [busyProfileId, setBusyProfileId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [createForm, setCreateForm] = useState<ProfileForm>(emptyForm);
   const [editForm, setEditForm] = useState<ProfileForm>(emptyForm);
 
   const loadProfiles = useCallback(async () => {
@@ -246,30 +188,6 @@ export default function DIDPage() {
 
   const activeCount = profiles.filter((profile) => profile.active).length;
   const inactiveCount = profiles.length - activeCount;
-
-  const submitCreate = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSaving(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const response = await fetch(withBasePath("/api/issuer-profiles"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profilePayload(createForm)),
-      });
-      const payload = (await response.json()) as ProfileResponse;
-      if (!response.ok) throw new Error(payload.error ?? "Unable to create issuer profile.");
-      setCreateForm(emptyForm);
-      setCreateOpen(false);
-      setNotice(`Issuer profile "${payload.issuerProfile?.displayName ?? createForm.displayName}" created.`);
-      await loadProfiles();
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Unable to create issuer profile.");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const beginEdit = (profile: IssuerProfile) => {
     setEditingId(profile.id);
@@ -339,54 +257,25 @@ export default function DIDPage() {
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-violet-700">DID lifecycle</p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-900">Issuer identity management</h1>
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-violet-700">Existing identities</p>
+          <h1 className="mt-2 text-3xl font-bold text-slate-900">Issuer identity registry</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            Manage the issuer identities used by your credential templates. Signing keys remain
-            server-managed and are never uploaded or displayed here.
+            Review existing identities and profile metadata used by credential templates.
+            Keys are issuer-owned and server-managed. New DID configuration is not available in this phase.
           </p>
         </div>
         {canManage && (
-          <button
-            type="button"
-            onClick={() => {
-              setCreateOpen((open) => !open);
-              setError(null);
-            }}
+          <a
+            href={withBasePath("/admin/")}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800"
           >
-            {createOpen ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {createOpen ? "Cancel" : "Add issuer profile"}
-          </button>
+            Manage issuer keys
+          </a>
         )}
       </div>
 
       {error && <div role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>}
       {notice && <div role="status" className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</div>}
-
-      {createOpen && canManage && (
-        <section className="mb-8 rounded-2xl border border-violet-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center gap-3">
-            <KeyRound className="h-5 w-5 text-violet-700" />
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900">Create issuer profile</h2>
-              <p className="text-sm text-slate-600">Create an identity for a credential issuer and select it on that issuer&apos;s templates.</p>
-            </div>
-          </div>
-          <form onSubmit={submitCreate} className="space-y-5">
-            <ProfileFormFields form={createForm} setForm={setCreateForm} creating />
-            <div className="flex flex-wrap gap-3">
-              <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60">
-                {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {saving ? "Creating..." : "Create profile"}
-              </button>
-              <p className="self-center text-xs text-slate-500">
-                Only <code>did:web</code> profiles are supported. Configure the referenced private key in the server secret store first.
-              </p>
-            </div>
-          </form>
-        </section>
-      )}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <SummaryCard label="Issuer profiles" value={profiles.length} />
@@ -420,7 +309,7 @@ export default function DIDPage() {
             <Building2 className="mx-auto h-8 w-8 text-slate-400" />
             <h3 className="mt-3 font-semibold text-slate-900">No issuer profiles yet</h3>
             <p className="mt-1 text-sm text-slate-600">
-              {canManage ? "Add a profile to assign a dedicated DID and signing configuration to a credential template." : "An issuer administrator can create profiles for this issuer."}
+              Existing published identities are retained here. New issuer keys are provisioned in issuer administration and remain pending until an existing matching verification method is available.
             </p>
           </div>
         ) : (
@@ -437,7 +326,7 @@ export default function DIDPage() {
                         <X className="h-5 w-5" />
                       </button>
                     </div>
-                    <ProfileFormFields form={editForm} setForm={setEditForm} creating={false} />
+                    <ProfileFormFields form={editForm} setForm={setEditForm} />
                     <p className="text-xs text-slate-500">
                       DID, verification method, and signing key reference are immutable after first use.
                       The key reference is hidden and remains managed by the platform.
@@ -524,7 +413,7 @@ export default function DIDPage() {
 
       {!canManage && !loading && profiles.length > 0 && (
         <p className="mt-5 rounded-lg bg-slate-100 p-3 text-sm text-slate-600">
-          You can view these issuer profiles. Contact an issuer administrator to create, edit, or deactivate profiles.
+          You can view these issuer profiles. Contact an issuer administrator to edit metadata or deactivate an existing profile.
         </p>
       )}
     </main>

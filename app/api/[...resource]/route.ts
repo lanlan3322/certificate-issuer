@@ -4,6 +4,8 @@ import * as credentialSend from "../credentials/send/handler";
 import * as issuers from "../issuers/handler";
 import * as issuersId from "../issuers/[id]/handler";
 import * as issuerMembers from "../issuers/[id]/members/handler";
+import * as issuerKeys from "../issuers/[id]/keys/handler";
+import * as issuerKeyDownload from "../issuers/[id]/keys/download/handler";
 import * as issuerProfiles from "../issuer-profiles/handler";
 import * as templates from "../templates/handler";
 import * as audit from "../audit/handler";
@@ -23,6 +25,8 @@ const routes: Record<string, any> = {
   issuers,
   "issuers/[id]": issuersId,
   "issuers/[id]/members": issuerMembers,
+  "issuers/[id]/keys": issuerKeys,
+  "issuers/[id]/keys/download": issuerKeyDownload,
   "issuer-profiles": issuerProfiles,
   templates,
   audit,

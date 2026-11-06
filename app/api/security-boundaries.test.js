@@ -13,6 +13,7 @@ function load(filename, mocks) {
   const normalRequire = instance.require.bind(instance);
   instance.require = (name) => {
     if (Object.hasOwn(mocks, name)) return mocks[name];
+    if(name.endsWith("/issuer-key-crypto"))return{IssuerKeyError:class extends Error{}};
     if (/\/lib\/(permissions|organization-input|issuer-input|issuer-presentation)$/.test(name)) return normalRequire(`${name}.ts`);
     return normalRequire(name);
   };
@@ -173,6 +174,7 @@ test("issuer creation is tenant-scoped except for platform-admins", async () => 
   const handler = load(path.resolve(__dirname, "issuers/handler.ts"), {
     "../../../lib/site": { withBasePath: (url) => url },
     "../../../lib/apiAuth": {
+      clientIp:()=>"192.0.2.1",
       authorize: async () => ({
         user: {
           id: "user-id", issuerId: "issuer-id", organizationId: "tenant-a", roles,
@@ -222,6 +224,7 @@ test("issuer invitations allow only supported roles and preserve tenant authoriz
   const handler = load(path.resolve(__dirname, "issuers/handler.ts"), {
     "../../../lib/site": { withBasePath: (url) => url },
     "../../../lib/apiAuth": {
+      clientIp:()=>"192.0.2.1",
       authorize: async () => ({
         user: { id: "actor", organizationId: "tenant-a", roles },
       }),

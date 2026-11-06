@@ -1,4 +1,6 @@
 import { getSupabaseAdmin, getSupabaseServerClient } from "../lib/supabase/server";
+import { randomUUID } from "node:crypto";
+import { IssuerKeyError, provisionKey } from "../lib/issuer-key-crypto";
 
 export interface IssuerInput {
   organizationId: string; name: string; slug: string; contactEmail: string; didUri?: string;
@@ -41,18 +43,14 @@ export const IssuerService = {
     if (error) throw error;
     return data ? mapRow(data) : null;
   },
-  async createWithInvitation(input: IssuerInput, role: IssuerUserRole, actorId: string, redirectTo: string) {
+  async createWithInvitation(input: IssuerInput, role: IssuerUserRole, actorId: string, redirectTo: string, ip = "unknown") {
     const supabase = getSupabaseAdmin();
-    const { data: reservation, error: reservationError } = await supabase.rpc("prepare_issuer_invitation", {
-      p_organization_id: input.organizationId,
-      p_name: input.name,
-      p_slug: input.slug,
-      p_email: input.contactEmail,
-      p_role: role,
-      p_actor_id: actorId,
-      p_did_uri: input.didUri ?? null,
+    const id = randomUUID();
+    const key = provisionKey(input.organizationId,id,1);
+    const { data: reservation, error: reservationError } = await supabase.rpc("phase3_prepare_invitation", {
+      p_input:{...input,id},p_key:{...key,keyVersion:1},p_role:role,p_actor:actorId,p_ip:ip,
     });
-    if (reservationError) throw reservationError;
+    if (reservationError) throw new IssuerKeyError("Issuer and encrypted key could not be reserved; check for an existing invitation or issuer code.",409);
     if (!reservation?.issuer || !reservation.user_id) {
       throw new Error("Issuer invitation reservation is incomplete.");
     }
@@ -85,27 +83,13 @@ export const IssuerService = {
     return (data ?? []).map(mapRow);
   },
 
-  async create(input: IssuerInput) {
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("issuers")
-      .insert({
-        organization_id: input.organizationId,
-        name: input.name,
-        slug: input.slug,
-        contact_email: input.contactEmail,
-        did_uri: input.didUri ?? null,
-        display_name: input.displayName ?? input.name,
-        description: input.description ?? "",
-        website: input.website ?? null,
-        logo_url: input.logoUrl ?? null,
-        verification_method: input.verificationMethod ?? null,
-        key_fingerprint: input.keyFingerprint ?? null,
-        status: input.status ?? "active",
-      })
-      .select()
-      .single();
-    if (error) throw error;
+  async create(input: IssuerInput,actorId: string,ip = "unknown") {
+    const id = randomUUID();
+    const key = provisionKey(input.organizationId,id,1);
+    const {data,error} = await getSupabaseAdmin().rpc("phase3_create_issuer",{
+      p_input:{...input,id},p_key:{...key,keyVersion:1},p_actor:actorId,p_ip:ip,
+    });
+    if (error) throw new IssuerKeyError("Issuer and encrypted key could not be created; check its organization and unique issuer code.",409);
     return mapRow(data);
   },
 
@@ -132,7 +116,7 @@ export const IssuerService = {
     for (const [source, target] of [
       ["displayName","display_name"],["slug","slug"],["description","description"],
       ["website","website"],["logoUrl","logo_url"],["verificationMethod","verification_method"],
-      ["keyFingerprint","key_fingerprint"],["status","status"],
+      ["status","status"],
     ] as const) {
       if (input[source] !== undefined) updates[target] = input[source];
     }

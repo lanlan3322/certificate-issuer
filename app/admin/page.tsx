@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { useWorkspaceSession } from "../../components/WorkspaceSession";
+import IssuerKeysPanel from "../../components/IssuerKeysPanel";
 import { withBasePath } from "../../lib/site";
 import { hasPermission } from "../../lib/permissions";
 
@@ -419,6 +420,8 @@ export default function AdminPage() {
             {selectedIssuer.website && <div><dt className="font-medium text-slate-500">Website</dt><dd className="mt-1 break-all"><a className="underline" href={selectedIssuer.website} target="_blank" rel="noreferrer">{selectedIssuer.website}</a></dd></div>}
             {selectedIssuer.description && <div className="sm:col-span-2"><dt className="font-medium text-slate-500">Description</dt><dd className="mt-1 whitespace-pre-wrap">{selectedIssuer.description}</dd></div>}
           </dl>
+
+          <IssuerKeysPanel key={selectedIssuer.id} issuerId={selectedIssuer.id} />
 
           <div className="mt-6 border-t border-slate-200 pt-5 dark:border-slate-700">
             <h3 className="text-lg font-semibold">Issuer members</h3>

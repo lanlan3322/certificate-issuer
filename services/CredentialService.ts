@@ -3,6 +3,7 @@ import { parseStoredCredential } from "../lib/stored-credential";
 
 export interface CredentialInput {
   issuerId: string;
+  signingKeyId?: string;
   templateId: string;
   issuerProfileId?: string;
   issuerDid?: string;
@@ -137,6 +138,7 @@ export const CredentialService = {
     const supabase = await getSupabaseServerClient();
     const payload = {
       issuer_id: input.issuerId,
+      ...(input.signingKeyId ? {signing_key_id:input.signingKeyId} : {}),
       template_id: input.templateId ?? null,
       issuer_profile_id: input.issuerProfileId ?? null,
       issuer_did: input.issuerDid ?? null,

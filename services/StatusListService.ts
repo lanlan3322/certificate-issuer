@@ -2,7 +2,8 @@ import { getSupabaseAdmin } from "../lib/supabase/server";
 import { createBitstringEntries, createStatusListDocument,
   statusListURL, type StatusSnapshotEntry, type StatusPurpose } from "../lib/bitstring-status";
 import { resolveDIDController } from "../lib/did-utils";
-import { getDIDKeyPairFromIssuerProfile, signDocumentWithDID } from "../lib/trustvc";
+import { signDocumentWithDID } from "../lib/trustvc";
+import { IssuerKeyService } from "./IssuerKeyService";
 import { isRootDidWeb } from "../lib/did-publication";
 import { IssuerProfileService } from "./IssuerProfileService";
 import { DuplicateCredentialError } from "./CredentialService";
@@ -87,16 +88,8 @@ export const StatusListService = {
     });
     const issuer = profile?.did ?? resolveDIDController();
     const document = await createStatusListDocument(url, issuer, purpose, entries);
-    const keyPair = profile ? getDIDKeyPairFromIssuerProfile(profile) : null;
-    if (profile && !keyPair) {
-      throw new Error(`Signing key for status list issuer ${profile.did} is not configured.`);
-    }
-    const signed = await signDocumentWithDID(document, undefined, keyPair ? {
-      did: keyPair.controller,
-      verificationMethod: keyPair.id,
-      publicKeyMultibase: keyPair.publicKeyMultibase,
-      secretKeyMultibase: keyPair.secretKeyMultibase,
-    } : undefined);
+    const signer = await IssuerKeyService.signerForStatus(issuer,profile?.ownerIssuerId);
+    const signed = await signDocumentWithDID(document, undefined, signer);
     if (!signed.signed) throw new Error(signed.error ?? "Status list signing failed.");
     return signed.credential;
   },

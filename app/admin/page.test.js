@@ -74,6 +74,9 @@ function setup({ roles = ["platform_admin"], responses = {} } = {}) {
       if (name === "../../components/WorkspaceSession") {
         return { useWorkspaceSession: () => ({ user: sessionUser }) };
       }
+      if (name === "../../components/IssuerKeysPanel") {
+        return { default: ({ issuerId }) => React.createElement("section", { "aria-label": "Issuer keys", "data-issuer-id": issuerId }) };
+      }
       if (name === "next/link") return { default: ({ prefetch, ...props }) => React.createElement("a", props) };
       return normalRequire(name);
     },
@@ -180,6 +183,7 @@ test("issuer creation submits the new metadata contract without requiring an inv
   });
   assert.doesNotMatch(JSON.stringify(submitted), /invitation|role/);
   assert.match(app.html(), /Issuer created/);
+  assert.match(app.html(), /aria-label="Issuer keys" data-issuer-id="issuer-new"/);
 });
 
 test("editing issuer metadata never submits or transfers organization ownership", async () => {

@@ -80,6 +80,8 @@ for (const group of groups) {
     Object.assign(mocks, {
       "../issuers/[id]/handler": {},
       "../issuers/[id]/members/handler": {},
+      "../issuers/[id]/keys/handler": {},
+      "../issuers/[id]/keys/download/handler": {},
       "../organizations/handler": {},
       "../organizations/[id]/handler": {},
       "../organizations/[id]/members/handler": {},

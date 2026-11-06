@@ -14,7 +14,7 @@ export default function AdminManualPage() {
         <p className="mt-3 text-slate-600 dark:text-slate-300">Configure your organization&apos;s CaaS workspace: set up issuer access, test credential workflows, and operate with appropriate controls.</p>
       </header>
       <nav aria-label="Admin manual sections" className="mb-8 flex flex-wrap gap-2 text-sm font-semibold">
-        {[["organizations", "Structure"], ["rbac", "RBAC"], ["issuer-members", "Issuer members"], ["recovery", "Recovery"], ["operations", "Operations"], ["legal", "Legal & email"], ["pdpa", "PDPA procedures"], ["sign-off", "Sign-off status"]].map(([id, title]) => (
+        {[["organizations", "Structure"], ["rbac", "RBAC"], ["issuer-members", "Issuer members"], ["issuer-keys", "Issuer keys"], ["recovery", "Recovery"], ["operations", "Operations"], ["legal", "Legal & email"], ["pdpa", "PDPA procedures"], ["sign-off", "Sign-off status"]].map(([id, title]) => (
           <a key={id} href={`#${id}`} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 py-2 text-cyan-800 hover:bg-cyan-50 dark:border-slate-600 dark:text-cyan-300 dark:hover:bg-slate-800">{title}</a>
         ))}
       </nav>
@@ -28,7 +28,7 @@ export default function AdminManualPage() {
             ["Certificate", "Uses the selected template's issuer ownership; historical signed records remain unchanged."],
           ]} />
           <ManualReference caption="Issuer Management quick guide" headings={["Control", "Behaviour"]} rows={[
-            ["Open Issuers", "Use Administration in the desktop workspace sidebar or the mobile navigation menu. Create, inspect, edit and deactivate issuer profiles from the directory."],
+            ["Open Issuers", "Use Administration in the desktop workspace sidebar or the mobile navigation menu. Create, inspect, edit and deactivate issuers and view their key metadata from the directory. Existing identity profiles remain in the identity registry; new DID configuration is not available in this phase."],
             ["Issuer metadata", "Display name is the public label; the issuer name remains its legacy name, and slug is the issuer code unique within its organization. Organization ownership cannot be transferred."],
             ["Lifecycle", "Deactivate an issuer to stop normal use while retaining historical records. Suspended and deleted states are distinct; only platform admins can soft-delete."],
             ["Organization directory", "Platform admins use Administration → Organizations to create, edit, view or deactivate organizations and manage memberships. Organization admins can open My organization to manage their own members."],
@@ -49,8 +49,21 @@ export default function AdminManualPage() {
               ["viewer", "Read issuer resources, templates and credentials. Cannot create, edit, deactivate, issue, revoke or send."],
             ]} />
             <p className="mt-4">Organization and issuer permissions are separate and combine when both are assigned. A user has one membership role per issuer and may have different roles for different issuers. Removing a membership removes that assignment&apos;s grants on the next authorized request; organization or platform administrator grants still apply.</p>
+            <p className="mt-4">Issuer key management is administrator-only and controlled by the key service&apos;s authorization. Issuer membership permits reading key metadata but does not itself grant rotation or export rights; non-managers see fingerprints only. The one-time initial export is further restricted to the original creating administrator.</p>
             <aside className={noteStyle}><strong>Operational checks.</strong> Issuance resolves the issuer from the saved template; users do not choose a different issuer while issuing. Issuing, revoking and sending require an active issuer and organization. Deactivation retains historical records and does not change cryptographic verification.</aside>
           </div>
+        </section>
+
+        <section id="issuer-keys" aria-labelledby="issuer-keys-heading" className={sectionStyle}>
+          <h2 id="issuer-keys-heading" className="text-xl font-bold">Issuer keys and one-time export</h2>
+          <p className="mt-3">Open Administration → Issuer directory → issuer details. A newly created issuer is selected automatically so its key package is accessible immediately. Viewing key metadata never generates keys. Authorized administrators see P-256 (TrustVC-compatible) algorithm, fingerprint, version, status and creation/rotation dates.</p>
+          <ManualFlow label="Manage issuer keys safely" steps={[
+            ["Download Key Pair", "Enabled only when the server reports availability: version 1, within 10 minutes of initial creation, for the original creating administrator only. Confirm to request the ZIP; no automatic download or prefetch occurs."],
+            ["Protect the archive", "The ZIP contains a private PEM export. Store it securely and never paste it into application fields, logs or support reports."],
+            ["Rotate Key", "Confirm to create the next version as pending only. The active key is not replaced or activated by rotation."],
+            ["Activation prerequisite", "A pending key needs a matching existing verified, published DID binding before activation. This panel does not configure DID bindings or offer activation."],
+          ]} />
+          <aside className={noteStyle}><strong>One retrieval only.</strong> The private ZIP cannot be retrieved again. A lost response cannot be retried, even if the browser did not save the file. Download failures may already have consumed the export; contact your administrator rather than retrying. Rotated versions do not receive another initial key export.</aside>
         </section>
 
         <section id="issuer-members" aria-labelledby="issuer-members-heading" className={sectionStyle}>

@@ -46,6 +46,13 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
     secretKeyMultibase: "zSecret",
   };
   const mocks = {
+    "../../../lib/issuer-key-crypto":{IssuerKeyError:class extends Error{}},
+    "../../../services/IssuerKeyService":{IssuerKeyService:{signer:async(id,expected)=>{
+      calls.push(["issuer-owned-key",id,expected]);
+      return {did:expected?.did ?? "did:web:verifiable.sg",
+        verificationMethod:expected?.verificationMethod ?? "did:web:verifiable.sg#key-1",
+        publicKeyMultibase:"zPublic",secretKeyMultibase:"zSecret"};
+    }}},
     "../../../lib/issuer-access": { requireIssuerAccess: async (_user, id) => {
       if (id !== "issuer-id" && !roles.includes("platform-admin")) throw new Error("Issuer access denied.");
       return { id, organizationId: "org-id", displayName: "Fintech Academy", active: true };
@@ -267,12 +274,14 @@ test("unmapped templates ignore client-supplied DID, display name, and Document 
   const response = await post();
   assert.equal(response.status, 200);
   const payload = calls.find(([name]) => name === "payload")[1];
-  assert.equal(payload.issuerDid, undefined);
+  assert.equal(payload.issuerDid, "did:web:verifiable.sg");
   assert.equal(payload.issuerDisplayName, "Fintech Academy");
   assert.equal(payload.documentStoreAddress, defaultStore.address);
   assert.equal(payload.documentStoreNetwork, defaultStore.network);
   assert.equal(calls.some(([name]) => name === "profile-key"), false);
-  assert.equal(calls.find(([name]) => name === "sign")[3], undefined);
+  assert.equal(calls.find(([name]) => name === "issuer-owned-key")[1],"issuer-id");
+  assert.equal(calls.find(([name]) => name === "sign")[3].verificationMethod,"did:web:verifiable.sg#key-1");
+  assert.equal(calls.some(([name])=>name==="legacy-key"),false);
   await finish();
   assert.deepEqual(calls.find(([name]) => name === "register-store")[3], defaultStore);
 });

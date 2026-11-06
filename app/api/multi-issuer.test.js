@@ -24,11 +24,13 @@ function setup(relative,role="organization_admin",ownerOrg=org,recordIssuer=issu
   const dependencies={
     "next/server":{NextResponse},
     apiAuth:{
+      clientIp:()=>"192.0.2.1",
       authorize:async(permission)=>permission&&!permissions.hasPermission(user,permission)
         ?{response:NextResponse.json({error:"Forbidden"},{status:403})}:{user},
       errorResponse:(error,fallback)=>NextResponse.json({error:fallback},{status:error instanceof ForbiddenError ? 403 : 400}),
     },
     permissions,
+    "issuer-key-crypto":{IssuerKeyError:class extends Error{}},
     "issuer-input":require("../../lib/issuer-input.ts"),
     IssuerService:{IssuerService:service,IssuerInvitationError:class extends Error{}},
     auth:{ForbiddenError},

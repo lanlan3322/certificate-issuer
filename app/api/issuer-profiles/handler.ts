@@ -81,22 +81,6 @@ function validateProfile(body: Partial<ProfileBody>, partial = false): string | 
   return null;
 }
 
-function profileInput(body: ProfileBody, ownerIssuerId: string): IssuerProfileInput {
-  return {
-    ownerIssuerId,
-    issuerName: body.issuerName!.trim(),
-    displayName: body.displayName!.trim(),
-    did: body.did!.trim(),
-    verificationMethod: body.verificationMethod!.trim(),
-    documentStoreAddress: body.documentStoreAddress?.trim() || null,
-    documentStoreNetwork: body.documentStoreNetwork?.trim() || null,
-    logoUrl: body.logoUrl?.trim() || null,
-    website: body.website?.trim() || null,
-    active: body.active ?? true,
-    keyReference: body.keyReference!.trim(),
-  };
-}
-
 function publicProfile<T extends { keyReference: string }>(profile: T) {
   const { keyReference: _keyReference, ...safeProfile } = profile;
   return safeProfile;
@@ -134,28 +118,10 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
-  const { user, response } = await authorize("issuer-admin");
+export async function POST(_request: Request) {
+  const { response } = await authorize("issuer-admin");
   if (response) return response;
-  try {
-    const body = (await request.json()) as Partial<ProfileBody>;
-    const validationError = validateProfile(body);
-    if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
-
-    const profile = await IssuerProfileService.create(profileInput(body as ProfileBody, user.issuerId));
-    await AuditService.record({
-      organizationId: user.organizationId,
-      issuerId: user.issuerId,
-      userId: user.id,
-      action: "issuer_profile.created",
-      entityType: "issuer_profile",
-      entityId: profile.id,
-      metadata: { displayName: profile.displayName, did: profile.did, keyReference: profile.keyReference },
-    });
-    return NextResponse.json({ issuerProfile: publicProfile(profile) }, { status: 201 });
-  } catch (error) {
-    return errorResponse(error, "Unable to create issuer profile.");
-  }
+  return NextResponse.json({error:"New signing identities are not configured in this phase. Create an issuer to provision its encrypted pending key."},{status:409});
 }
 
 export async function PATCH(request: Request) {
@@ -163,6 +129,7 @@ export async function PATCH(request: Request) {
   if (response) return response;
   try {
     const body = (await request.json()) as Partial<ProfileBody> & { id?: string };
+    if (body.keyReference !== undefined) return NextResponse.json({error:"Signing key references are server-controlled."},{status:409});
     const id = body.id?.trim();
     if (!id) return NextResponse.json({ error: "id is required." }, { status: 400 });
     const { id: _id, ...updates } = body;

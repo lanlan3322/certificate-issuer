@@ -4,8 +4,6 @@ import { isPlatformAdmin } from "../../../lib/permissions";
 import {
   buildVCPayload,
   computeDocumentStoreHash,
-  getDIDKeyPairFromEnv,
-  getDIDKeyPairFromIssuerProfile,
   signDocumentWithDID,
   withEmbeddedRenderMethod,
 } from "../../../lib/trustvc";
@@ -20,6 +18,8 @@ import { TemplateService } from "../../../services/TemplateService";
 import { NETWORKS } from "../../../lib/constants";
 import { requireIssuerAccess } from "../../../lib/issuer-access";
 import { OrganizationService } from "../../../services/OrganizationService";
+import { IssuerKeyService } from "../../../services/IssuerKeyService";
+import { IssuerKeyError } from "../../../lib/issuer-key-crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -187,33 +187,11 @@ export async function POST(request: Request) {
     } : undefined;
     if (usesStatusList) requireStatusListConfiguration(statusListIssuer);
 
-    let profileKeyPair = null;
-    if (issuerProfile) {
-      try {
-        profileKeyPair = getDIDKeyPairFromIssuerProfile(issuerProfile);
-      } catch (error) {
-        return errorResponse(error, "Issuer profile signing key configuration is invalid.", 503);
-      }
-    }
-    if (issuerProfile && !profileKeyPair) {
-      return NextResponse.json(
-        {
-          error: `Signing key for issuer profile is not configured. Set ${issuerProfile.keyReference} and ${issuerProfile.keyReference}_PUBLIC_KEY_MULTIBASE in the server secret store.`,
-        },
-        { status: 503 }
-      );
-    }
-    const legacyKeyPair = issuerProfile ? null : getDIDKeyPairFromEnv();
-    if (!issuerProfile && !legacyKeyPair) {
-      return NextResponse.json(
-        {
-          signed: false,
-          credential: buildVCPayload(data, body.certificateFormat),
-          error:
-            "DID signing is not configured in the server environment. Set DID_KEY_ID, DID_CONTROLLER, DID_PUBLIC_KEY_MULTIBASE, and DID_PRIVATE_KEY_MULTIBASE.",
-        },
-        { status: 503 }
-      );
+    let signingContext;
+    try { signingContext = await IssuerKeyService.signer(issuingIssuer.id,issuerProfile ?? undefined); }
+    catch (error) {
+      if (error instanceof IssuerKeyError) return NextResponse.json({error:error.message},{status:error.status});
+      return errorResponse(error,"Issuer signing key could not be resolved.",503);
     }
 
     const documentStore = issuerProfile ? {
@@ -223,7 +201,7 @@ export async function POST(request: Request) {
     data = {
       ...data,
       templateId: resolveTemplateId(template.slug),
-      issuerDid: issuerProfile?.did,
+      issuerDid: signingContext.did,
       issuerDisplayName: issuingIssuer.displayName,
       issuerName: issuingIssuer.displayName,
       organizationDisplayName: issuingOrganization.displayName,
@@ -242,14 +220,7 @@ export async function POST(request: Request) {
     const result = await signDocumentWithDID(
       credential,
       undefined,
-      profileKeyPair
-        ? {
-            did: profileKeyPair.controller,
-            verificationMethod: profileKeyPair.id,
-            publicKeyMultibase: profileKeyPair.publicKeyMultibase,
-            secretKeyMultibase: profileKeyPair.secretKeyMultibase,
-          }
-        : undefined
+      signingContext
     );
     if (!result.signed) {
       return NextResponse.json(
@@ -265,12 +236,13 @@ export async function POST(request: Request) {
     try {
       const record = await CredentialService.create({
         issuerId: issuingIssuer.id,
+        signingKeyId:signingContext.keyId,
         templateId: template.id,
         issuerProfileId: issuerProfile?.id,
-        issuerDid: issuerProfile?.did ?? legacyKeyPair?.controller,
+        issuerDid: signingContext.did,
         documentStoreAddress: documentStore.address,
         documentStoreNetwork: documentStore.network,
-        verificationMethod: issuerProfile?.verificationMethod ?? legacyKeyPair?.id,
+        verificationMethod: signingContext.verificationMethod,
         externalId: data.id,
         recipientName: data.recipientName,
         recipientEmail: data.recipientEmail,

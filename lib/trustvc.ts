@@ -312,32 +312,10 @@ async function signCredentialWithEcdsaSd2023(
 
     return { signed: signed as Record<string, unknown> };
   } catch (err) {
-    const proof =
-      credential.proof && typeof credential.proof === "object"
-        ? (credential.proof as Record<string, unknown>)
-        : undefined;
-    const validationResult = {
-      error: err instanceof Error ? err.message : String(err),
-      name: err instanceof Error ? err.name : undefined,
-    };
-    const credentialType = credential.type;
-    const issuer = credential.issuer;
-    const proofType = proof?.type;
-    const verificationMethod =
-      typeof proof?.verificationMethod === "string"
-        ? proof.verificationMethod
-        : keyPair.id;
-
-    console.error("[safe-mode]", {
-      validationResult,
-      credentialType,
-      issuer,
-      proofType,
-      verificationMethod,
-    });
-
+    console.error("Credential signing failed.", { code:"CREDENTIAL_SIGNING_FAILED",verificationMethod:keyPair.id });
     return {
-      error: err instanceof Error ? err.message : "An error occurred while signing the credential.",
+      error: err instanceof Error && err.message === "DID private key does not match its configured public key."
+        ? err.message : "An error occurred while signing the credential.",
     };
   }
 }
@@ -1467,33 +1445,12 @@ export interface DIDSigningContext {
   secretKeyMultibase: string;
 }
 
-export function getDIDKeyPairFromIssuerProfile(profile: {
+export function getDIDKeyPairFromIssuerProfile(_profile: {
   did: string;
   verificationMethod: string;
   keyReference: string;
 }): PrivateKeyPair | null {
-  if (!/^[A-Z][A-Z0-9_]{2,127}$/.test(profile.keyReference)) {
-    throw new Error("Issuer profile key reference is invalid.");
-  }
-  const secretKeyMultibase = process.env[profile.keyReference];
-  const publicKeyMultibase = process.env[`${profile.keyReference}_PUBLIC_KEY_MULTIBASE`];
-  if (!secretKeyMultibase || !publicKeyMultibase) return null;
-  if (!secretKeyMultibase.startsWith("z") || !publicKeyMultibase.startsWith("z")) {
-    throw new Error("Issuer profile signing keys must use base58btc multibase encoding.");
-  }
-  if (!profile.did.startsWith("did:") ||
-      !profile.verificationMethod.startsWith(`${profile.did}#`)) {
-    throw new Error("Issuer profile DID and verification method do not match.");
-  }
-
-  return {
-    "@context": "https://w3id.org/security/multikey/v1",
-    id: profile.verificationMethod,
-    type: "Multikey",
-    controller: profile.did,
-    publicKeyMultibase,
-    secretKeyMultibase,
-  };
+  throw new Error("Profile secret references are disabled. Resolve the encrypted issuer-owned key.");
 }
 
 export interface DIDIssuanceResult {
@@ -1577,12 +1534,12 @@ export async function signDocumentWithDID(
       credential: result.signed,
       signed: true,
     };
-  } catch (err) {
-    console.error("DID signing failed", err);
+  } catch {
+    console.error("DID signing failed.",{code:"DID_SIGNING_FAILED"});
     return {
       credential: unsignedCredential,
       signed: false,
-      error: err instanceof Error ? err.message : "Unknown signing error.",
+      error: "Credential signing failed.",
     };
   }
 }

@@ -11,6 +11,11 @@ function load(client) {
   instance.filename = filename;
   instance.paths = Module._nodeModulePaths(__dirname);
   instance.require = (name) => {
+    if(name==="node:crypto")return{randomUUID:()=>"new-issuer-id"};
+    if(name==="../lib/issuer-key-crypto")return{
+      IssuerKeyError:class extends Error{},
+      provisionKey:(org,issuer,version)=>({encryptedPrivateKey:"ciphertext",publicKey:"public",fingerprint:"fingerprint",issuer,org,version}),
+    };
     assert.equal(name, "../lib/supabase/server");
     return { getSupabaseAdmin: () => client };
   };
@@ -28,7 +33,7 @@ function setup({ reservationError = null, inviteError = null, linkError = null }
   const client = {
     async rpc(name, args) {
       calls.push([name, args]);
-      return name === "prepare_issuer_invitation"
+      return name === "phase3_prepare_invitation"
         ? { data: { issuer: row, user_id: "profile" }, error: reservationError }
         : { error: linkError };
     },
@@ -46,6 +51,8 @@ test("invitation reserves selected role, sends email, and links the returned aut
     const issuer = await IssuerService.createWithInvitation(input, role, "actor", "https://example.com/issuer/?mode=reset");
     assert.equal(issuer.id, "issuer");
     assert.equal(calls[0][1].p_role, role);
+    assert.equal(calls[0][1].p_key.encryptedPrivateKey,"ciphertext");
+    assert.equal(calls[0][1].p_input.id,"new-issuer-id");
     assert.deepEqual(calls[1], ["invite", input.contactEmail, { redirectTo: "https://example.com/issuer/?mode=reset" }]);
     assert.equal(calls[2][1].p_auth_user_id, "auth-id");
     assert.equal(calls[2][1].p_user_id, "profile");
@@ -54,7 +61,7 @@ test("invitation reserves selected role, sends email, and links the returned aut
 
 test("a rejected reservation never sends an email or changes an existing account", async () => {
   const { IssuerService, calls } = setup({ reservationError: new Error("already exists") });
-  await assert.rejects(IssuerService.createWithInvitation(input, "issuer-admin", "actor", "url"), /already exists/);
+  await assert.rejects(IssuerService.createWithInvitation(input, "issuer-admin", "actor", "url"), /could not be reserved/);
   assert.equal(calls.length, 1);
 });
 
