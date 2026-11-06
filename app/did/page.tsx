@@ -263,6 +263,7 @@ export default function DIDPage() {
             Review existing identities and profile metadata used by credential templates.
             Keys are issuer-owned and server-managed. New DID configuration is not available in this phase.
           </p>
+          <a href={withBasePath("/organization-did/")} className="mt-3 inline-block text-sm font-semibold text-violet-700 underline">View managed organization DID</a>
         </div>
         {canManage && (
           <a

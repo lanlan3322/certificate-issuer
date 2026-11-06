@@ -1,5 +1,12 @@
 # Phase 3: Issuer Key Management Architecture
 
+Phase 4 supersedes only initial activation/publication and signer binding:
+initial keys are now published and activated transactionally under the managed
+organization DID; explicit pending-version activation publishes a new method
+while retaining old methods. Legacy bindings/status signers remain available.
+See [Managed DID analysis](./PHASE4_MANAGED_DID_ANALYSIS.md).
+The encryption, ownership and one-time private-export safeguards below remain.
+
 Status: implemented locally. Production keys, environment secrets and remote
 databases have not been modified. Staging/live Supabase rollout remains an
 operator release gate.

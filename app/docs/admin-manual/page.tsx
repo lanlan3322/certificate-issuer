@@ -28,7 +28,7 @@ export default function AdminManualPage() {
             ["Certificate", "Uses the selected template's issuer ownership; historical signed records remain unchanged."],
           ]} />
           <ManualReference caption="Issuer Management quick guide" headings={["Control", "Behaviour"]} rows={[
-            ["Open Issuers", "Use Administration in the desktop workspace sidebar or the mobile navigation menu. Create, inspect, edit and deactivate issuers and view their key metadata from the directory. Existing identity profiles remain in the identity registry; new DID configuration is not available in this phase."],
+            ["Open Issuers", "Use Administration in the desktop workspace sidebar or the mobile navigation menu. Create, inspect, edit and deactivate issuers and view their key metadata from the directory. Initial issuer keys publish automatically under the managed organization DID; legacy identity profiles remain available at the existing registry URL."],
             ["Issuer metadata", "Display name is the public label; the issuer name remains its legacy name, and slug is the issuer code unique within its organization. Organization ownership cannot be transferred."],
             ["Lifecycle", "Deactivate an issuer to stop normal use while retaining historical records. Suspended and deleted states are distinct; only platform admins can soft-delete."],
             ["Organization directory", "Platform admins use Administration → Organizations to create, edit, view or deactivate organizations and manage memberships. Organization admins can open My organization to manage their own members."],
@@ -61,7 +61,12 @@ export default function AdminManualPage() {
             ["Download Key Pair", "Enabled only when the server reports availability: version 1, within 10 minutes of initial creation, for the original creating administrator only. Confirm to request the ZIP; no automatic download or prefetch occurs."],
             ["Protect the archive", "The ZIP contains a private PEM export. Store it securely and never paste it into application fields, logs or support reports."],
             ["Rotate Key", "Confirm to create the next version as pending only. The active key is not replaced or activated by rotation."],
-            ["Activation prerequisite", "A pending key needs a matching existing verified, published DID binding before activation. This panel does not configure DID bindings or offer activation."],
+            ["Activate pending key", "An organization or platform administrator can explicitly activate a pending version. Activation publishes its managed verification method, retires the previous signing version and retains historical public methods for verification."],
+          ]} />
+          <ManualFlow label="Review managed organization identity" steps={[
+            ["Organization DID", "Open Organization DID from the workspace navigation. Platform administrators can select any organization; other members can view their own managed identity and assigned issuer method metadata."],
+            ["Public verification", "Each organization has one immutable did:web identity hosted by Verifiable.sg. Issuer methods contain only public keys. Disabling an issuer or organization blocks new signing without erasing historical verification methods."],
+            ["Read-only documents", "View the raw public DID document or explicitly download did.json. Downloads are audited. DID editing, customer-hosted and self-managed identities are not available."],
           ]} />
           <aside className={noteStyle}><strong>One retrieval only.</strong> The private ZIP cannot be retrieved again. A lost response cannot be retried, even if the browser did not save the file. Download failures may already have consumed the export; contact your administrator rather than retrying. Rotated versions do not receive another initial key export.</aside>
         </section>

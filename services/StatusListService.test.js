@@ -13,6 +13,12 @@ function load(relative, mocks) {
   instance.paths = Module._nodeModulePaths(path.dirname(filename));
   const normalRequire = instance.require.bind(instance);
   instance.require = (name) => Object.hasOwn(mocks, name) ? mocks[name] : normalRequire(name);
+  const requireWithMocks=instance.require;
+  instance.require=name=>{
+    if(name==="../lib/managed-did-urls")return load("../lib/managed-did-urls.ts",{});
+    if(name==="./ManagedDIDService")return{ManagedDIDService:{statusOwner:async()=> "org"}};
+    return requireWithMocks(name);
+  };
   instance._compile(ts.transpileModule(readFileSync(filename, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
       esModuleInterop: true },
@@ -171,6 +177,44 @@ test("profile status lists allocate, publish and sign with the selected issuer D
     publicKeyMultibase: "zPublic",
     secretKeyMultibase: "zSecret",
   });
+});
+
+test("managed status allocation and publication use canonical organization paths and fail closed",async t=>{
+  const previous=process.env.ENABLE_BITSTRING_STATUS_LIST;
+  t.after(()=>previous===undefined?delete process.env.ENABLE_BITSTRING_STATUS_LIST:process.env.ENABLE_BITSTRING_STATUS_LIST=previous);
+  const did="did:web:verifiable.sg:organizations:academy",calls=[];
+  let result={data:131073,error:null},signed=true;
+  const {StatusListService:service}=load("StatusListService.ts",{
+    "./CredentialService":{DuplicateCredentialError:class extends Error{}},
+    "../lib/supabase/server":{getSupabaseAdmin:()=>({rpc:async(...args)=>{calls.push(args);return result;}})},
+    "../lib/did-utils":{}, "../lib/did-publication":{},"./IssuerProfileService":{},
+    "./IssuerKeyService":{IssuerKeyService:{signerForManagedStatus:async owner=>{assert.equal(owner,did);return{did};}}},
+    "../lib/bitstring-status":{createStatusListDocument:async(url,issuer,purpose,entries)=>({id:url,issuer,purpose,entries})},
+    "../lib/trustvc":{signDocumentWithDID:async(document,_secret,context)=>{
+      assert.equal(context.did,did);return{signed,credential:document};
+    }},
+  });
+  delete process.env.ENABLE_BITSTRING_STATUS_LIST;
+  await assert.rejects(service.reserveManaged("issuer","external",did),/not configured/);assert.equal(calls.length,0);
+  process.env.ENABLE_BITSTRING_STATUS_LIST="true";
+  const entries=await service.reserveManaged("issuer","external",did);
+  assert.equal(entries.length,2);
+  assert.equal(entries[0].statusListIndex,"1");
+  assert.equal(entries[0].statusListCredential,"https://verifiable.sg/organizations/academy/status-list/1/revocation");
+  assert.deepEqual(calls[0],["phase4_reserve_status",{p_org:"org",p_issuer:"issuer",p_external:"external"}]);
+  for(const data of [null,false,"",-1,"9007199254740992"]) {
+    result={data,error:null};await assert.rejects(service.reserveManaged("issuer","bad",did),/allocation failed/);
+  }
+  result={data:null,error:{message:"private_key=secret"}};
+  await assert.rejects(service.publishManaged(0,"revocation",did),error=>/snapshot is unavailable/.test(error.message)&&!error.message.includes("secret"));
+  result={data:null,error:null};assert.equal(await service.publishManaged(0,"revocation",did),null);
+  result={data:[{index:1,status:"issued"}],error:null};
+  const published=await service.publishManaged(1,"revocation",did);
+  assert.equal(published.id,entries[0].statusListCredential);
+  assert.deepEqual(calls.at(-1),["phase4_read_status",{p_org:"org",p_page:1}]);
+  signed=false;await assert.rejects(service.publishManaged(1,"revocation",did),/signing failed/);
+  result={data:[{index:1,status:"invalid"}],error:null};
+  await assert.rejects(service.publishManaged(1,"revocation",did),/snapshot is invalid/);
 });
 
 test("public list route validates identifiers and returns signed credentials or explicit no-store errors", async (t) => {

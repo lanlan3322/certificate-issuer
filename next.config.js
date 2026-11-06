@@ -92,6 +92,7 @@ module.exports = async () => {
       "/api/issue": runtimeFiles,
       "/api/verify": runtimeFiles,
       "/api/status-list/*/*": runtimeFiles,
+      "/api/[...resource]": runtimeFiles,
     },
   };
 };

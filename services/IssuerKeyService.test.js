@@ -35,7 +35,8 @@ function setup(t,{status="active"}={}) {
   const owner={id:issuerId,organization_id:org,name:"Issuer",display_name:"Issuer",
     did_uri:"did:web:issuer.example",verification_method:"did:web:issuer.example#v1",
     organizations:{display_name:"Organization"}};
-  const tables={issuers:[owner],issuer_keys:[key],issuer_profiles:[]};
+  const tables={issuers:[owner],issuer_keys:[key],issuer_profiles:[],
+    organization_verification_methods:[{id:"method",organization_id:org,issuer_id:issuerId,key_id:key.id,created_at:key.created_at}]};
   const rpcCalls=[];
   let published={id:owner.did_uri,verificationMethod:[{id:owner.verification_method,type:"Multikey",
     controller:owner.did_uri,publicKeyMultibase:key.public_key_multibase}],assertionMethod:[owner.verification_method]};
@@ -46,9 +47,10 @@ function setup(t,{status="active"}={}) {
       const query={
         select(){return query;},eq(k,v){filters.push(r=>r[k]===v);return query;},
         neq(k,v){filters.push(r=>r[k]!==v);return query;},
+        in(k,v){filters.push(r=>v.includes(r[k]));return query;},
         is(k,v){filters.push(r=>r[k]===v);return query;},
         gt(k,v){filters.push(r=>r[k]>v);return query;},
-        order(k,{ascending}){sort={k,ascending};return query;},
+        order(k,{ascending=true}={}){sort={k,ascending};return query;},
         limit(n){max=n;return query;},
         result() {
           let data=tables[table].filter(r=>filters.every(filter=>filter(r)));
@@ -75,6 +77,10 @@ function setup(t,{status="active"}={}) {
   const {IssuerKeyService:service,assertPublishedKey}=load("IssuerKeyService.ts",{
     "../lib/supabase/server":{getSupabaseAdmin:()=>client},
     "../lib/issuer-key-crypto":crypto,
+    "./ManagedDIDService":{ManagedDIDService:{statusOwner:async()=>org,binding:async(id,keyId)=>{
+      assert.equal(id,issuerId);assert.equal(keyId,key.id);
+      return{did:"did:web:verifiable.sg:organizations:academy",verificationMethod:`did:web:verifiable.sg:organizations:academy#issuer-${issuerId}-key-1`};
+    }}},
     "../lib/safe-document-loader":{createSafeDocumentLoader:()=>async()=>({document:published})},
   });
   return{service,assertPublishedKey,key,owner,tables,rpcCalls,
@@ -96,10 +102,11 @@ test("safe key reads expose only fingerprints to members and never serialize cip
 });
 test("issuer-specific signer resolves encrypted material, denies pending keys and never falls back to deployment secrets",async t=>{
   const app=setup(t);
-  const context=await app.service.signer(issuerId,{did:app.key.controller,verificationMethod:app.key.verification_method});
+  const context=await app.service.signer(issuerId);
   assert.equal(context.keyId,app.key.id);assert.equal(context.publicKeyMultibase,app.key.public_key_multibase);
+  assert.equal(context.did,"did:web:verifiable.sg:organizations:academy");
+  assert.notEqual(context.did,app.key.controller);
   await assert.rejects(app.service.signer("sibling"),/no usable signing key/);
-  await assert.rejects(app.service.signer(issuerId,{did:"did:web:other.example",verificationMethod:"did:web:other.example#v1"}),/does not match/);
   app.key.status="pending";
   await assert.rejects(app.service.signer(issuerId),/no usable signing key/);
   app.key.status="active";app.owner.organization_id="other-org";
@@ -122,7 +129,7 @@ test("one-time ZIP contains a matching PKCS8 private PEM, public SPKI PEM and no
   await assert.rejects(app.service.download(issuerId,actor,"192.0.2.1"),/unavailable/);
   assert.ok(!JSON.stringify(app.rpcCalls).includes(privatePem));
 });
-test("rotation creates a pending version only and activation checks an existing published assertion method",async t=>{
+test("rotation creates a pending version only and explicit managed activation is atomic without an external publication dependency",async t=>{
   const app=setup(t);
   await app.service.rotate(issuerId,actor,"192.0.2.1");
   const [name,input]=app.rpcCalls[0];
@@ -131,14 +138,12 @@ test("rotation creates a pending version only and activation checks an existing 
   app.key.status="pending";app.key.controller=null;app.key.verification_method=null;
   await assert.rejects(app.service.rotate(issuerId,actor,"192.0.2.1"),/existing pending/);
   app.setPublished({id:app.owner.did_uri,verificationMethod:[],assertionMethod:[]});
-  await assert.rejects(app.service.activate(issuerId,app.key.id,actor,"192.0.2.1"),/published assertion/);
-  assert.equal(app.rpcCalls.some(call=>call[0]==="phase3_activate_key"),false);
-  app.setPublished({id:app.owner.did_uri,verificationMethod:[{id:app.owner.verification_method,type:"Multikey",
-    controller:app.owner.did_uri,publicKeyMultibase:app.key.public_key_multibase}],assertionMethod:[app.owner.verification_method]});
   await app.service.activate(issuerId,app.key.id,actor,"192.0.2.1");
-  assert.equal(app.rpcCalls.at(-1)[0],"phase3_activate_key");
+  assert.deepEqual(app.rpcCalls.at(-1),["phase4_activate_key",{p_issuer:issuerId,p_key:app.key.id,p_actor:actor,p_ip:"192.0.2.1"}]);
   app.tables.issuer_profiles.push({did:"did:web:another.example",verification_method:"did:web:another.example#1",active:true,owner_issuer_id:issuerId});
-  await assert.rejects(app.service.activate(issuerId,app.key.id,actor,"ip"),/Exactly one/);
+  await app.service.activate(issuerId,app.key.id,actor,"ip");
+  app.setRpcError({message:"sensitive diagnostic"});
+  await assert.rejects(app.service.activate(issuerId,app.key.id,actor,"ip"),/Managed key activation failed/);
 });
 test("public assertion validation rejects controller confusion, missing authorization and foreign key material",async t=>{
   const app=setup(t);
@@ -161,7 +166,29 @@ test("database diagnostics are never propagated from key persistence",async t=>{
     assert.ok(error instanceof crypto.IssuerKeyError);
     assert.ok(!error.message.includes("DO-NOT-EXPOSE"));return true;
   });
+
   await assert.rejects(app.service.download(issuerId,actor,"ip"),error=>{
     assert.ok(!error.message.includes("DO-NOT-EXPOSE"));return true;
   });
+});
+
+test("legacy status publication uses retained root-DID keys after managed rotation without confusing key history",async t=>{
+  const app=setup(t);
+  app.key.status="retired";
+  app.tables.issuer_keys.push({...app.key,id:"older-key",key_version:0,fingerprint:"SHA256:older",
+    verification_method:"did:web:issuer.example#old"});
+  const context=await app.service.signerForStatus("did:web:issuer.example",issuerId);
+  assert.equal(context.did,"did:web:issuer.example");
+  assert.equal(context.verificationMethod,app.key.verification_method);
+  assert.equal(context.publicKeyMultibase,app.key.public_key_multibase);
+  app.tables.issuer_keys.push({...app.key,id:"foreign",issuer_id:"sibling",key_version:1,fingerprint:"SHA256:foreign"});
+  await assert.rejects(app.service.signerForStatus("did:web:issuer.example"),/Ambiguous/);
+});
+
+test("managed status publication can use retained keys without enabling inactive credential signing",async t=>{
+  const app=setup(t);app.key.status="retired";
+  await assert.rejects(app.service.signer(issuerId),/no usable signing key/);
+  const context=await app.service.signerForManagedStatus("did:web:verifiable.sg:organizations:academy");
+  assert.equal(context.did,"did:web:verifiable.sg:organizations:academy");
+  assert.equal(context.publicKeyMultibase,app.key.public_key_multibase);
 });

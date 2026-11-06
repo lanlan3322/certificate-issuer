@@ -12,7 +12,7 @@ import { AuditService } from "../../../services/AuditService";
 import { CredentialService, DuplicateCredentialError } from "../../../services/CredentialService";
 import { getDefaultDocumentStoreConfig, registerHash, isRegistered } from "../../../lib/document-store";
 import type { CertificateData } from "../../../lib/trustvc";
-import { StatusListService, requireStatusListConfiguration } from "../../../services/StatusListService";
+import { StatusListService } from "../../../services/StatusListService";
 import { IssuerProfileService } from "../../../services/IssuerProfileService";
 import { TemplateService } from "../../../services/TemplateService";
 import { NETWORKS } from "../../../lib/constants";
@@ -20,6 +20,7 @@ import { requireIssuerAccess } from "../../../lib/issuer-access";
 import { OrganizationService } from "../../../services/OrganizationService";
 import { IssuerKeyService } from "../../../services/IssuerKeyService";
 import { IssuerKeyError } from "../../../lib/issuer-key-crypto";
+import { ManagedDIDError } from "../../../services/ManagedDIDService";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -179,18 +180,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const statusListIssuer = issuerProfile ? {
-      id: issuerProfile.id,
-      did: issuerProfile.did,
-      verificationMethod: issuerProfile.verificationMethod,
-      keyReference: issuerProfile.keyReference,
-    } : undefined;
-    if (usesStatusList) requireStatusListConfiguration(statusListIssuer);
 
     let signingContext;
-    try { signingContext = await IssuerKeyService.signer(issuingIssuer.id,issuerProfile ?? undefined); }
+    try {
+      signingContext = await IssuerKeyService.signer(issuingIssuer.id);
+    }
     catch (error) {
       if (error instanceof IssuerKeyError) return NextResponse.json({error:error.message},{status:error.status});
+      if (error instanceof ManagedDIDError) return NextResponse.json({error:error.message},{status:error.status});
       return errorResponse(error,"Issuer signing key could not be resolved.",503);
     }
 
@@ -212,7 +209,7 @@ export async function POST(request: Request) {
     const payload = buildVCPayload(trustvcProfile ? { ...data, issuingMethods: ["did"] } : data,
       trustvcProfile ? "standard" : body.certificateFormat);
     const statusCredential: Record<string, unknown> = usesStatusList
-      ? { ...payload, credentialStatus: await StatusListService.reserve(issuingIssuer.id, data.id, statusListIssuer) }
+      ? { ...payload, credentialStatus: await StatusListService.reserveManaged(issuingIssuer.id, data.id, signingContext.did) }
       : payload;
     const credential = body.renderMethod === "embedded"
       ? withEmbeddedRenderMethod(statusCredential, resolveTemplateId(template.slug))

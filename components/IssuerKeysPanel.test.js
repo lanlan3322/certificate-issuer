@@ -164,6 +164,15 @@ test("ZIP is fetched explicitly, saved with a blob URL and immediately revoked w
   assert.equal(app.requests.length, 2);
 });
 
+test("managed activation is explicit, manager-only and preserves public history copy",async()=>{
+  const app=setup();await app.mount();await app.click("Activate pending key");
+  assert.deepEqual(JSON.parse(app.requests[1].options.body),{action:"activate",keyId:"key-1"});
+  assert.equal(app.requests[1].options.method,"POST");
+  assert.match(app.html(),/Historical methods are retained/);
+  const member=setup({canManage:false});await member.mount();
+  assert.doesNotMatch(member.html(),/Activate pending key/);
+});
+
 test("failed, lost or non-ZIP downloads show errors and cannot be retried", async () => {
   for (const download of [
     () => Response.json({ error: "Export expired" }, { status: 410 }),

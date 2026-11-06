@@ -1218,8 +1218,9 @@ export function getCredentialDocumentStore(credential: Record<string, unknown>):
 async function verifyBitstringStatuses(
   entries: unknown[], issuer: string, loader: DocumentLoader
 ): Promise<VerificationResult> {
+  const managedSlug=managedDIDSlug(issuer);
   if (entries.length !== 2 || !issuer.startsWith("did:web:") ||
-      issuer.slice("did:web:".length).includes(":")) {
+      !managedSlug && issuer.slice("did:web:".length).includes(":")) {
     return { valid: false, message: "Unsupported Bitstring Status List profile." };
   }
   const purposes = new Set<string>();
@@ -1236,13 +1237,18 @@ async function verifyBitstringStatuses(
     purposes.add(entry.statusPurpose);
     indices.add(entry.statusListIndex);
     const url = new URL(entry.statusListCredential);
-    const domain = issuer.slice("did:web:".length);
-    const path = /^\/api\/status-list\/(0|[1-9][0-9]{0,9})\/(revocation|suspension)$/.exec(url.pathname);
+    const domain = managedSlug?"verifiable.sg":issuer.slice("did:web:".length);
+    const path = managedSlug
+      ? new RegExp(`^/organizations/${managedSlug}/status-list/(0|[1-9][0-9]{0,9})/(revocation|suspension)$`).exec(url.pathname)
+      : /^\/api\/status-list\/(0|[1-9][0-9]{0,9})\/(revocation|suspension)$/.exec(url.pathname);
     if (url.origin !== `https://${domain}` || url.search || url.hash || url.username || url.password ||
         !path || Number(path[1]) > 2147483647 || path[2] !== entry.statusPurpose ||
         entry.id !== `${url.href}#${entry.statusListIndex}` ||
         Number(entry.statusListIndex) >= 131072) {
       return { valid: false, message: "Status list URL or index does not match the issuer profile." };
+    }
+    if (managedSlug && url.href!==managedStatusURL(issuer,Number(path[1]),entry.statusPurpose)) {
+      return {valid:false,message:"Managed status URL does not match the organization DID."};
     }
     pages.add(path[1]);
     const response = await loader(url.href);
@@ -2054,3 +2060,4 @@ function injectTargetHash(
     credentialStatus: [{ ...statusWithoutHash, targetHash }, ...statusArray.slice(1)],
   };
 }
+import { managedDIDSlug,managedStatusURL } from "./managed-did-urls";

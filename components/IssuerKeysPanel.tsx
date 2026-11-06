@@ -70,7 +70,7 @@ export default function IssuerKeysPanel({ issuerId }: { issuerId: string }) {
 
   const rotate = async () => {
     if (!data?.canManage || locked.current) return;
-    if (!window.confirm("Rotate Key? This creates the next P-256 version as pending only. It will not activate or replace the active key. Activation requires a matching existing verified, published DID binding.")) return;
+    if (!window.confirm("Rotate Key? This creates the next P-256 version as pending only. It will not activate or replace the active key. Activate the pending version separately to publish its organization DID method.")) return;
     locked.current = true; setBusy(true); setError(null); setNotice(null);
     try {
       const response = await fetch(endpoint, {
@@ -85,6 +85,22 @@ export default function IssuerKeysPanel({ issuerId }: { issuerId: string }) {
     } finally {
       locked.current = false; setBusy(false);
     }
+  };
+
+  const activate = async (keyId: string) => {
+    if (!data?.canManage || locked.current) return;
+    if (!window.confirm("Activate pending key? This publishes its verification method in your managed organization DID and replaces the active signing version. Historical public methods remain available for verification.")) return;
+    locked.current=true;setBusy(true);setError(null);setNotice(null);
+    try {
+      const response=await fetch(endpoint,{
+        method:"POST",credentials:"same-origin",cache:"no-store",
+        headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"activate",keyId}),
+      });
+      if (!response.ok) throw new Error(await errorMessage(response,"Unable to activate key."));
+      setNotice("Key activated and managed verification method published. Historical methods are retained.");
+      await load();
+    }catch(reason){setError(reason instanceof Error?reason.message:"Unable to activate key.");}
+    finally{locked.current=false;setBusy(false);}
   };
 
   const download = async () => {
@@ -125,7 +141,7 @@ export default function IssuerKeysPanel({ issuerId }: { issuerId: string }) {
     {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
     {notice && <p role="status" className="mt-3 text-sm">{notice}</p>}
     {data && <>
-      {data.canManage && <p className="mt-2 text-sm text-slate-500">P-256 keys support TrustVC compatibility. New keys remain pending until activation against a matching existing verified, published DID binding. Rotation does not activate a key.</p>}
+      {data.canManage && <p className="mt-2 text-sm text-slate-500">P-256 keys support TrustVC compatibility. Initial keys publish automatically under the organization DID. Rotation creates a pending version; activate it separately. Historical public methods are retained.</p>}
       {!data.keys.length && <p className="mt-3 text-sm">No key metadata available. Viewing this panel does not generate keys.</p>}
       <ul className="mt-3 space-y-3">
         {data.keys.map((key) => <li key={key.id} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
@@ -139,6 +155,7 @@ export default function IssuerKeysPanel({ issuerId }: { issuerId: string }) {
               <div><dt className="font-medium">Rotated</dt><dd>{key.rotatedAt ? new Date(key.rotatedAt).toLocaleString() : "Not rotated"}</dd></div>
             </>}
           </dl>
+          {data.canManage && key.status==="pending" && <button type="button" className="btn-secondary mt-3 min-h-11" disabled={busy} onClick={()=>void activate(key.id)}>Activate pending key</button>}
         </li>)}
       </ul>
       {data.canManage && <>

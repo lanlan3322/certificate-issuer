@@ -38,7 +38,7 @@ test("runtime tracing includes dynamic SDK entry points, not build tools or PDF 
   const bytes = files.reduce((total, file) => total + statSync(file).size, 0);
   assert.ok(bytes < 25 * 1024 * 1024, `Runtime dependency trace grew to ${bytes} bytes`);
   const config = await require("../next.config.js")();
-  for (const route of ["/api/issue", "/api/verify", "/api/status-list/*/*"]) {
+  for (const route of ["/api/issue", "/api/verify", "/api/status-list/*/*", "/api/[...resource]"]) {
     assert.deepEqual(config.outputFileTracingIncludes[route], files);
     assert.ok(config.outputFileTracingIncludes[route].every((file) => !file.includes("*")));
   }

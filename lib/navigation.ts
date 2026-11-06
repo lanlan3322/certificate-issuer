@@ -28,7 +28,7 @@ const groups: Array<{ label: string; items: NavigationItem[] }> = [
   { label: "Administration", items: [
     { href: "/organizations", label: "Organizations", description: "Manage organizations and memberships", permission: "members.manage" },
     { href: "/admin", label: "Issuers", description: "Manage issuer profiles and user assignments", permission: "issuers.manage" },
-    { href: "/did", label: "Issuer identity", description: "Review existing issuer identity configuration" },
+    { href: "/organization-did", label: "Organization DID", description: "View managed identity and issuer verification methods" },
     { href: "/audit", label: "Activity & audit", description: "Review organization activity", permission: "members.manage" },
     { href: "/platform", label: "Platform overview", description: "Review platform operations", permission: "organizations.manage" },
   ] },

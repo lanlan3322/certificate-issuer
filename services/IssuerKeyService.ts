@@ -3,6 +3,7 @@ import { IssuerKeyError, privateKeyObject, provisionKey, publicMaterial, signing
 import { createSafeDocumentLoader } from "../lib/safe-document-loader";
 import type { DIDSigningContext } from "../lib/trustvc";
 import JSZip from "jszip";
+import { ManagedDIDService } from "./ManagedDIDService";
 
 interface StoredKey {
   id: string; issuer_id: string; public_key: string; public_key_multibase: string;
@@ -92,51 +93,53 @@ export const IssuerKeyService = {
   async activate(issuerId: string,keyId: string,actorId: string,ip: string) {
     const key = await stored(issuerId,keyId);
     if (key.status !== "pending") throw new IssuerKeyError("Only a pending key can be activated.",409);
-    const owner = await issuerOwner(issuerId);
-    const {data:profiles,error} = await getSupabaseAdmin().from("issuer_profiles")
-      .select("did,verification_method").eq("owner_issuer_id",issuerId).eq("active",true);
-    if (error) throw new IssuerKeyError();
-    const bindings = [...(profiles ?? []),
-      ...(owner.did_uri && owner.verification_method ? [{did:owner.did_uri,verification_method:owner.verification_method}] : [])];
-    const identities = new Map(bindings.map(binding => [`${binding.did}|${binding.verification_method}`,binding]));
-    if (identities.size !== 1) throw new IssuerKeyError("Exactly one existing issuer signing identity is required for activation.",409);
-    const binding = [...identities.values()][0];
     await material(key);
-    const loader=safeLoader();
-    await assertPublishedKey(binding.did,binding.verification_method,key.public_key_multibase,loader);
-    const history=await getSupabaseAdmin().from("issuer_keys")
-      .select("controller,verification_method,public_key_multibase").eq("issuer_id",issuerId).neq("status","pending");
-    if (history.error) throw new IssuerKeyError("Issuer key history could not be validated.");
-    for (const previous of history.data ?? []) {
-      if (!previous.controller || !previous.verification_method) throw new IssuerKeyError("Historical issuer binding is invalid.",409);
-      await assertPublishedKey(previous.controller,previous.verification_method,previous.public_key_multibase,loader);
-    }
-    const {error:activationError} = await getSupabaseAdmin().rpc("phase3_activate_key",{
-      p_issuer:issuerId,p_key:keyId,p_actor:actorId,p_did:binding.did,p_method:binding.verification_method,p_ip:ip,
+    const {error:activationError} = await getSupabaseAdmin().rpc("phase4_activate_key",{
+      p_issuer:issuerId,p_key:keyId,p_actor:actorId,p_ip:ip,
     });
-    if (activationError) throw new IssuerKeyError("Key activation failed; historical verification methods cannot be reused.",409);
+    if (activationError) throw new IssuerKeyError("Managed key activation failed; refresh the issuer and its organization status.",409);
   },
 
-  async signer(issuerId: string, expected?: {did: string; verificationMethod: string}): Promise<DIDSigningContext & {keyId:string}> {
+  async signer(issuerId: string): Promise<DIDSigningContext & {keyId:string}> {
     const key = await stored(issuerId);
-    if (!key.controller || !key.verification_method ||
-      expected && (key.controller !== expected.did || key.verification_method !== expected.verificationMethod)) {
-      throw new IssuerKeyError("Template signing identity does not match its issuer-owned active key.",409);
-    }
+    const binding=await ManagedDIDService.binding(issuerId,key.id);
     const {privateKey} = await material(key);
-    return {...signingMultikey(privateKey,key.controller,key.verification_method),keyId:key.id};
+    return {...signingMultikey(privateKey,binding.did,binding.verificationMethod),keyId:key.id};
   },
 
   async signerForStatus(did: string, issuerId?: string): Promise<DIDSigningContext> {
-    let query = getSupabaseAdmin().from("issuer_keys").select("issuer_id,fingerprint,verification_method")
-      .eq("controller",did).eq("status","active");
+    let query = getSupabaseAdmin().from("issuer_keys").select("id,issuer_id,fingerprint,verification_method,key_version")
+      .eq("controller",did).in("status",["active","retired"]).order("key_version",{ascending:false});
     if (issuerId) query = query.eq("issuer_id",issuerId);
     const {data,error} = await query;
     if (error || !data?.length) throw new IssuerKeyError("Status-list issuer signing key is not available.");
-    if (new Set(data.map(row=>`${row.fingerprint}|${row.verification_method}`)).size !== 1) {
+    const newestByIssuer=new Map<string,(typeof data)[number]>();
+    for (const row of data) if(!newestByIssuer.has(row.issuer_id))newestByIssuer.set(row.issuer_id,row);
+    const candidates=[...newestByIssuer.values()];
+    if (new Set(candidates.map(row=>`${row.fingerprint}|${row.verification_method}`)).size !== 1) {
       throw new IssuerKeyError("Ambiguous status-list issuer signing identity.");
     }
-    return this.signer(data[0].issuer_id);
+    const legacy=candidates[0];
+    const key=await stored(legacy.issuer_id,legacy.id);
+    if (!["active","retired"].includes(key.status) || key.controller!==did || !key.verification_method) {
+      throw new IssuerKeyError("Historical status-list signer is unavailable.");
+    }
+    const {privateKey}=await material(key);
+    return signingMultikey(privateKey,did,key.verification_method);
+  },
+
+  async signerForManagedStatus(did:string):Promise<DIDSigningContext> {
+    const org=await ManagedDIDService.statusOwner(did);
+    const {data,error}=await getSupabaseAdmin().from("organization_verification_methods")
+      .select("issuer_id,key_id,verification_method").eq("organization_id",org)
+      .order("created_at",{ascending:false}).order("id").limit(1).maybeSingle();
+    if (error || !data) throw new IssuerKeyError("Managed status-list signer is unavailable.");
+    const key=await stored(data.issuer_id,data.key_id);
+    if (!["active","retired"].includes(key.status)) throw new IssuerKeyError("Managed status-list key is unusable.");
+    const binding=await ManagedDIDService.binding(data.issuer_id,data.key_id,true);
+    if (binding.did!==did) throw new IssuerKeyError("Managed status-list ownership mismatch.");
+    const {privateKey}=await material(key);
+    return signingMultikey(privateKey,did,binding.verificationMethod);
   },
 
   async download(issuerId: string,actorId: string,ip: string) {

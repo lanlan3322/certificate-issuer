@@ -15,6 +15,7 @@ import * as organizations from "../organizations/handler";
 import * as organizationsId from "../organizations/[id]/handler";
 import * as organizationMembers from "../organizations/[id]/members/handler";
 import * as users from "../users/handler";
+import * as managedDIDs from "../managed-dids/handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,6 +37,11 @@ const routes: Record<string, any> = {
   "organizations/[id]": organizationsId,
   "organizations/[id]/members": organizationMembers,
   users,
+  "managed-dids":managedDIDs,
+  "managed-dids/methods":{GET:managedDIDs.methodsGET},
+  "managed-dids/download":{POST:managedDIDs.downloadPOST},
+  "public/managed-did":{GET:managedDIDs.publicGET},
+  "public/managed-status":{GET:managedDIDs.statusGET},
 };
 
 async function dispatch(request: Request, context: { params: Promise<{ resource: string[] }> }) {

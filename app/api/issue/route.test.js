@@ -5,6 +5,8 @@ const path = require("node:path");
 const Module = require("node:module");
 const ts = require("typescript");
 const { NextResponse } = require("next/server");
+const managedDid="did:web:verifiable.sg:organizations:academy";
+const managedMethod=`${managedDid}#issuer-issuer-id-key-1`;
 
 function load(mocks) {
   const filename = path.resolve(__dirname, "route.ts");
@@ -47,10 +49,11 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
   };
   const mocks = {
     "../../../lib/issuer-key-crypto":{IssuerKeyError:class extends Error{}},
+    "../../../services/ManagedDIDService":{ManagedDIDError:class extends Error{}},
     "../../../services/IssuerKeyService":{IssuerKeyService:{signer:async(id,expected)=>{
       calls.push(["issuer-owned-key",id,expected]);
-      return {did:expected?.did ?? "did:web:verifiable.sg",
-        verificationMethod:expected?.verificationMethod ?? "did:web:verifiable.sg#key-1",
+      return {did:managedDid,
+        verificationMethod:managedMethod,
         publicKeyMultibase:"zPublic",secretKeyMultibase:"zSecret"};
     }}},
     "../../../lib/issuer-access": { requireIssuerAccess: async (_user, id) => {
@@ -139,7 +142,7 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
     "../../../lib/constants": { NETWORKS: { sepolia: {}, mainnet: {} } },
     "../../../services/StatusListService": {
       requireStatusListConfiguration: (profile) => calls.push(["require-status-list", profile]),
-      StatusListService: { reserve: async (...args) => {
+      StatusListService: { reserveManaged: async (...args) => {
         calls.push(["reserve-status", ...args]);
         return [{
           id: "https://fta.verifiable.sg/api/status-list/0/revocation#0",
@@ -182,7 +185,7 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
   } };
 }
 
-test("issue route signs and persists using the selected template issuer profile", async () => {
+test("issue route uses managed organization signing while retaining the template profile document store", async () => {
   const { post, calls, profile, finish } = createRoute();
   const response = await post();
   assert.equal(response.status, 200);
@@ -190,7 +193,7 @@ test("issue route signs and persists using the selected template issuer profile"
   assert.equal(result.signed, true);
 
   const payload = calls.find(([name]) => name === "payload")[1];
-  assert.equal(payload.issuerDid, profile.did);
+  assert.equal(payload.issuerDid, managedDid);
   assert.equal(payload.issuerDisplayName, profile.displayName);
   assert.equal(payload.issuerName, profile.displayName);
   assert.equal(payload.documentStoreAddress, profile.documentStoreAddress);
@@ -198,8 +201,8 @@ test("issue route signs and persists using the selected template issuer profile"
   const signing = calls.find(([name]) => name === "sign");
   assert.equal(signing[2], undefined);
   assert.deepEqual(signing[3], {
-    did: profile.did,
-    verificationMethod: profile.verificationMethod,
+    did: managedDid,
+    verificationMethod: managedMethod,
     publicKeyMultibase: "zPublic",
     secretKeyMultibase: "zSecret",
   });
@@ -208,8 +211,8 @@ test("issue route signs and persists using the selected template issuer profile"
   const stored = calls.find(([name]) => name === "persist")[1];
   assert.equal(stored.templateId, "template-row-id");
   assert.equal(stored.issuerProfileId, profile.id);
-  assert.equal(stored.issuerDid, profile.did);
-  assert.equal(stored.verificationMethod, profile.verificationMethod);
+  assert.equal(stored.issuerDid, managedDid);
+  assert.equal(stored.verificationMethod, managedMethod);
   assert.equal(stored.documentStoreAddress, profile.documentStoreAddress);
   assert.equal(stored.documentStoreNetwork, profile.documentStoreNetwork);
   assert.equal(stored.documentHash, `0x${"a".repeat(64)}`);
@@ -235,7 +238,7 @@ test("template owner controls issuance and sibling issuer access requires an ass
     const payload = calls.find(([name]) => name === "payload")[1];
     assert.equal(payload.templateId, "fta");
     assert.equal(payload.issuerName, "Fintech Academy");
-    assert.equal(payload.issuerDid, "did:web:fta.verifiable.sg");
+    assert.equal(payload.issuerDid, managedDid);
     const saved = calls.find(([name]) => name === "persist")[1];
     assert.equal(saved.issuerId, "other-issuer");
     assert.equal(saved.templateId, "template-row-id");
@@ -251,7 +254,7 @@ test("inaccessible IDs and legacy slugs cannot bypass saved-template authorizati
   }
 });
 
-test("profile-specific Bitstring status is allocated against the selected issuer profile", async () => {
+test("managed Bitstring status is allocated against the template owner and organization DID", async () => {
   const { post, calls } = createRoute({ statusProfile: "bitstring" });
   const response = await post();
   assert.equal(response.status, 200);
@@ -259,12 +262,7 @@ test("profile-specific Bitstring status is allocated against the selected issuer
   assert.deepEqual(calls.find(([name]) => name === "reserve-status").slice(1), [
     "issuer-id",
     "external-id",
-    {
-      id: "profile-id",
-      did: "did:web:fta.verifiable.sg",
-      verificationMethod: "did:web:fta.verifiable.sg#key-1",
-      keyReference: "FTA_SIGNING_KEY",
-    },
+    managedDid,
   ]);
   assert.ok(calls.some(([name]) => name === "sign"));
 });
@@ -274,13 +272,13 @@ test("unmapped templates ignore client-supplied DID, display name, and Document 
   const response = await post();
   assert.equal(response.status, 200);
   const payload = calls.find(([name]) => name === "payload")[1];
-  assert.equal(payload.issuerDid, "did:web:verifiable.sg");
+  assert.equal(payload.issuerDid, managedDid);
   assert.equal(payload.issuerDisplayName, "Fintech Academy");
   assert.equal(payload.documentStoreAddress, defaultStore.address);
   assert.equal(payload.documentStoreNetwork, defaultStore.network);
   assert.equal(calls.some(([name]) => name === "profile-key"), false);
   assert.equal(calls.find(([name]) => name === "issuer-owned-key")[1],"issuer-id");
-  assert.equal(calls.find(([name]) => name === "sign")[3].verificationMethod,"did:web:verifiable.sg#key-1");
+  assert.equal(calls.find(([name]) => name === "sign")[3].verificationMethod,managedMethod);
   assert.equal(calls.some(([name])=>name==="legacy-key"),false);
   await finish();
   assert.deepEqual(calls.find(([name]) => name === "register-store")[3], defaultStore);

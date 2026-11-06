@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { getUserSafely, isSupabaseAuthCookie } from "./lib/supabase/session";
 
-const protectedPages = ["/admin", "/organizations", "/audit", "/branding", "/dashboard", "/delivery", "/did", "/insurance", "/profile", "/revocation", "/wallet"];
+const protectedPages = ["/admin", "/organizations", "/organization-did", "/audit", "/branding", "/dashboard", "/delivery", "/did", "/insurance", "/profile", "/revocation", "/wallet"];
 const protectedApiPrefixes = [
   "/api/issuers",
   "/api/organizations",
@@ -13,10 +13,26 @@ const protectedApiPrefixes = [
   "/api/issue",
   "/api/agent/analytics",
   "/api/audit",
+  "/api/managed-dids",
 ];
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  const managedDocument=/^\/organizations\/([a-z0-9][a-z0-9-]{0,62})\/did\.json$/.exec(pathname);
+  const managedStatus=/^\/organizations\/([a-z0-9][a-z0-9-]{0,62})\/status-list\/(0|[1-9][0-9]{0,9})\/(revocation|suspension)\/?$/.exec(pathname);
+  if (managedDocument || managedStatus) {
+    const target=new URL(managedDocument?"/api/public/managed-did":"/api/public/managed-status",request.url);
+    target.searchParams.set("slug",(managedDocument||managedStatus)![1]);
+    if (managedStatus) {
+      target.searchParams.set("page",managedStatus[2]);target.searchParams.set("purpose",managedStatus[3]);
+    }
+    const response=NextResponse.rewrite(target);
+    response.headers.set("Access-Control-Allow-Origin","*");
+    return response;
+  }
+  if (pathname.startsWith("/api/public/managed-")) {
+    const response=NextResponse.next();response.headers.set("Access-Control-Allow-Origin","*");return response;
+  }
   if (pathname === "/.well-known/did.json") {
     const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0].trim();
     const host = forwardedHost || request.headers.get("host") || request.nextUrl.host;
