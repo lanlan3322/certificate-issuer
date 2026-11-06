@@ -24,7 +24,10 @@ function load(relative, mocks = {}, window) {
 test("public legal pages have metadata, semantic sections, contacts and related links", () => {
   const LegalPage = load("LegalPage.tsx").default;
   for (const route of ["privacy", "terms", "contact"]) {
-    const page = load(`../../app/${route}/page.tsx`, { "../../components/legal/LegalPage": { default: LegalPage } });
+    const page = load(`../../app/${route}/page.tsx`, {
+      "../../components/legal/LegalPage": { default: LegalPage },
+      "../../lib/marketing": load("../../lib/marketing.ts"),
+    });
     assert.ok(page.metadata.title);
     assert.ok(page.metadata.description);
     const html = renderToStaticMarkup(React.createElement(page.default));

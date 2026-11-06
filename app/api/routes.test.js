@@ -57,6 +57,7 @@ const groups = [
       ["audit", "../audit/handler", ["GET"]],
       ["revocation", "../revocation/handler", ["GET", "POST"]],
       ["platform/stats", "../platform/stats/handler", ["GET"]],
+      ["workspace-summary", "../workspace-summary/handler", ["GET"]],
     ],
   },
 ];

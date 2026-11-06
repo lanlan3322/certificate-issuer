@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import IssuedCertificatesTable, { type CredentialItem } from "../../components/IssuedCertificatesTable";
 import { useWorkspaceSession } from "../../components/WorkspaceSession";
 import { hasPermission, isPlatformAdmin } from "../../lib/permissions";
 import { withBasePath } from "../../lib/site";
+import WorkspaceOverview from "../../components/WorkspaceOverview";
 
 export default function DashboardPage() {
+  const catalogue = usePathname()?.replace(/\/+$/, "") === "/credentials";
   const { user, error: sessionError } = useWorkspaceSession();
   const [credentialLoading, setCredentialLoading] = useState(Boolean(user));
   const [credentialError, setCredentialError] = useState<string | null>(null);
@@ -48,7 +51,7 @@ export default function DashboardPage() {
     <header className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">Credential workspace</p>
-        <h1 className="mt-2 text-3xl font-bold">Credential overview</h1>
+        <h1 className="mt-2 text-3xl font-bold">{catalogue ? "Credentials" : "Dashboard"}</h1>
         <p className="mt-2 text-sm text-slate-500">Welcome, {user.displayName}. {isPlatformAdmin(user) ? "Manage credentials across all organizations." : `Review your organization's credentials for ${user.issuerName}.`}</p>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -56,6 +59,15 @@ export default function DashboardPage() {
         {hasPermission(user, "credentials.issue") && <Link href="/insurance/" prefetch={false} className="btn-primary">Issue credential</Link>}
       </div>
     </header>
+    {!catalogue && <WorkspaceOverview />}
+    {!catalogue && <nav aria-label="Credential operations" className="mb-6 flex flex-wrap gap-3">
+      <Link href="/credentials" prefetch={false} className="btn-secondary">Browse credentials</Link>
+      <Link href="/verify" prefetch={false} className="btn-secondary">Verify a credential</Link>
+      {hasPermission(user, "templates.manage") && <Link href="/branding" prefetch={false} className="btn-secondary">Manage templates</Link>}
+      {hasPermission(user, "credentials.issue") && <Link href="/bulk" prefetch={false} className="btn-secondary">Preview batch data</Link>}
+      <Link href="/wallet" prefetch={false} className="btn-secondary">Sharing & delivery</Link>
+      <Link href="/verification" prefetch={false} className="btn-secondary">Inspect credential JSON</Link>
+    </nav>}
     <section aria-label="Loaded credential summary" className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
       {metrics.map(([label, count]) => <div key={label} className="stat-card">
         <p className="text-xs font-medium text-slate-500">{label}</p>

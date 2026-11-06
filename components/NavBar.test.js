@@ -5,7 +5,7 @@ const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 
-function setup(user, agentAvailable = false) {
+function setup(user, agentAvailable = false, pathname = "/dashboard/") {
   const states = [], refs = [], effects = [], listeners = {}, events = [], routes = [];
   let cursor = 0, refCursor = 0;
   const navigationModule = { exports: {} };
@@ -23,7 +23,7 @@ function setup(user, agentAvailable = false) {
       useEffect(effect) { effects.push(effect); },
     },
     "next/link": { default: ({ prefetch, onNavigate, ...props }) => React.createElement("a", props) },
-    "next/navigation": { usePathname: () => "/dashboard/", useRouter: () => ({ push: (href) => routes.push(href), refresh() {} }) },
+    "next/navigation": { usePathname: () => pathname, useRouter: () => ({ push: (href) => routes.push(href), refresh() {} }) },
     "./WorkspaceSession": { useWorkspaceSession: () => ({ user, error: null, refresh: async () => {} }) },
     "../lib/navigation": navigationModule.exports,
     "../lib/site": { withBasePath: (url) => url },
@@ -36,7 +36,7 @@ function setup(user, agentAvailable = false) {
     { documentElement: { classList: { contains: () => false } }, addEventListener(name, callback) { listeners[name] = callback; }, removeEventListener() {} }
   );
   const render = () => { cursor = 0; refCursor = 0; effects.length = 0; return module.exports.default({ agentAvailable }); };
-  return { render, effects, refs, listeners, events, routes };
+  return { render, effects, refs, listeners, events, routes, states };
 }
 function find(node, predicate) {
   if (!node || typeof node !== "object") return [];
@@ -56,7 +56,7 @@ test("navigation shares the server session, labels mobile controls and disables 
     const opened = app.render();
     assert.match(renderToStaticMarkup(opened), /aria-label="Mobile navigation"/);
     for (const link of find(opened, (node) => node.props?.prefetch !== undefined)) assert.equal(link.props.prefetch, false);
-    if (user) assert.match(renderToStaticMarkup(opened), /Issue credentials/);
+    if (user) assert.match(renderToStaticMarkup(opened), /Issue Credential/);
   }
 });
 
@@ -70,6 +70,24 @@ test("mobile navigation closes on Escape and restores trigger focus", () => {
   app.listeners.keydown({ key: "Escape" });
   assert.equal(focused, true);
   assert.equal(find(app.render(), (node) => node.props?.id === "mobile-navigation").length, 0);
+});
+
+test("signed-in public pages retain marketing navigation without mixing administration into the menu", () => {
+  const app = setup({ roles: ["platform_admin"] }, false, "/platform/");
+  find(app.render(), node => node.props?.["aria-label"] === "Open navigation")[0].props.onClick();
+  const html = renderToStaticMarkup(app.render());
+  for (const label of ["Solutions", "Pricing", "Resources", "Open workspace"]) assert.ok(html.includes(label));
+  assert.doesNotMatch(html, /Audit Logs|href="\/billing"|href="\/platform\/dashboard"/);
+});
+
+test("same-page identity anchors never leave the page navigation spinner running", () => {
+  const app = setup({ roles: ["organization_admin"] }, false, "/organization-did/");
+  find(app.render(), node => node.props?.["aria-label"] === "Open navigation")[0].props.onClick();
+  const menu = app.render();
+  find(menu, node => node.props?.href === "/organization-did#managed-did")[0].props.onNavigate();
+  assert.equal(app.states[3], false);
+  find(menu, node => node.props?.href === "/document-stores")[0].props.onNavigate();
+  assert.equal(app.states[3], true);
 });
 
 test("assistant control is offered only for authenticated users with an available widget", () => {

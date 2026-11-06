@@ -19,6 +19,7 @@ import * as managedDIDs from "../managed-dids/handler";
 import * as selfManagedDIDs from "../self-managed-dids/handler";
 import * as organizationStores from "../organization-document-stores/handler";
 import * as subscriptions from "../subscriptions/handler";
+import * as workspaceSummary from "../workspace-summary/handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +45,7 @@ const routes: Record<string, any> = {
   "self-managed-dids":selfManagedDIDs,
   "organization-document-stores":organizationStores,
   subscriptions,
+  "workspace-summary": workspaceSummary,
   "managed-dids/methods":{GET:managedDIDs.methodsGET},
   "managed-dids/download":{POST:managedDIDs.downloadPOST},
   "public/managed-did":{GET:managedDIDs.publicGET},

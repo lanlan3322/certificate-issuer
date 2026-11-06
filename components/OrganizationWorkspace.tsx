@@ -118,11 +118,12 @@ export default function OrganizationWorkspace({ initialOrganizations, canManage,
     finally { setBusy(false); }
   }
 
-  return <main className="mx-auto max-w-6xl space-y-6 px-4 py-10 text-slate-900 dark:text-slate-100">
+  return <main id="members" className="mx-auto max-w-6xl space-y-6 px-4 py-10 text-slate-900 dark:text-slate-100">
     <header className="flex flex-wrap items-center justify-between gap-4">
       <div><p className="text-sm font-semibold text-cyan-700">Credential-as-a-Service</p><h1 className="mt-2 text-3xl font-bold">Organizations</h1></div>
       {canManage && <button className={buttonStyle} onClick={() => edit()} disabled={busy}>Create organization</button>}
     </header>
+    {canManageMembers && <p className="text-sm">Select an organization below to review its users and manage organization memberships.</p>}
     {error && <p role="alert" className="rounded-lg bg-red-50 p-4 text-red-800">{error}</p>}
     {notice && <p role="status" className="rounded-lg bg-emerald-50 p-4 text-emerald-800">{notice}</p>}
     {canManage && <section className="space-y-3 rounded-xl border border-slate-300 p-4">

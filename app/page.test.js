@@ -17,6 +17,17 @@ test("Overview renders the same public content without session, wallet, or crede
     new Function("require", "module", "exports", "fetch", javascript)(
       (name) => {
         if (name === "next/link") return { default: ({ prefetch, ...props }) => require("react").createElement("a", props) };
+        if (name === "../lib/marketing") return require("../lib/marketing.ts");
+        if (name === "../components/MarketingPage") {
+          const mod = { exports: {} };
+          const code = ts.transpileModule(readFileSync(`${__dirname}/../components/MarketingPage.tsx`, "utf8"), {
+            compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+          }).outputText;
+          new Function("require", "module", "exports", code)(dependency => dependency === "next/link"
+            ? { default: ({ prefetch, ...props }) => require("react").createElement("a", props) }
+            : require(dependency), mod, mod.exports);
+          return mod.exports;
+        }
         assert.ok(["lucide-react", "react/jsx-runtime"].includes(name), `Unexpected overview dependency: ${name}`);
         return require(name);
       },
@@ -24,13 +35,12 @@ test("Overview renders the same public content without session, wallet, or crede
       async (...args) => { authCalls.push(args); return { json: async () => ({ user }) }; }
     );
     const html = renderToStaticMarkup(module.exports.default());
-    assert.match(html, /Branded digital credentials/);
-    assert.match(html, /One connected service/);
-    assert.match(html, /Built on open standards/);
-    assert.match(html, /Common questions/);
-    assert.match(html, /href="\/dashboard"/);
+    assert.match(html, /Trusted Digital Credentials\. Instant Verification\./);
+    assert.match(html, /Built on open credential standards/);
+    assert.match(html, /href="\/resources/);
+    assert.match(html, /href="\/contact#demo"/);
     assert.match(html, /href="\/verify"/);
-    assert.doesNotMatch(html, /Welcome,|Issued certificates|My Profile/);
+    assert.doesNotMatch(html, /Welcome,|Issued certificates|My Profile|href="\/dashboard"/);
     assert.deepEqual(authCalls, []);
     outputs.push(html);
   }

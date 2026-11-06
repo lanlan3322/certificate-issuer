@@ -55,6 +55,13 @@ export default function OrganizationDIDPanel() {
     return()=>controller.abort();
   },[selected]);
   const identity=identities.find(item=>item.organizationId===selected);
+  useEffect(()=>{
+    if(typeof window==="undefined" || loading)return;
+    const target=window.location.hash.slice(1);
+    if(["managed-did","self-managed-did","verification-methods","did-documents"].includes(target)) {
+      document.getElementById(target)?.scrollIntoView();
+    }
+  },[identity?.id,loading]);
   const issuerCount=identity?new Set(identity.document.verificationMethod.map(method=>
     /#issuer-(.+)-key-[0-9]+$/.exec(method.id)?.[1])).size:0;
   const download=async()=>{
@@ -82,8 +89,8 @@ export default function OrganizationDIDPanel() {
       </select>
     </label>}
     {identity&&<>
-      <SelfManagedDIDPanel key={identity.organizationId} organizationId={identity.organizationId} />
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+      <div id="self-managed-did"><SelfManagedDIDPanel key={identity.organizationId} organizationId={identity.organizationId} /></div>
+      <div id="managed-did" className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
         <h2 className="text-lg font-bold">Managed DID</h2>
         <p className="mt-3 break-all font-mono text-sm">{identity.did}</p>
         <dl className="mt-5 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
@@ -98,7 +105,7 @@ export default function OrganizationDIDPanel() {
           <a className="btn-secondary" href={managedDocumentURL(identity.did)} target="_blank" rel="noreferrer">View public document</a>
         </div>
       </div>
-      <section className="rounded-2xl border border-slate-200 p-5 dark:border-slate-700">
+      <section id="verification-methods" className="rounded-2xl border border-slate-200 p-5 dark:border-slate-700">
         <h2 className="font-bold">Verification methods available to your role</h2>
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Each method belongs to one issuer key. Inactive methods remain published for historical verification; they cannot issue new credentials.</p>
         {methods.length===0?<p className="mt-4 text-sm">No assigned issuer verification methods.</p>:<ul className="mt-4 space-y-3">
@@ -109,7 +116,7 @@ export default function OrganizationDIDPanel() {
           </li>)}
         </ul>}
       </section>
-      <details className="rounded-2xl border border-slate-200 p-5 dark:border-slate-700">
+      <details id="did-documents" className="rounded-2xl border border-slate-200 p-5 dark:border-slate-700">
         <summary className="cursor-pointer font-semibold">Raw DID document (public keys only)</summary>
         <pre className="mt-4 max-h-[32rem] overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(identity.document,null,2)}</pre>
       </details>

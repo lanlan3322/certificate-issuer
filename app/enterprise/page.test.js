@@ -34,7 +34,7 @@ test("pricing page displays exact plan allowances, charges and reset terms", () 
   assert.doesNotMatch(html, /SSO|SCIM|Microsoft Entra|Google Workspace|Private deployment|\$49/);
   assert.doesNotMatch(html, /Custody DID|Managed DID Identity|Organization-Owned DID|Pay-As-Use/);
   assert.match(html, /All prices are in Singapore dollars/);
-  assert.equal((html.match(/href="\/contact"/g) ?? []).length, 3);
+  for (const section of ["consultation", "demo", "sales"]) assert.ok(html.includes(`href="/contact#${section}"`));
   assert.doesNotMatch(html, /Growth|Enterprise Flex|Additional Services|services-heading|One-Time|Onboarding Includes|SGD\s*(?:59|99|249|599|999)\b/);
   for (const addon of ["Additional template: SGD29", "Additional credential: SGD0.99", "Self-Managed DID: SGD299"]) {
     assert.ok(cards[0].includes(addon));

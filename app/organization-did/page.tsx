@@ -1,7 +1,9 @@
 import OrganizationDIDPanel from "../../components/OrganizationDIDPanel";
+import Link from "next/link";
 
 export default function OrganizationDIDPage() {
   return <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <Link href="/identity-trust" className="mb-4 inline-flex min-h-11 items-center text-sm font-semibold text-cyan-700 hover:underline dark:text-cyan-300">Identity & Trust</Link>
     <p className="text-sm font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300">Organization identity</p>
     <h1 className="mt-2 text-3xl font-bold">DID Management</h1>
     <p className="mb-8 mt-3 max-w-3xl text-sm text-slate-600 dark:text-slate-400">

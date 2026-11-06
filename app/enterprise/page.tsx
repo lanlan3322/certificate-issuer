@@ -5,6 +5,7 @@ import { ArrowRight, Check, CreditCard, Sparkles } from "lucide-react";
 export const metadata: Metadata = {
   title: "CaaS Plans | Verifiable.sg",
   description: "Credential-as-a-Service plans for organizations to issue, manage, revoke, and verify branded digital credentials.",
+  alternates: { canonical: "https://verifiable.sg/pricing/" },
 };
 
 const plans = [
@@ -74,6 +75,7 @@ export default function EnterprisePage() {
       <div className="mb-8 text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700 sm:text-sm">Credential-as-a-Service plans</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">Plans for digital credential programmes</h1>
+        <p className="mt-3 text-sm font-semibold text-cyan-700">Start your programme. Grow your issuer network. Scale your credential ecosystem.</p>
         <p className="mt-3 text-sm text-slate-600">Issue, verify, and manage digital credentials under your organization&apos;s brand. Choose a plan based on your issuer, template, and credential volumes.</p>
         <p className="mt-3 text-sm text-slate-600">All prices are in Singapore dollars (SGD).</p>
         <p className="mt-3 text-sm text-slate-600">Subscriptions and quoted annual arrangements are approved by platform administrators. Online checkout is not connected. Monthly credential limits reset in UTC, including for annual arrangements; add-ons require a separately agreed plan change.</p>
@@ -120,7 +122,7 @@ export default function EnterprisePage() {
                 <h4 className="font-semibold">Ideal For</h4>
                 <ul className="mt-2 list-disc space-y-1 pl-5">{plan.idealFor.map((audience) => <li key={audience}>{audience}</li>)}</ul>
               </div>}
-              <Link href="/contact" className={`mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${plan.featured ? "bg-cyan-400 text-slate-900 hover:bg-cyan-300" : "bg-slate-900 text-white hover:bg-slate-700"}`}>
+              <Link href={`/contact#${plan.name === "Starter" ? "consultation" : plan.name === "Professional" ? "demo" : "sales"}`} className={`mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${plan.featured ? "bg-cyan-400 text-slate-900 hover:bg-cyan-300" : "bg-slate-900 text-white hover:bg-slate-700"}`}>
                 {plan.cta} <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Link>
             </div>

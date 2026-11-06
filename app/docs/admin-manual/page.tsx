@@ -12,6 +12,7 @@ export default function AdminManualPage() {
         <p className="text-sm font-semibold uppercase tracking-[0.25em] text-cyan-700 dark:text-cyan-300">Documentation</p>
         <h1 className="mt-3 text-3xl font-bold text-slate-900 dark:text-white">Admin Manual</h1>
         <p className="mt-3 text-slate-600 dark:text-slate-300">Configure your organization&apos;s CaaS workspace: set up issuer access, test credential workflows, and operate with appropriate controls.</p>
+        <p className="mt-3 text-sm">Use the role-based workspace navigation for Issuers, Templates, Credentials, Users and Audit Logs. <Link href="/identity-trust" className="underline">Identity & Trust</Link> connects managed and self-managed DIDs, verification methods, issuer keys, public documents and Document Stores. Platform operations now live at <Link href="/platform/dashboard" className="underline">Administration</Link>; the public Platform page describes capabilities.</p>
       </header>
       <nav aria-label="Admin manual sections" className="mb-8 flex flex-wrap gap-2 text-sm font-semibold">
         {[["organizations", "Structure"], ["rbac", "RBAC"], ["billing", "Billing & usage"], ["issuer-members", "Issuer members"], ["issuer-keys", "Issuer keys"], ["document-stores", "Document Stores"], ["recovery", "Recovery"], ["operations", "Operations"], ["legal", "Legal & email"], ["pdpa", "PDPA procedures"], ["sign-off", "Sign-off status"]].map(([id, title]) => (
@@ -28,10 +29,10 @@ export default function AdminManualPage() {
             ["Certificate", "Uses the selected template's issuer ownership; historical signed records remain unchanged."],
           ]} />
           <ManualReference caption="Issuer Management quick guide" headings={["Control", "Behaviour"]} rows={[
-            ["Open Issuers", "Use Administration in the desktop workspace sidebar or the mobile navigation menu. Create, inspect, edit and deactivate issuers and view their key metadata from the directory. Initial issuer keys publish automatically under the managed organization DID; legacy identity profiles remain available at the existing registry URL."],
+            ["Open Issuers", "Use Issuers in the desktop workspace sidebar or the mobile navigation menu. Create, inspect, edit and deactivate issuers and view their key metadata from the directory. Initial issuer keys publish automatically under the managed organization DID; legacy identity profiles remain available at the existing registry URL."],
             ["Issuer metadata", "Display name is the public label; the issuer name remains its legacy name, and slug is the issuer code unique within its organization. Organization ownership cannot be transferred."],
             ["Lifecycle", "Deactivate an issuer to stop normal use while retaining historical records. Suspended and deleted states are distinct; only platform admins can soft-delete."],
-            ["Organization directory", "Platform admins use Administration → Organizations to create, edit, view or deactivate organizations and manage memberships. Organization admins can open My organization to manage their own members."],
+            ["Organization directory", "Platform admins use Organizations to create, edit, view or deactivate organizations and manage memberships. Organization admins open Users to select their organization and manage its members."],
             ["Issued credentials", "Platform admins can view and manage credentials across organizations. Organization admins can read their organization's credentials; issuer members can read only assigned issuers' records. Issuer operators may issue, revoke and send for their assigned issuers."],
             ["Issuer members", "Open issuer details to add an existing application user ID, change the issuer role or remove the assignment. Changes affect only that issuer and take effect on the next authorized request."],
           ]} />

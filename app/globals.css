@@ -50,6 +50,7 @@ html.dark body {
 
 @layer base {
   :where(h1, h2, h3):not(.certificate-paper *) { text-wrap: balance; }
+  [id]:not(.certificate-paper *) { scroll-margin-top: 7rem; }
   button, a, input, select, textarea { touch-action: manipulation; }
   :where(a, button, input, select, textarea, summary):focus-visible {
     outline: 2px solid #0891b2;
@@ -129,7 +130,7 @@ html.dark body {
     .credential-table td:empty { display: none; }
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -142,7 +143,7 @@ html.dark body {
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-slate-300 hover:bg-slate-50;
+    @apply inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:border-slate-300 hover:bg-slate-50;
   }
 
   .card {
@@ -203,8 +204,8 @@ html.dark body {
    */
   .dark .card, .dark .section-card, .dark .stat-card { border-color: #334155; background-color: #0f172a; box-shadow: 0 10px 30px rgb(0 0 0 / 0.25); }
   .dark .surface-panel { border-color: #334155; background-color: rgb(30 41 59 / 0.5); }
-  .dark .btn-primary { background-color: #0891b2; }
-  .dark .btn-primary:hover { background-color: #06b6d4; }
+  .dark .btn-primary { background-color: #0e7490; }
+  .dark .btn-primary:hover { background-color: #155e75; }
   .dark .btn-secondary { border-color: #475569; background-color: #1e293b; color: #e2e8f0; }
   .dark .btn-secondary:hover { border-color: #64748b; background-color: #334155; }
   .dark .input-field { border-color: #475569; background-color: #1e293b; color: #e2e8f0; }
@@ -230,8 +231,8 @@ html.dark body {
   .dark .bg-slate-200:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: #334155; }
   .dark .bg-slate-900:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: #020617; }
   /* Primary actions / selected pills: slate-900 is invisible on dark, use the accent. */
-  .dark .bg-slate-900.text-white:where(a, button):where(:not(.certificate-paper *, .theme-fixed *)) { background-color: #0891b2; }
-  .dark .bg-slate-900.text-white:where(a, button):hover:where(:not(.certificate-paper *, .theme-fixed *)) { background-color: #06b6d4; }
+  .dark .bg-slate-900.text-white:where(a, button):where(:not(.certificate-paper *, .theme-fixed *)) { background-color: #0e7490; }
+  .dark .bg-slate-900.text-white:where(a, button):hover:where(:not(.certificate-paper *, .theme-fixed *)) { background-color: #155e75; }
 
   .dark .hover\:bg-gray-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)),
   .dark .hover\:bg-slate-50:hover:where(:not(.certificate-paper, .certificate-paper *, .theme-fixed, .theme-fixed *)) { background-color: rgb(30 41 59 / 0.6); }
