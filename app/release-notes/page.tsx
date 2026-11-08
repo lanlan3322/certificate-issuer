@@ -34,7 +34,7 @@ export default function ReleaseNotesPage() {
         <div className="mb-8 border-b border-slate-200 pb-6">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-700">Verifiable.sg · CaaS</p>
           <h1 className="mt-3 text-3xl font-bold text-slate-900">Release Notes</h1>
-          <p className="mt-3 text-sm text-slate-600">Version 1.0 · Updated 2026-08-12</p>
+          <p className="mt-3 text-sm text-slate-600">Version 1.0 · Updated 2026-11-11</p>
         </div>
 
         <section className="mb-8">
