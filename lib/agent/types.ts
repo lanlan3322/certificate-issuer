@@ -1,5 +1,5 @@
 export type AgentAction =
-  | { type: "navigate"; href: string }
+  | { type: "navigate"; href: string; label?: string }
   | { type: "prefillForm"; href: "/insurance"; values: Record<string, string> }
   | { type: "openModal"; modal: "wallet" | "deployment-guide" }
   | { type: "downloadCredential" };

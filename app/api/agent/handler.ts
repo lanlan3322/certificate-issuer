@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { guardAgentInput, guardAgentOutput } from "../../../lib/agent/guardrails";
 import { createLocalAgentResponse } from "../../../lib/agent/local";
+import { searchSitePages } from "../../../lib/agent/site-search";
 import { getAgentProvider } from "../../../lib/agent/providers";
 import type { AgentContext } from "../../../lib/agent/types";
 import { getCurrentIssuerUser, enforceRateLimit, RateLimitError } from "../../../lib/auth";
@@ -41,7 +42,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const response = provider ? await provider.respond(message, context) : createLocalAgentResponse(message, context);
+    const response = searchSitePages(message, user) ??
+      (provider ? await provider.respond(message, context) : createLocalAgentResponse(message, context, user));
     const safeResponse = { ...response, message: guardAgentOutput(response.message) };
 
     if (body.sessionId) {
@@ -70,6 +72,6 @@ export async function POST(request: Request) {
     return NextResponse.json(safeResponse);
   } catch (error) {
     console.error("Agent provider failed; falling back to local assistant", error);
-    return NextResponse.json(createLocalAgentResponse(message, context));
+    return NextResponse.json(createLocalAgentResponse(message, context, user));
   }
 }

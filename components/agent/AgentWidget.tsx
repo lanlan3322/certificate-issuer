@@ -12,7 +12,7 @@ import { useWorkspaceSession } from "../WorkspaceSession";
 
 const MEMORY_KEY = "trustvc-agent-history";
 const SESSION_KEY = "trustvc-agent-session-id";
-const welcome: AgentMessageData = { id: "welcome", role: "assistant", createdAt: new Date().toISOString(), content: "Welcome to Verifiable. I can help you create credentials, configure issuer details, learn DID identity, verify certificates, and manage revocation. What would you like to do?" };
+const welcome: AgentMessageData = { id: "welcome", role: "assistant", createdAt: new Date().toISOString(), content: "Welcome to Verifiable. I can help you find pages, create credentials, configure issuer details, verify certificates, and manage revocation. What would you like to do?" };
 
 export default function AgentWidget() {
   const pathname = usePathname();
@@ -114,7 +114,7 @@ export default function AgentWidget() {
       const request = await fetch(withBasePath("/api/agent"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: content, context, sessionId: databaseSessionId ?? undefined }) });
       if (!request.ok) throw new Error("Agent API unavailable");
       response = await request.json() as AgentResponse;
-    } catch { response = createLocalAgentResponse(content, context); }
+    } catch { response = createLocalAgentResponse(content, context, user); }
     if (response.workflowState) setWorkflowState(response.workflowState);
     setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", content: response.message, actions: response.actions, createdAt: new Date().toISOString() }]);
     setThinking(false);

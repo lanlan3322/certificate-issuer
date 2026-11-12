@@ -12,7 +12,7 @@ export default function AgentMessage({ message, onAction }: AgentMessageProps) {
         {message.content.split("\n").map((line) => <p key={line}>{line}</p>)}
         {message.actions?.map((action, index) => (
           <button key={`${action.type}-${index}`} type="button" onClick={() => onAction(index)} className="mt-2 block w-full rounded-lg border border-cyan-300 bg-white px-3 py-2 text-left text-xs font-semibold text-cyan-800 hover:bg-cyan-50 dark:border-cyan-800 dark:bg-slate-900 dark:text-cyan-300 dark:hover:bg-slate-800">
-            {action.type === "navigate" ? "Open" : action.type === "prefillForm" ? "Open and prefill" : "Run action"}
+            {action.type === "navigate" ? action.label ? `Open ${action.label}` : "Open" : action.type === "prefillForm" ? "Open and prefill" : "Run action"}
           </button>
         ))}
       </div>

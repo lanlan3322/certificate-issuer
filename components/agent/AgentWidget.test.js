@@ -5,7 +5,7 @@ const ts = require("typescript");
 
 function setup(initialUser) {
   let user = initialUser, cursor = 0;
-  const states = [], tracks = [];
+  const states = [], tracks = [], routes = [];
   const module = { exports: {} };
   const code = ts.transpileModule(readFileSync(`${__dirname}/AgentWidget.tsx`, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
@@ -17,7 +17,7 @@ function setup(initialUser) {
       useEffect() {},
       useCallback(callback) { return callback; },
     },
-    "next/navigation": { usePathname: () => "/release-notes", useRouter: () => ({ push() {} }) },
+    "next/navigation": { usePathname: () => "/release-notes", useRouter: () => ({ push: href => routes.push(href) }) },
     "../WorkspaceSession": { useWorkspaceSession: () => ({ user }) },
     "./AgentWindow": { default: () => null },
     "../../lib/agent/analytics": { AgentAnalyticsService: { track: (...args) => tracks.push(args) } },
@@ -28,7 +28,7 @@ function setup(initialUser) {
   return {
     render() { cursor = 0; return module.exports.default(); },
     setUser(value) { user = value; },
-    tracks,
+    tracks, routes,
   };
 }
 
@@ -51,6 +51,8 @@ test("floating assistant opens and closes for signed-in users and disappears on 
   assert.equal(find(page, node => node.props?.["aria-label"] === "Open Issuer Success Agent").length, 0);
   const window = find(page, node => typeof node.props?.onClose === "function")[0];
   assert.ok(window);
+  window.props.onAction({ type: "navigate", href: "/docs/user-manual", label: "User guide" });
+  assert.deepEqual(app.routes, ["/docs/user-manual"]);
   window.props.onClose();
   assert.equal(find(app.render(), node => node.props?.["aria-label"] === "Open Issuer Success Agent").length, 1);
   app.setUser(null);

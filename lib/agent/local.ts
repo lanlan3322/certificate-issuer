@@ -1,5 +1,7 @@
 import { guardAgentInput } from "./guardrails";
 import { retrieveKnowledge } from "./knowledge";
+import { searchSitePages } from "./site-search";
+import type { IssuerMembership } from "../permissions";
 import type { AgentContext, AgentResponse, IssuanceStep } from "./types";
 
 const issuancePrompts: Record<IssuanceStep, string> = {
@@ -11,9 +13,12 @@ const issuancePrompts: Record<IssuanceStep, string> = {
   issue: "Everything is ready. Use Issue Certificate in the console, then approve the MetaMask signature if you selected wallet signing.",
 };
 
-export function createLocalAgentResponse(message: string, context: AgentContext): AgentResponse {
+export function createLocalAgentResponse(message: string, context: AgentContext, user: { roles: readonly string[]; issuerMemberships?: readonly IssuerMembership[] } | null = null): AgentResponse {
   const guarded = guardAgentInput(message);
   if (guarded) return { message: guarded };
+
+  const search = searchSitePages(message, user);
+  if (search) return search;
 
   const query = message.toLowerCase();
   const step = context.workflowState?.step as IssuanceStep | undefined;
