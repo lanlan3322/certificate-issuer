@@ -47,6 +47,7 @@ export function isFtaCredential(vc: Record<string, unknown>): boolean {
   const certType = String(
     vc.certificateType ??
       vc.certificate_type ??
+      (vc.credentialSubject as Record<string, unknown>)?.certificateType ??
       (vc.credentialSubject as Record<string, unknown>)?.type ??
       "",
   );

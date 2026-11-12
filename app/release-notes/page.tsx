@@ -14,6 +14,10 @@ const changeLog = [
     detail: "Expanded support for DID credential issuance and optional Ethereum anchoring, with clearer validation. Organization admins can issue, revoke and send for active issuers across their organization; users with issuance permission can open Issue Credentials from the navigation.",
   },
   {
+    label: "Signing fix",
+    detail: "Human-readable certificate labels such as Certificate of Completion now use the literal certificateType field instead of the reserved JSON-LD type field, preventing signing failures. Existing credentials remain unchanged and older type fields remain readable.",
+  },
+  {
     label: "Batch CSV",
     detail: "Updated the downloadable sample with certificate number, course length, per-recipient issuing and signed dates, and validity settings. Removed batch-wide date and validity controls. Blank issuing, signed and valid-from dates use the system date at issuance; credentials have no expiry unless validUntil is supplied. Existing four-column uploads remain supported.",
   },

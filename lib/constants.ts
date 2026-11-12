@@ -209,9 +209,10 @@ export const OPENCERTS_CREDENTIAL_CONTEXT = [
 // OpenCerts credential subject field mapping (internal name → canonical field).
 // NOTE: "id" is reserved for JSON-LD subject identity (@id), so certificateId maps
 // to "certificateId" (the tradetrust.io schema field), not to "id".
+// Likewise, certificate labels are literals, not JSON-LD "type" (@type) values.
 export const OPEN_CERTS_SUBJECT_FIELD_MAP = {
   certificateId: "certificateId",
-  certificateType: "type",
+  certificateType: "certificateType",
   templateId: "templateId",
   recipientName: "name",
   recipientEmail: "email",
