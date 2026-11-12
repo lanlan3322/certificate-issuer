@@ -322,18 +322,16 @@ test("DID-only batches issue without MetaMask using fixed V1, status and renderi
   const requests = [];
   let issued = [];
   const dependencies = {
-    connected: false, walletRequired: false, issuing: false, hasValidity: false,
-    issueDate: "2026-10-14",
-    signedDate: "2026-11-05",
+    connected: false, walletRequired: false, issuing: false,
+    getTodayDateInputValue: () => "2026-10-14",
     templatesLoading: false, templateError: null,
     selectedTemplate: { id: "saved-fta", slug: "fta" },
     withBasePath: (url) => url,
     issuingMethods: ["did"], certificateFormat: "v1", DEFAULT_TEMPLATE_ID: "fta",
     rows: [{ recipientName: "Recipient", recipientEmail: "test@example.com",
-      certificateType: "Course", description: "Description", errors: [], rowIndex: 1 }],
+      certificateType: "Course", description: "Description", signedDate: "2026-11-05", errors: [], rowIndex: 1 }],
     setIssuing() {}, onIssuingChange() {}, setParseError() {}, setRows() {},
     onIssuedCertificatesChange(value) { issued = value; },
-    getISODateString: () => "2026-10-14T08:30:45Z",
     dateInputToISO: (value) => /^\d{4}-\d{2}-\d{2}$/.test(value)
       ? `${value}T00:00:00.000Z`
       : null,
@@ -375,9 +373,8 @@ test("Ethereum batches request MetaMask per row and never replace the DID proof"
     let issued = [];
     let rows;
     const dependencies = {
-      connected: !server, walletRequired: false, issuing: false, hasValidity: false,
-      issueDate: "2026-10-20",
-      signedDate: "2026-10-20",
+      connected: !server, walletRequired: false, issuing: false,
+      getTodayDateInputValue: () => "2026-10-20",
       templatesLoading: false, templateError: null,
       selectedTemplate: { id: "saved-fta", slug: "fta" },
       withBasePath: (url) => url,
@@ -387,7 +384,6 @@ test("Ethereum batches request MetaMask per row and never replace the DID proof"
       setIssuing() {}, onIssuingChange() {}, setParseError() {},
       setRows(value) { rows = value; },
       onIssuedCertificatesChange(value) { issued = value; },
-      getISODateString: () => "2026-10-20T00:00:00Z",
       dateInputToISO: (value) => /^\d{4}-\d{2}-\d{2}$/.test(value)
         ? `${value}T00:00:00.000Z`
         : null,

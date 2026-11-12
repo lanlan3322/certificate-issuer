@@ -28,9 +28,6 @@ import {
   signCredentialWithEthereum,
 } from "../lib/trustvc";
 import { useWalletConnection } from "../hooks/useWalletConnection";
-import {
-  getISODateString,
-} from "../lib/certificate";
 import { CERTIFICATE_TEMPLATES, IssuingMethod } from "../lib/constants";
 import { useIssuanceTemplates } from "../hooks/useIssuanceTemplates";
 import { withBasePath } from "../lib/site";
@@ -41,19 +38,6 @@ function getTodayDateInputValue(): string {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
-}
-
-function getNextYearSameDateInputValue(fromDate: string): string {
-  const [year, month, day] = fromDate.split("-").map(Number);
-  if (!year || !month || !day) {
-    return fromDate;
-  }
-
-  const nextYearDate = new Date(year + 1, month - 1, day);
-  const nextYear = nextYearDate.getFullYear();
-  const nextMonth = String(nextYearDate.getMonth() + 1).padStart(2, "0");
-  const nextDay = String(nextYearDate.getDate()).padStart(2, "0");
-  return `${nextYear}-${nextMonth}-${nextDay}`;
 }
 
 function dateInputToISO(dateInput: string, endOfDay = false): string | null {
@@ -195,14 +179,6 @@ export default function BatchIssuePanel({
   const [parseError, setParseError] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [hasValidity, setHasValidity] = useState(true);
-  const [issueDate, setIssueDate] = useState(() => getTodayDateInputValue());
-  const [signedDate, setSignedDate] = useState(() => getTodayDateInputValue());
-  const [validFromDate, setValidFromDate] = useState(() => getTodayDateInputValue());
-  const [validUntilDate, setValidUntilDate] = useState<string | null>(() => {
-    const today = getTodayDateInputValue();
-    return getNextYearSameDateInputValue(today);
-  });
   const certificateFormat = "v1";
   const walletRequired = issuingMethods.includes("ethereum") && !issuingMethods.includes("did");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -267,24 +243,23 @@ export default function BatchIssuePanel({
     }
     if ((walletRequired && !connected) || issuing) return;
 
-    const issueDateIso = dateInputToISO(issueDate);
-    if (!issueDateIso) {
-      setParseError("Issuing date is required and must be valid.");
+    const systemDate = getTodayDateInputValue();
+    const systemDateIso = dateInputToISO(systemDate);
+    if (!systemDateIso) {
+      setParseError("Unable to determine the system date.");
       return;
     }
-    const signedDateIso = dateInputToISO(signedDate);
-    if (!signedDateIso) {
-      setParseError("Signed date is required and must be valid.");
-      return;
-    }
-
-    if (hasValidity) {
-      if (!validFromDate || !validUntilDate) {
-        setParseError("Valid from and valid until dates are required.");
+    for (const row of rows.filter((item) => item.errors.length === 0)) {
+      if (row.issueDate && !dateInputToISO(row.issueDate)) {
+        setParseError("Issuing date is required and must be valid.");
+        return;
+      }
+      if (row.signedDate && !dateInputToISO(row.signedDate)) {
+        setParseError("Signed date is required and must be valid.");
         return;
       }
 
-      if (validUntilDate < validFromDate) {
+      if (row.hasValidity !== false && row.validUntil && row.validUntil < (row.validFrom ?? systemDate)) {
         setParseError("Valid until date must be on or after valid from date.");
         return;
       }
@@ -306,14 +281,17 @@ export default function BatchIssuePanel({
       setRows([...updated]);
 
       try {
-        const now = getISODateString();
-        const validFromIso = hasValidity ? dateInputToISO(validFromDate) : now;
-        const validUntilIsoRaw = hasValidity && validUntilDate
-          ? dateInputToISO(validUntilDate, true)
+        const rowIssueDateIso = row.issueDate ? dateInputToISO(row.issueDate) : systemDateIso;
+        const rowSignedDateIso = row.signedDate ? dateInputToISO(row.signedDate) : systemDateIso;
+        if (!rowIssueDateIso || !rowSignedDateIso) {
+          throw new Error("Issuing date and signed date must be valid dates.");
+        }
+        const validFromIso = row.validFrom ? dateInputToISO(row.validFrom) : systemDateIso;
+        const validUntilIso = row.hasValidity !== false && row.validUntil
+          ? dateInputToISO(row.validUntil, true)
           : undefined;
-        const validUntilIso = validUntilIsoRaw ?? undefined;
 
-        if (hasValidity && (!validFromIso || !validUntilIso)) {
+        if (!validFromIso || validUntilIso === null) {
           throw new Error("Valid from and valid until must be valid dates.");
         }
 
@@ -323,11 +301,13 @@ export default function BatchIssuePanel({
           recipientEmail: row.recipientEmail,
           certificateType: row.certificateType,
           templateId: selectedTemplate.slug,
+          certificateNo: row.certificateNo,
+          courseLength: row.courseLength,
           issuerName: "Certificate Issuer",
-          issueDate: issueDateIso,
-          signedDate: signedDateIso,
+          issueDate: rowIssueDateIso,
+          signedDate: rowSignedDateIso,
           description: row.description,
-          validFrom: validFromIso ?? now,
+          validFrom: validFromIso,
           validUntil: validUntilIso,
           issuingMethods,
           certificateFormat,
@@ -450,23 +430,6 @@ export default function BatchIssuePanel({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleValidityToggle = (checked: boolean) => {
-    setHasValidity(checked);
-    setValidUntilDate((prev) =>
-      checked ? prev ?? getNextYearSameDateInputValue(validFromDate) : null
-    );
-  };
-
-  const handleValidFromChange = (value: string) => {
-    setValidFromDate(value);
-    if (!hasValidity) {
-      return;
-    }
-    setValidUntilDate((prev) =>
-      prev && prev >= value ? prev : getNextYearSameDateInputValue(value)
-    );
-  };
-
   return (
     <div className="space-y-4">
       <div>
@@ -485,68 +448,22 @@ export default function BatchIssuePanel({
         headerAction={walletControls}
       />
 
-      <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-3 sm:p-4">
-        <div>
-          <label className="label text-sm">Issuing Date</label>
-          <input
-            type="date"
-            value={issueDate}
-            onChange={(e) => setIssueDate(e.target.value)}
-            className="input-field text-sm"
-          />
-        </div>
-
-        <div>
-          <label className="label text-sm">Signed Date</label>
-          <input
-            type="date"
-            value={signedDate}
-            onChange={(e) => setSignedDate(e.target.value)}
-            className="input-field text-sm"
-          />
-        </div>
-
-        <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-          <input
-            type="checkbox"
-            checked={hasValidity}
-            onChange={(e) => handleValidityToggle(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-          />
-          <span>Has Validity</span>
-        </label>
-
-        {hasValidity && (
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label text-sm">Valid From</label>
-              <input
-                type="date"
-                value={validFromDate}
-                onChange={(e) => handleValidFromChange(e.target.value)}
-                className="input-field text-sm"
-              />
-            </div>
-            <div>
-              <label className="label text-sm">Valid Until</label>
-              <input
-                type="date"
-                value={validUntilDate ?? ""}
-                min={validFromDate}
-                onChange={(e) => setValidUntilDate(e.target.value || null)}
-                className="input-field text-sm"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Instructions */}
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm">
         <p className="mb-1 font-medium text-blue-800">Expected columns:</p>
         <code className="block rounded bg-blue-100 px-2 py-1 text-xs text-blue-700 break-all">
           recipientName, recipientEmail, certificateType, description
         </code>
+        <p className="mt-2 text-xs text-blue-600">Optional columns:</p>
+        <code className="block rounded bg-blue-100 px-2 py-1 text-xs text-blue-700 break-all">
+          certificateNo, courseLength, issueDate, signedDate, hasValidity, validFrom, validUntil
+        </code>
+        <p className="mt-2 text-xs text-blue-600">
+          Course length must be a positive whole number. Dates use YYYY-MM-DD; hasValidity uses true or false.
+          Blank issueDate, signedDate and validFrom cells use the system date at issuance.
+          No expiry applies unless validUntil is supplied. Set hasValidity to false to ignore validUntil.
+          Template style and issuing methods apply to the whole batch.
+        </p>
         <p className="mt-2 text-xs text-blue-600">
           Valid certificate types:{" "}
           {Object.values(CERTIFICATE_TEMPLATES)

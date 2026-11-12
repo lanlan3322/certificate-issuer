@@ -9,6 +9,13 @@ export interface BatchRow {
   recipientEmail: string;
   certificateType: string;
   description: string;
+  certificateNo?: string;
+  courseLength?: number;
+  issueDate?: string;
+  signedDate?: string;
+  hasValidity?: boolean;
+  validFrom?: string;
+  validUntil?: string;
   errors: string[];
   status: "pending" | "issuing" | "success" | "error";
   txHash?: string;
@@ -47,6 +54,13 @@ function cellsToRow(
     "type",
   ]);
   const description = getCell(["description", "achievement"]);
+  const certificateNo = getCell(["certificateno", "certificate no"]);
+  const courseLength = getCell(["courselength", "course length"]);
+  const issueDate = getCell(["issuedate", "issue date", "issuing date"]);
+  const signedDate = getCell(["signeddate", "signed date"]);
+  const hasValidity = getCell(["hasvalidity", "has validity"]).toLowerCase();
+  const validFrom = getCell(["validfrom", "valid from"]);
+  const validUntil = getCell(["validuntil", "valid until"]);
 
   const validation = validateCertificateData({
     recipientName,
@@ -56,6 +70,29 @@ function cellsToRow(
   });
 
   const errors = [...validation.errors];
+
+  if (courseLength && (!/^\d+$/.test(courseLength) || !Number.isSafeInteger(Number(courseLength)) || Number(courseLength) <= 0)) {
+    errors.push("Course length must be a positive whole number");
+  }
+  if (hasValidity && hasValidity !== "true" && hasValidity !== "false") {
+    errors.push("Has validity must be true or false");
+  }
+  for (const [label, value] of [
+    ["Issue date", issueDate],
+    ["Signed date", signedDate],
+    ["Valid from", validFrom],
+    ["Valid until", validUntil],
+  ]) {
+    if (value) {
+      const date = new Date(`${value}T00:00:00.000Z`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+        errors.push(`${label} must be a valid YYYY-MM-DD date`);
+      }
+    }
+  }
+  if (hasValidity !== "false" && validFrom && validUntil && validUntil < validFrom) {
+    errors.push("Valid until date must be on or after valid from date");
+  }
 
   // Validate certificate type value if one is provided
   if (
@@ -73,6 +110,13 @@ function cellsToRow(
     recipientEmail,
     certificateType,
     description,
+    certificateNo: certificateNo || undefined,
+    courseLength: courseLength ? Number(courseLength) : undefined,
+    issueDate: issueDate || undefined,
+    signedDate: signedDate || undefined,
+    hasValidity: hasValidity === "" ? undefined : hasValidity === "true",
+    validFrom: validFrom || undefined,
+    validUntil: validUntil || undefined,
     errors,
     status: "pending",
   };
@@ -144,7 +188,7 @@ export async function parseExcel(file: File): Promise<BatchRow[]> {
   const result: BatchRow[] = [];
   for (let i = 1; i < sheetRows.length; i++) {
     const cells = sheetRows[i].map((c) =>
-      (c == null ? "" : String(c)).trim()
+      (c instanceof Date ? c.toISOString().slice(0, 10) : c == null ? "" : String(c)).trim()
     );
     result.push(cellsToRow(headers, cells, i));
   }
@@ -155,11 +199,16 @@ export async function parseExcel(file: File): Promise<BatchRow[]> {
 // --- Sample template ---
 
 export function generateSampleCSV(): string {
-  const header = "recipientName,recipientEmail,certificateType,description";
+  const header = "recipientName,recipientEmail,certificateType,description,certificateNo,courseLength,issueDate,signedDate,hasValidity,validFrom,validUntil";
+  const today = new Date();
+  const issueDate = today.toISOString().slice(0, 10);
+  const nextYear = new Date(today);
+  nextYear.setUTCFullYear(nextYear.getUTCFullYear() + 1);
+  const validUntil = nextYear.toISOString().slice(0, 10);
   const examples = [
-    `Ahmad bin Rahman,ahmad@example.com,Professional Certificate,Certified in AI Governance`,
-    `Siti Nurhaliza,siti@example.com,Certificate of Completion,Completed Data Ethics Workshop`,
-    `David Chen,david@example.com,Certificate of Achievement,Excellence in Cloud Architecture`,
+    `Ahmad bin Rahman,ahmad@example.com,Professional Certificate,Certified in AI Governance,FTA-001,40,${issueDate},${issueDate},true,${issueDate},${validUntil}`,
+    "Siti Nurhaliza,siti@example.com,Certificate of Completion,Completed Data Ethics Workshop,FTA-002,8,,,false,,",
+    "David Chen,david@example.com,Certificate of Achievement,Excellence in Cloud Architecture,,,,,,,",
   ];
   return [header, ...examples].join("\n");
 }

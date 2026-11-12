@@ -61,6 +61,7 @@ export default function UserManualPage() {
             ["DID", "Ask your administrator to configure a valid signing identity. Review the resulting proof before sharing."],
             ["Ethereum", "Connect MetaMask on Sepolia. Check ETH balance, approve the transaction and review its result."],
           ]} />
+          <p className="mt-3">For batch uploads, download the sample CSV. Required columns are <code>recipientName, recipientEmail, certificateType, description</code>. Optional columns are <code>certificateNo, courseLength, issueDate, signedDate, hasValidity, validFrom, validUntil</code>. Course length is a positive whole number; dates use YYYY-MM-DD. Blank issuing, signed and valid-from dates use the system date when you issue the batch. No expiry applies unless <code>validUntil</code> is supplied; set <code>hasValidity</code> to <code>false</code> to ignore it. Dates and validity are set only in the file, not through batch-wide controls. Template and issuing methods remain batch-wide. Existing four-column files still work and default to the system date with no expiry.</p>
           <aside className={noteStyle}><strong>Keep secrets private.</strong> Never share signing keys or authentication tokens.</aside>
         </section>
 

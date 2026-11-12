@@ -14,6 +14,10 @@ const changeLog = [
     detail: "Expanded support for DID credential issuance and optional Ethereum anchoring, with clearer validation. Organization admins can issue, revoke and send for active issuers across their organization; users with issuance permission can open Issue Credentials from the navigation.",
   },
   {
+    label: "Batch CSV",
+    detail: "Updated the downloadable sample with certificate number, course length, per-recipient issuing and signed dates, and validity settings. Removed batch-wide date and validity controls. Blank issuing, signed and valid-from dates use the system date at issuance; credentials have no expiry unless validUntil is supplied. Existing four-column uploads remain supported.",
+  },
+  {
     label: "Assistant",
     detail: "Signed-in users can open the workspace assistant using the floating robot in the bottom-right corner.",
   },
@@ -38,7 +42,7 @@ export default function ReleaseNotesPage() {
         <div className="mb-8 border-b border-slate-200 pb-6">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-700">Verifiable.sg · CaaS</p>
           <h1 className="mt-3 text-3xl font-bold text-slate-900">Release Notes</h1>
-          <p className="mt-3 text-sm text-slate-600">Version 1.0 · Updated 2026-11-11</p>
+          <p className="mt-3 text-sm text-slate-600">Version 1.0 · Updated 2026-11-12</p>
         </div>
 
         <section className="mb-8">
