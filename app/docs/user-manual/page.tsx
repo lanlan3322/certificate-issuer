@@ -52,7 +52,7 @@ export default function UserManualPage() {
         <section id="issuance" aria-labelledby="issuance-heading" className={sectionStyle}>
           <h2 id="issuance-heading" className="text-xl font-bold">3. Issue a credential</h2>
           <ManualFlow label="Review before you sign" steps={[
-            ["Choose", "Open Issue. Select single or batch, then an available template."],
+            ["Choose", "Open Issue. Batch (Excel / CSV) opens by default; switch to Single when needed, then select an available template."],
             ["Fill", "Enter recipient details or upload the batch. Check names and email addresses."],
             ["Review", "Check the issuing date, signed date, validity dates, and issuance methods."],
             ["Issue", "Sign, review the result and download the credential."],

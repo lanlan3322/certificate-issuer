@@ -171,7 +171,7 @@ export default function InsurancePage() {
   const [ethereumResult, setEthereumResult] = useState<EthereumIssuanceResult | null>(null);
   const [walletWarningDismissed, setWalletWarningDismissed] = useState(false);
   const [showDeploymentGuide, setShowDeploymentGuide] = useState(false);
-  const [issueMode, setIssueMode] = useState<"single" | "batch">("single");
+  const [issueMode, setIssueMode] = useState<"single" | "batch">("batch");
   const [issuingMethods, setIssuingMethods] = useState<IssuingMethod[]>(DEFAULT_ISSUING_METHODS);
   const [batchIssuedCertificates, setBatchIssuedCertificates] = useState<IssuedCertificateItem[]>([]);
   const [batchIssuing, setBatchIssuing] = useState(false);
