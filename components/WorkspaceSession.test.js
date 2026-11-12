@@ -105,13 +105,13 @@ test("workspace shell preserves isolated certificate rendering and provides one 
     compilerOptions: { module: ts.ModuleKind.CommonJS },
   }).outputText)(() => require("../lib/permissions.ts"), navModule, navModule.exports);
   const module = { exports: {} };
-  let pathname = "/renderer/";
+  let pathname = "/renderer/", currentUser = user;
   new Function("require", "module", "exports", ts.transpileModule(readFileSync(`${__dirname}/SiteChrome.tsx`, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
   }).outputText)((name) => {
     if (name === "next/navigation") return { usePathname: () => pathname };
     if (name === "next/link") return { default: ({ prefetch, ...props }) => React.createElement("a", props) };
-    if (name === "./WorkspaceSession") return { useWorkspaceSession: () => ({ user }) };
+    if (name === "./WorkspaceSession") return { useWorkspaceSession: () => ({ user: currentUser }) };
     if (name === "../lib/navigation") return navModule.exports;
     return require(name);
   }, module, module.exports);
@@ -123,6 +123,12 @@ test("workspace shell preserves isolated certificate rendering and provides one 
   assert.match(html, /aria-label="Breadcrumb"/);
   assert.equal((html.match(/id="main-content"/g) ?? []).length, 1);
   assert.equal((html.match(/<main\b/g) ?? []).length, 1);
+  assert.match(html, /WIDGET/);
+  currentUser = null;
+  assert.doesNotMatch(renderToStaticMarkup(module.exports.default(props)), /WIDGET/);
+  currentUser = user;
+  pathname = "/release-notes/";
+  assert.match(renderToStaticMarkup(module.exports.default(props)), /WIDGET/);
 });
 
 test("sharing the issuance catalog disables the batch panel's second template request", async () => {

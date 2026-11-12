@@ -54,7 +54,7 @@ export default function SiteChrome({ header, footer, widget, children }: SiteChr
         </div>
       </div>
       {footer}
-      {widget}
+      {user && widget}
     </div>
   );
 }

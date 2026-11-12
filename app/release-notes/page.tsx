@@ -11,7 +11,11 @@ const highlights = [
 const changeLog = [
   {
     label: "Issuance",
-    detail: "Expanded support for DID credential issuance and optional Ethereum anchoring, with clearer validation.",
+    detail: "Expanded support for DID credential issuance and optional Ethereum anchoring, with clearer validation. Signed-in users with issuance permission can open Issue Credentials from the navigation.",
+  },
+  {
+    label: "Assistant",
+    detail: "Signed-in users can open the workspace assistant using the floating robot in the bottom-right corner.",
   },
   {
     label: "Verification",

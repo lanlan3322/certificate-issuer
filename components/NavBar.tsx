@@ -6,10 +6,11 @@ import { ArrowUpRight, ChevronDown, LogOut, Menu, Moon, Sun, X } from "lucide-re
 import { useEffect, useRef, useState } from "react";
 import { useWorkspaceSession } from "./WorkspaceSession";
 import { isWorkspacePage, normalizePagePath, publicNavigation, workspaceNavigation } from "../lib/navigation";
+import { hasPermission } from "../lib/permissions";
 import { withBasePath } from "../lib/site";
 import PageLoadingIndicator from "./PageLoadingIndicator";
 
-export default function NavBar({ agentAvailable = false }: { agentAvailable?: boolean }) {
+export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, error: sessionError, refresh } = useWorkspaceSession();
@@ -93,9 +94,8 @@ export default function NavBar({ agentAvailable = false }: { agentAvailable?: bo
           className={`nav-link px-2 ${active(item.href) ? "nav-link-active" : ""}`}>{item.label}</Link>)}
       </nav>
       <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
-        {user && agentAvailable && <button type="button" aria-label="Open Issuer Success Agent"
-          onClick={() => window.dispatchEvent(new Event("trustvc-agent-open"))}
-          className="hidden rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium dark:border-slate-700 xl:inline-flex">Assistant</button>}
+        {hasPermission(user, "credentials.issue") && <Link href="/insurance" prefetch={false}
+          onNavigate={() => navigate("/insurance")} className="btn-primary hidden whitespace-nowrap xl:inline-flex">Issue Credentials</Link>}
         <button type="button" onClick={toggleTheme} aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
           className="icon-button">{darkMode ? <Sun aria-hidden="true" size={18} /> : <Moon aria-hidden="true" size={18} />}</button>
         <div ref={accountRef} className="relative hidden xl:block">
@@ -122,9 +122,11 @@ export default function NavBar({ agentAvailable = false }: { agentAvailable?: bo
         onNavigate={() => navigate(item.href)} aria-current={active(item.href) ? "page" : undefined}
         className={`nav-link ${active(item.href) ? "nav-link-active" : ""}`}>{item.label}</Link>)}</div>
       {!user && <Link href="/issuer/" prefetch={false} onNavigate={() => navigate("/issuer/")} className="btn-primary mb-3 w-full">Sign in to your workspace</Link>}
+      {hasPermission(user, "credentials.issue") && <Link href="/insurance" prefetch={false}
+        onNavigate={() => navigate("/insurance")} className="btn-primary mb-3 w-full">Issue Credentials</Link>}
       {workspace && navGroups.map((group) => <section key={group.label} className="border-t border-slate-200 py-3 dark:border-slate-800">
         <h2 className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">{group.label}</h2>
-        <div className="grid gap-1 sm:grid-cols-2">{group.items.map((item) => <Link key={item.href} href={item.href} prefetch={false}
+        <div className="grid gap-1 sm:grid-cols-2">{group.items.filter((item) => item.href !== "/insurance").map((item) => <Link key={item.href} href={item.href} prefetch={false}
           onNavigate={() => navigate(item.href)} aria-current={active(item.href) ? "page" : undefined}
           className={`nav-link ${active(item.href) ? "nav-link-active" : ""}`}>{item.label}</Link>)}</div>
       </section>)}
@@ -132,7 +134,6 @@ export default function NavBar({ agentAvailable = false }: { agentAvailable?: bo
         <p className="truncate px-3 py-2 text-sm text-slate-500">{user.email}</p>
         <Link href="/dashboard" prefetch={false} onNavigate={() => navigate("/dashboard")} className="nav-link block">Open workspace</Link>
         <Link href="/profile" prefetch={false} onNavigate={() => navigate("/profile")} className="nav-link block">Profile</Link>
-        {agentAvailable && <button type="button" className="nav-link block w-full text-left" onClick={() => { setMobileMenuOpen(false); window.dispatchEvent(new Event("trustvc-agent-open")); }}>Open assistant</button>}
         <button type="button" disabled={loggingOut} className="nav-link text-red-700 dark:text-red-300" onClick={() => void logout()}>{loggingOut ? "Signing out..." : "Sign out"}</button>
       </div>}
     </nav>}

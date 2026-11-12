@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { Bot } from "lucide-react";
 import AgentWindow from "./AgentWindow";
 import { AgentAnalyticsService } from "../../lib/agent/analytics";
 import { createLocalAgentResponse } from "../../lib/agent/local";
 import type { AgentAction, AgentMessageData, AgentResponse } from "../../lib/agent/types";
-import { getSupabaseBrowserClient } from "../../lib/supabase/client";
-import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { withBasePath } from "../../lib/site";
+import { useWorkspaceSession } from "../WorkspaceSession";
 
 const MEMORY_KEY = "trustvc-agent-history";
 const SESSION_KEY = "trustvc-agent-session-id";
@@ -17,12 +17,13 @@ const welcome: AgentMessageData = { id: "welcome", role: "assistant", createdAt:
 export default function AgentWidget() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useWorkspaceSession();
+  const isAuthenticated = Boolean(user);
   const [open, setOpen] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [messages, setMessages] = useState<AgentMessageData[]>([welcome]);
   const [workflowState, setWorkflowState] = useState<Record<string, string>>({});
   const [databaseSessionId, setDatabaseSessionId] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const sessionRequest = useRef<Promise<string | null> | null>(null);
 
   useEffect(() => {
@@ -33,22 +34,6 @@ export default function AgentWidget() {
     window.addEventListener("trustvc-agent-open", openAgent);
     return () => window.removeEventListener("trustvc-agent-open", openAgent);
   }, [pathname]);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const supabase = getSupabaseBrowserClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      return Boolean(session?.user);
-    };
-    void checkAuth().then(setIsAuthenticated);
-
-    const supabase = getSupabaseBrowserClient();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      setIsAuthenticated(Boolean(session?.user));
-    });
-
-    return () => { subscription.unsubscribe(); };
-  }, []);
 
   const createDatabaseSession = useCallback(() => {
     if (sessionRequest.current) return sessionRequest.current;
@@ -139,6 +124,11 @@ export default function AgentWidget() {
 
   return (
     <>
+      {!open && <button type="button" aria-label="Open Issuer Success Agent"
+        onClick={() => { setOpen(true); AgentAnalyticsService.track("widget-toggle", pathname); }}
+        className="fixed bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-cyan-700 text-white shadow-lg hover:bg-cyan-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-700 sm:bottom-6 sm:right-6 print:hidden">
+        <Bot aria-hidden="true" className="h-7 w-7" />
+      </button>}
       {open && (
         <AgentWindow
           page={pathname}

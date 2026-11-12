@@ -6,7 +6,6 @@ import AuthEmailRedirect from "../components/AuthEmailRedirect";
 import AgentWidget from "../components/agent/AgentWidget";
 import CookieBanner from "../components/legal/CookieBanner";
 import { getCurrentIssuerUser } from "@/lib/auth";
-import { hasPermission } from "../lib/permissions";
 import { WorkspaceSessionProvider } from "../components/WorkspaceSession";
 import "./globals.css";
 
@@ -39,7 +38,6 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const user = await getCurrentIssuerUser();
-  const hasIssuerAdminRole = hasPermission(user, "issuers.manage");
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -49,7 +47,7 @@ export default async function RootLayout({
       <body className="min-h-screen bg-gray-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <WorkspaceSessionProvider initialUser={user}>
           <AuthEmailRedirect />
-          <SiteChrome header={<NavBar agentAvailable={hasIssuerAdminRole} />} footer={<Footer />} widget={hasIssuerAdminRole ? <AgentWidget /> : null}>
+          <SiteChrome header={<NavBar />} footer={<Footer />} widget={<AgentWidget />}>
             {children}
           </SiteChrome>
           <CookieBanner />
