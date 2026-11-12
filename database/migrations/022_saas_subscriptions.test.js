@@ -39,6 +39,29 @@ test("migration grandfathers existing organizations, backfills usage and provisi
   await db.query("INSERT INTO organizations(id,name,slug,display_name) VALUES($1,'New','new-org','New')",[id(5)]);
   assert.equal((await snapshot(5)).subscription.status,"pending");assert.equal((await snapshot(5)).subscription.plan,"starter");
 });
+test("organization admin can issue with the current schema and subscription controls",async t=>{
+  const {db,as,document,snapshot}=await app(t);
+  await db.exec(readFileSync(`${__dirname}/023_organization_admin_issuance.sql`,"utf8"));
+  await db.exec("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO authenticated");
+  const identity=await document(), method=identity.did_document.verificationMethod[0].id;
+  const key=(await db.query("SELECT id FROM issuer_keys WHERE issuer_id=$1 AND status='active'",[id(11)])).rows[0].id;
+  const insert=`INSERT INTO credentials(issuer_id,template_id,signing_key_id,issuer_did,verification_method,external_id,recipient_name,recipient_email,credential)
+    VALUES($1,$2,$3,$4,$5,'admin-issued','Recipient','r@example.com','{}') RETURNING id`;
+  assert.ok((await as(22,insert,[id(11),id(31),key,identity.did,method])).rows[0].id);
+  assert.equal((await snapshot()).usage.certificatesIssued,2);
+  await db.query("UPDATE subscriptions SET status='suspended' WHERE organization_id=$1",[id(1)]);
+  await assert.rejects(as(22,insert.replace("admin-issued","admin-suspended"),[id(11),id(31),key,identity.did,method]),/SUBSCRIPTION_INACTIVE/);
+});
+test("organization admin can revoke with current schema and subscription controls",async t=>{
+  const {db,as,assign,snapshot}=await app(t);
+  for(const name of ["023_organization_admin_issuance","024_organization_admin_credential_operations"])
+    await db.exec(readFileSync(`${__dirname}/${name}.sql`,"utf8"));
+  await db.exec("GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO authenticated");
+  await assign("enterprise",{status:"suspended"});
+  await as(22,"INSERT INTO revocations (credential_id,issuer_id,action,reason) VALUES ($1,$2,'revoke','Test')",[id(41),id(11)]);
+  assert.equal((await as(22,"UPDATE credentials SET status='revoked' WHERE id=$1 RETURNING id",[id(41)])).rows.length,1);
+  assert.equal((await snapshot()).usage.certificatesIssued,1);
+});
 test("Starter limits allow exactly 1 issuer, 5 templates and 100 monthly certificates and roll back failed creations",async t=>{
   const {db,assign,template,credential,create,snapshot}=await app(t);
   await assign("starter");

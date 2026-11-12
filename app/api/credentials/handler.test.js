@@ -58,10 +58,10 @@ test("only the session platform-admin role enables platform-wide credential view
     ));
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { credentials: credentials.map((record) => ({ ...record,
-      canManage: roles.includes("platform-admin") || roles.includes("issuer-operator"),
+      canManage: ["platform-admin", "issuer-admin", "issuer-operator"].some((role) => roles.includes(role)),
     })) });
     assert.deepEqual(calls, [
-      ...(["platform-admin", "issuer-operator"].some((role) => roles.includes(role)) ? [["expireOverdue", "issuer-id"]] : []),
+      ...(["platform-admin", "issuer-admin", "issuer-operator"].some((role) => roles.includes(role)) ? [["expireOverdue", "issuer-id"]] : []),
       ["list", "issuer-id", { status: "revoked", limit: 25, platformAdmin: roles.includes("platform-admin"), organizationId: "org-id" }],
     ]);
   }

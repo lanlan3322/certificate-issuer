@@ -27,7 +27,7 @@ export default function UserManualPage() {
             ["Verify", "Check signature, status and any blockchain evidence."],
           ]} />
           <p className="mt-4"><strong>Sign in → Credential overview.</strong> On desktop, use the workspace sidebar; on mobile, open the navigation menu. Platform and Verify stay public. Use Verify before sending or accepting a credential.</p>
-          <p className="mt-3">Your active organization and issuer memberships determine access. Issuer operators may issue, revoke and send for their assigned issuers; issuer admins manage templates for their assigned issuers; viewers have read-only access. Organization admins manage organization-level members and issuer profiles but have read-only credential access. Contact your administrator if an issuer assignment is missing.</p>
+          <p className="mt-3">Your active organization and issuer memberships determine access. Issuer operators may issue, revoke and send for their assigned issuers; issuer admins manage templates for their assigned issuers; viewers have read-only access. Organization admins may issue, revoke and send credentials for any active issuer in their organization. Contact your administrator if an issuer assignment is missing.</p>
         </section>
 
         <section id="templates" aria-labelledby="templates-heading" className={sectionStyle}>

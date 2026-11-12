@@ -13,7 +13,7 @@ test("workspace navigation uses the centralized permission matrix for all organi
   for (const role of ["platform_admin", "organization_admin", "issuer", "viewer"]) {
     for (const href of ["/dashboard", "/profile", "/verify", "/credentials"]) assert.equal(includes(role, href), true);
     assert.equal(includes(role, "/branding"), ["platform_admin", "organization_admin"].includes(role));
-    assert.equal(includes(role, "/insurance"), ["platform_admin", "issuer"].includes(role));
+    assert.equal(includes(role, "/insurance"), ["platform_admin", "organization_admin", "issuer"].includes(role));
     for (const href of ["/admin", "/identity-trust", "/organizations#members", "/audit"]) assert.equal(includes(role, href), ["platform_admin", "organization_admin"].includes(role));
     assert.equal(includes(role, "/organizations"), role === "platform_admin");
     for (const href of ["/bulk", "/verification", "/templates/builder"]) assert.equal(includes(role, href), false);

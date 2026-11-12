@@ -10,7 +10,7 @@ import {
   getCurrentIssuerUser,
 } from "./auth";
 import { SupabaseConfigurationError } from "./supabase/server";
-import { hasLegacyRole, hasPermission, type Permission } from "./permissions";
+import { hasLegacyRole, hasPermission, normalizeRoles, type Permission } from "./permissions";
 
 export function clientIp(request: Request) {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -31,7 +31,8 @@ export async function authorize(
   if (role && !(role.includes(".") ? hasPermission(user, role as Permission) : hasLegacyRole(user, role))) {
     return { response: NextResponse.json({ error: role.includes(".") ? `Requires ${role} permission.` : `Requires the ${role} role.` }, { status: 403 }) };
   }
-  if (role === "credentials.issue" && !user.issuerId && !user.issuerMemberships?.length && !hasPermission(user, "organizations.manage")) {
+  if (role === "credentials.issue" && !user.issuerId && !user.issuerMemberships?.length &&
+      !hasPermission(user, "organizations.manage") && !normalizeRoles(user.roles).includes("organization_admin")) {
     return { response: NextResponse.json({ error: "An active issuer is required to issue credentials." }, { status: 403 }) };
   }
   return { user };

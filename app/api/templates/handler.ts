@@ -20,7 +20,7 @@ export async function GET(request: Request) {
           platformAdmin: isPlatformAdmin(user),
         })).filter((template) => template.issuerId && canAccessIssuer(user, {
           id: template.issuerId, organizationId: template.organizationId,
-        }, "operate")),
+        }, "issue")),
       }, { headers: { "Cache-Control": "no-store" } });
     }
     const includeInactive = new URL(request.url).searchParams.get("includeInactive") === "true";

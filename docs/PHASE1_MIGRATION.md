@@ -7,7 +7,7 @@ This repository contains the migration, not evidence that a production database 
 1. Back up Supabase database schema, data and Auth identities; verify the backup can be restored.
 2. Restore to a private staging project. Confirm migrations 001-014 are applied in order. Never re-run old seed migrations against production.
 3. Inventory organizations, users, issuer assignments, memberships/legacy roles and any existing custom policies. Resolve unassigned issuer-role users explicitly; migration 012 only auto-assigned unambiguous single-issuer organizations. Do not choose an arbitrary issuer.
-4. Review mixed administrator/operator accounts. Membership is a single organization role; organization administrators are intentionally read-only for credentials.
+4. Review mixed administrator/operator accounts. Membership is a single organization role; migration 023 subsequently grants organization administrators issuance within their organization.
 5. Capture row counts, existing IDs/organization assignments and exact stored credential content. Export `SELECT id, credential::text FROM credentials ORDER BY id` privately before and after the migration and compare files byte-for-byte; never place recipient data in Git or public logs.
 6. Confirm at least one trusted application user has `platform-admin` or `platform_admin`. Do not grant platform access through membership or Auth metadata.
 7. Check whether `verifiable-sg` already exists, including its status. Existing tenant assignments are retained; they are not consolidated into one organization.
@@ -42,7 +42,7 @@ All counts except the default organization listing should be zero. Compare all o
 Use two organizations and all four roles to test both the application and authenticated PostgREST/RLS directly:
 
 - Platform admin: list/create/edit/view/deactivate organizations; inspect users, change global roles, manage memberships and view credentials across tenants.
-- Organization admin: manage own issuers/templates/members; cannot edit organization lifecycle or issue/revoke credentials.
+- Organization admin: manage own issuers/templates/members and issue, revoke and send for own active issuers after migrations 023 and 024; cannot edit organization lifecycle.
 - Issuer: issue/revoke/send for assigned issuer; cannot create issuers, manage templates or elevate membership roles.
 - Viewer: read own organization credentials, without write actions.
 - Confirm foreign organization IDs, forged actors, cross-organization template references and issuer transfers are rejected.

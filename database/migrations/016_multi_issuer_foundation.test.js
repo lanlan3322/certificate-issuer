@@ -128,6 +128,41 @@ test("Phase 2 issuance requires template-derived owner; snapshots are immutable 
   assert.ok((await db.query("SELECT count(*) FROM audit_logs WHERE action='issuer.edited'")).rows[0].count>0);
 });
 
+test("organization admin issuance migration allows own issuers without granting revocation", async(t)=>{
+  const {as,db}=await setup(t);
+  await db.exec(readFileSync(`${__dirname}/023_organization_admin_issuance.sql`, "utf8"));
+  const insert="INSERT INTO credentials (issuer_id,template_id,external_id,recipient_name,recipient_email,credential) VALUES ($1,$2,$3,'R','r@example.com','{}') RETURNING id";
+  for (const [owner, template] of [[id(11),id(31)],[id(12),id(32)]]) {
+    assert.ok((await as(22,insert,[owner,template,`admin-${owner}`])).rows[0].id);
+  }
+  await assert.rejects(as(22,insert,[id(13),id(33),"foreign-admin"]),/row-level security|Issuer not found/);
+  await assert.rejects(as(24,insert,[id(11),id(31),"viewer-admin"]),/row-level security/);
+  const changed=await as(22,"UPDATE credentials SET status='revoked' WHERE id=$1 RETURNING id",[id(41)]);
+  assert.equal(changed.rows.length,0);
+  await assert.rejects(as(22,"INSERT INTO revocations (credential_id,issuer_id,action,reason) VALUES ($1,$2,'revoke','Test')",[id(41),id(11)]),/row-level security/);
+  await as(22,"UPDATE issuers SET status='suspended' WHERE id=$1",[id(12)]);
+  await assert.rejects(as(22,insert,[id(12),id(32),"suspended-admin"]),/Active issuer|row-level security/);
+});
+
+test("organization admin credential operations remain tenant-scoped and require active issuers", async(t)=>{
+  const {as,db}=await setup(t);
+  for (const migration of ["023_organization_admin_issuance","024_organization_admin_credential_operations"]) {
+    await db.exec(readFileSync(`${__dirname}/${migration}.sql`, "utf8"));
+  }
+  const sibling=(await as(22,"INSERT INTO credentials (issuer_id,template_id,external_id,recipient_name,recipient_email,credential) VALUES ($1,$2,'sibling-admin','R','r@example.com','{}') RETURNING id",[id(12),id(32)])).rows[0].id;
+  for (const [credential, owner] of [[id(41),id(11)],[sibling,id(12)]]) {
+    await as(22,"INSERT INTO revocations (credential_id,issuer_id,action,reason) VALUES ($1,$2,'revoke','Test')",[credential,owner]);
+    assert.equal((await as(22,"UPDATE credentials SET status='revoked' WHERE id=$1 RETURNING id",[credential])).rows.length,1);
+  }
+  assert.equal((await as(22,"UPDATE credentials SET status='revoked' WHERE id=$1 RETURNING id",[id(42)])).rows.length,0);
+  await assert.rejects(as(22,"INSERT INTO revocations (credential_id,issuer_id,action,reason) VALUES ($1,$2,'revoke','Test')",[id(42),id(13)]),/row-level security/);
+  await assert.rejects(as(22,"INSERT INTO revocations (credential_id,issuer_id,action,reason) VALUES ($1,$2,'revoke','Test')",[id(41),id(12)]),/row-level security/);
+  assert.equal((await as(24,"UPDATE credentials SET status='revoked' WHERE id=$1 RETURNING id",[id(41)])).rows.length,0);
+  await as(22,"UPDATE issuers SET status='suspended' WHERE id=$1",[id(11)]);
+  assert.equal((await as(22,"UPDATE credentials SET status='issued' WHERE id=$1 RETURNING id",[id(41)])).rows.length,0);
+  await assert.rejects(as(22,"INSERT INTO revocations (credential_id,issuer_id,action,reason) VALUES ($1,$2,'suspend','Test')",[id(41),id(11)]),/row-level security/);
+});
+
 test("Phase 2 audit failure rolls back issuer edits; legacy invitations still assign issuer access",async(t)=>{
   const {as,db}=await setup(t);
   await db.exec("ALTER TABLE audit_logs ADD CONSTRAINT reject_issuer_edit CHECK (action <> 'issuer.edited') NOT VALID");

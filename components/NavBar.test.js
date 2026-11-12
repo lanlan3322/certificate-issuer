@@ -94,7 +94,7 @@ test("same-page identity anchors never leave the page navigation spinner running
 test("issuance shortcut is available on public and workspace pages only with issue permission", () => {
   const cases = [
     [null, false], [{ roles: ["viewer"] }, false],
-    [{ roles: ["organization_admin"] }, false], [{ roles: ["issuer"] }, true],
+    [{ roles: ["organization_admin"] }, true], [{ roles: ["issuer"] }, true],
     [{ roles: ["issuer"], issuerMemberships: [{ issuerId: "id", role: "viewer" }] }, false],
     [{ roles: ["platform_admin"] }, true],
   ];

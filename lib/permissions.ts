@@ -23,7 +23,7 @@ const aliases: Record<string, Role> = {
 const grants: Record<Role, readonly Permission[]> = {
   platform_admin: ["organizations.manage", "organizations.read", "members.manage", "users.manage",
     "issuers.manage", "templates.manage", "credentials.read", "credentials.issue", "credentials.revoke", "credentials.send", "billing.read", "billing.manage"],
-  organization_admin: ["organizations.read", "members.manage", "issuers.manage", "templates.manage", "credentials.read", "billing.read"],
+  organization_admin: ["organizations.read", "members.manage", "issuers.manage", "templates.manage", "credentials.read", "credentials.issue", "credentials.revoke", "credentials.send", "billing.read"],
   issuer: ["organizations.read", "credentials.read", "credentials.issue", "credentials.revoke", "credentials.send"],
   viewer: ["organizations.read", "credentials.read"],
 };
@@ -66,18 +66,18 @@ export function hasLegacyRole(user: { roles: readonly string[] }, role: string):
 export function canAccessIssuer(
   user: PermissionUser,
   issuer: { id: string; organizationId: string },
-  capability: "read" | "manage" | "templates" | "operate" = "read",
+  capability: "read" | "manage" | "templates" | "issue" | "operate" = "read",
 ): boolean {
   if (isPlatformAdmin(user)) return true;
   if (issuer.organizationId !== user.organizationId) return false;
   const roles = normalizeRoles(user.roles);
-  if (roles.includes("organization_admin") && capability !== "operate") return true;
+  if (roles.includes("organization_admin")) return true;
   const membership = user.issuerMemberships?.find((entry) => entry.issuerId === issuer.id);
   if (membership) return capability === "read" ||
     (capability === "templates" && membership.role === "issuer_admin") ||
-    (capability === "operate" && membership.role === "issuer_operator");
+    ((capability === "issue" || capability === "operate") && membership.role === "issuer_operator");
   if (user.issuerMemberships === undefined && user.issuerId === issuer.id) {
-    return capability === "read" || (capability === "operate" && roles.includes("issuer"));
+    return capability === "read" || ((capability === "issue" || capability === "operate") && roles.includes("issuer"));
   }
   return capability === "read" && !user.issuerId && !user.issuerMemberships?.length && roles.includes("viewer");
 }

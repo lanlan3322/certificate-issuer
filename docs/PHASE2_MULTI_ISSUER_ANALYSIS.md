@@ -39,6 +39,8 @@ RBAC, organization ownership and isolation. It is not replaced.
 
 ## Role decisions
 
+The Phase 2 decisions below are historical. Migrations 023 and 024 subsequently grant organization admins issuance, revocation and sending for active issuers in their organization.
+
 - Platform admins manage every issuer, including soft deletion.
 - Organization admins create/edit/deactivate issuers and manage assignments and
   templates within their active organization; they do not gain issuance.

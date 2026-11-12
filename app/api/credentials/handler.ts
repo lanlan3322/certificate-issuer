@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       organizationId: user.organizationId, platformAdmin: isPlatformAdmin(user),
     });
     if (!template?.issuerId) return NextResponse.json({ error: "Active template not found." }, { status: 404 });
-    const issuer = await requireIssuerAccess(user, template.issuerId, "operate", true);
+    const issuer = await requireIssuerAccess(user, template.issuerId, "issue", true);
     const credential = await CredentialService.create({
       issuerId: issuer.id,
       templateId: template.id,

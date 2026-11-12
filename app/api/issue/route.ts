@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     if (!template?.isActive || !template.issuerId) {
       return NextResponse.json({ error: "Select an active saved template." }, { status: 404 });
     }
-    const issuer = await requireIssuerAccess(auth.user, template.issuerId, "operate", true);
+    const issuer = await requireIssuerAccess(auth.user, template.issuerId, "issue", true);
     const store = await OrganizationDocumentStoreService.active(issuer.organizationId);
     return NextResponse.json({ blockchainRegistration: store ? "server" : "wallet" },
       { headers: { "Cache-Control": "private, no-store" } });
@@ -179,7 +179,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Template is inactive and cannot issue credentials." }, { status: 409 });
     }
     if (!template.issuerId) return NextResponse.json({ error: "Template has no issuer assignment." }, { status: 409 });
-    const issuingIssuer = await requireIssuerAccess(user, template.issuerId, "operate", true);
+    const issuingIssuer = await requireIssuerAccess(user, template.issuerId, "issue", true);
     const issuingOrganization = await OrganizationService.getById(issuingIssuer.organizationId);
     if (!issuingOrganization) return NextResponse.json({ error: "Issuer organization not found." }, { status: 409 });
 

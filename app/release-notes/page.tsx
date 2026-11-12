@@ -11,7 +11,7 @@ const highlights = [
 const changeLog = [
   {
     label: "Issuance",
-    detail: "Expanded support for DID credential issuance and optional Ethereum anchoring, with clearer validation. Signed-in users with issuance permission can open Issue Credentials from the navigation.",
+    detail: "Expanded support for DID credential issuance and optional Ethereum anchoring, with clearer validation. Organization admins can issue, revoke and send for active issuers across their organization; users with issuance permission can open Issue Credentials from the navigation.",
   },
   {
     label: "Assistant",

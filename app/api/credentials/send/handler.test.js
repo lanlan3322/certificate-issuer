@@ -12,6 +12,7 @@ function setup(options = {}) {
   const user = { id: "user", issuerId: "issuer-a", organizationId: "org-a", roles: options.roles ?? ["issuer-operator"] };
   const record = {
     id, externalId: "../test/cert", recipientEmail: "recipient@example.com",
+    issuerId: "issuer-a", organizationId: "org-a",
     credential: { id: "signed", proof: { proofValue: "unchanged" } }, status: "issued",
     ...options.record,
   };
@@ -20,8 +21,11 @@ function setup(options = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const mocks = {
-    "../../../../lib/issuer-access": { requireIssuerAccess: async () => {
-      if (options.deniedIssuer) throw new ForbiddenError("Issuer access denied.");
+    "../../../../lib/issuer-access": { requireIssuerAccess: async (principal, issuerId, capability, active) => {
+      calls.push(["issuer-access", issuerId, capability, active]);
+      if (options.deniedIssuer || !require("../../../../lib/permissions.ts").canAccessIssuer(
+        principal, { id: issuerId, organizationId: record.organizationId }, capability
+      )) throw new ForbiddenError("Issuer access denied.");
       return {};
     } },
     "../../../../lib/permissions": require("../../../../lib/permissions.ts"),
@@ -92,6 +96,15 @@ test("sends stored signed JSON through shared SMTP settings only to the scoped r
   assert.match(email.text, /https:\/\/verifiable.sg\/terms/);
   assert.equal(email.messageId, `<certificate-${id}-${requestId}@verifiable.sg>`);
   assert.equal(app.calls.find(([type]) => type === "audit")[1].action, "credential.email.accepted");
+});
+
+test("organization admins can send for sibling issuers but not another organization", async () => {
+  const own = setup({ roles: ["organization_admin"], record: { issuerId: "issuer-b" } });
+  assert.equal((await own.post()).status, 200);
+  assert.deepEqual(own.calls.find(([type]) => type === "issuer-access"), ["issuer-access", "issuer-b", "operate", true]);
+  const foreign = setup({ roles: ["organization_admin"], record: { issuerId: "issuer-b", organizationId: "org-b" } });
+  assert.equal((await foreign.post()).status, 403);
+  assert.ok(!foreign.calls.some(([type]) => type === "email"));
 });
 
 test("rejects unauthenticated, unauthorized, cross-origin and malformed requests before email", async () => {

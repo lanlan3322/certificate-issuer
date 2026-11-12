@@ -16,9 +16,9 @@ The existing `users.organization_id` remains the active workspace. Memberships m
 | Memberships | All | Own organization | Read own membership | Read own membership |
 | Global user directory/platform roles | All | No | No | No |
 | Issuers/templates | All | Manage own organization | Read own organization | Read own organization |
-| Credentials | All | Read own organization | Read own organization; issue/revoke/send for assigned issuer | Read own organization |
+| Credentials | All | Read, issue, revoke and send for own organization | Read own organization; issue/revoke/send for assigned issuer | Read own organization |
 
-Organization administration does not imply issuance. A legacy user holding both administrator and operator roles migrates to the single `organization_admin` membership role. Review mixed-role accounts before deployment; explicit least-privilege separation is intentional. Issuance always needs an active assigned issuer. No arbitrary issuer fallback is permitted.
+Migrations 023 and 024 grant organization administrators issuance, revocation and sending for active issuers in their own organization. The selected active template determines the issuance issuer; no arbitrary issuer fallback is permitted.
 
 ## Database helpers
 

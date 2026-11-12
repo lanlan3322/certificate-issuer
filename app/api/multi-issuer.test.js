@@ -75,8 +75,8 @@ const request=(path,method,body)=>new Request(`https://verifiable.sg/api/${path}
 
 test("revocation API resolves the stored issuer and enforces sibling isolation before revocation",async()=>{
   const sibling="00000000-0000-4000-8000-000000000012";
-  for(const [role,owner,status] of [["issuer",issuerId,200],["issuer",sibling,403],["platform_admin",sibling,200],["organization_admin",issuerId,403],["viewer",issuerId,403]]) {
-    const app=setup("revocation/handler.ts",role,org,owner);
+  for(const [role,owner,ownerOrg,status] of [["issuer",issuerId,org,200],["issuer",sibling,org,403],["platform_admin",sibling,org,200],["organization_admin",issuerId,org,200],["organization_admin",sibling,org,200],["organization_admin",sibling,"foreign-org",403],["viewer",issuerId,org,403]]) {
+    const app=setup("revocation/handler.ts",role,ownerOrg,owner);
     const response=await app.handler.POST(request("revocation","POST",{credentialId:userId,action:"revoke",reason:"Test",issuerId:sibling}));
     assert.equal(response.status,status,`${role} targeting ${owner}`);
     if(status===200)assert.equal(app.calls.find(call=>call[0]==="revoke")[1].issuerId,owner);

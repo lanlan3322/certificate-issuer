@@ -5,7 +5,7 @@ import { IssuerService } from "../services/IssuerService";
 import { OrganizationService } from "../services/OrganizationService";
 
 export async function requireIssuerAccess(
-  user: AuthUser, issuerId: string, capability: "read" | "manage" | "templates" | "operate" = "read",
+  user: AuthUser, issuerId: string, capability: "read" | "manage" | "templates" | "issue" | "operate" = "read",
   active = false,
 ) {
   const issuer = await IssuerService.getById(issuerId);

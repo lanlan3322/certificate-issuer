@@ -6,7 +6,7 @@ const Module = require("node:module");
 const ts = require("typescript");
 const { NextResponse } = require("next/server");
 
-function setup({ roles = ["issuer-operator"], authenticated = true, failure = false } = {}) {
+function setup({ roles = ["issuer-operator"], authenticated = true, failure = false, templates } = {}) {
   const calls = [];
   const filename = path.resolve(__dirname, "handler.ts");
   const instance = new Module(filename, module);
@@ -29,7 +29,7 @@ function setup({ roles = ["issuer-operator"], authenticated = true, failure = fa
         listForIssuance: async (scope) => {
           calls.push(["issuance", scope]);
           if (failure) throw new Error("Database unavailable");
-          return [{ id: "saved-template", issuerId: "my-issuer", organizationId: "my-org" }];
+          return templates ?? [{ id: "saved-template", issuerId: "my-issuer", organizationId: "my-org" }];
         },
         list: async (...args) => { calls.push(["builder", ...args]); return []; },
       },
@@ -51,10 +51,20 @@ test("issuance catalog trusts session organization and roles, not client overrid
     const response = await get("purpose=issuance&organizationId=other-org&issuerId=other-issuer&platformAdmin=true&includeInactive=true");
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("cache-control"), "no-store");
-    assert.deepEqual(await response.json(), { templates: roles.includes("issuer-admin") ? [] :
+    assert.deepEqual(await response.json(), { templates:
       [{ id: "saved-template", issuerId: "my-issuer", organizationId: "my-org" }] });
     assert.deepEqual(calls, [["issuance", { organizationId: "my-org", platformAdmin: roles.includes("platform-admin") }]]);
   }
+});
+
+test("organization admins can use all own-organization issuers but not foreign templates", async () => {
+  const templates = [
+    { id: "own", issuerId: "my-issuer", organizationId: "my-org" },
+    { id: "sibling", issuerId: "sibling", organizationId: "my-org" },
+    { id: "foreign", issuerId: "foreign", organizationId: "other-org" },
+  ];
+  const { get } = setup({ roles: ["organization_admin"], templates });
+  assert.deepEqual((await (await get("purpose=issuance")).json()).templates, templates.slice(0, 2));
 });
 
 test("builder catalog remains organization scoped", async () => {

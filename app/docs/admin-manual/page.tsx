@@ -40,7 +40,7 @@ export default function AdminManualPage() {
             <h3 className="mt-6 text-lg font-bold">Role-based access control (RBAC)</h3>
             <ManualReference caption="Platform and organization RBAC table" headings={["Role", "Scope and permissions"]} rows={[
               ["platform_admin", "Platform-wide: create, edit, deactivate and soft-delete organizations and issuers; manage global user roles, memberships and templates; view, issue, revoke and send credentials across organizations."],
-              ["organization_admin", "Own active organization: manage organization memberships, issuer metadata, issuer assignments and templates; read all organization credentials. Cannot edit organization profile/lifecycle, grant platform administration or soft-delete issuers. Issuance, revocation and sending require a separate issuer_operator assignment."],
+              ["organization_admin", "Own active organization: manage organization memberships, issuer metadata, issuer assignments and templates; issue, revoke and send credentials for active issuers. Cannot edit organization profile/lifecycle, grant platform administration or soft-delete issuers."],
               ["issuer", "Organization role for credential operations. Access requires an issuer assignment; issuer_operator grants issue, revoke and send for that issuer. The organization role or legacy issuer ID alone does not grant access after assignment removal."],
               ["viewer", "Read-only. Issuer-bound or explicitly assigned users are restricted to assigned issuers. An organization viewer with no legacy issuer binding and no issuer assignments retains organization-wide read access. No issuer, template or credential writes."],
             ]} />

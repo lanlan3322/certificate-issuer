@@ -22,7 +22,7 @@ function load(mocks) {
   return instance.exports;
 }
 
-function createRoute({ statusProfile = "legacy", profileMapped = true, registrationError = false, registrationEnabled = true, templateOwner = "issuer-id", roles = ["issuer-operator"], available = true, organizationStore=null, storeFailure=false } = {}) {
+function createRoute({ statusProfile = "legacy", profileMapped = true, registrationError = false, registrationEnabled = true, templateOwner = "issuer-id", templateOrg = "org-id", roles = ["issuer-operator"], available = true, organizationStore=null, storeFailure=false } = {}) {
   const calls = [];
   const pending = [];
   const defaultStore = {
@@ -63,9 +63,11 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
         publicKeyMultibase:"zPublic",secretKeyMultibase:"zSecret",keyId:`${id}-key-1`,
         keyFingerprint:`SHA256:${id}`,keyVersion:1};
     }}},
-    "../../../lib/issuer-access": { requireIssuerAccess: async (_user, id) => {
-      if (id !== "issuer-id" && !roles.includes("platform-admin")) throw new Error("Issuer access denied.");
-      return { id, organizationId: "org-id", displayName: "Fintech Academy", active: true };
+    "../../../lib/issuer-access": { requireIssuerAccess: async (user, id, capability, active) => {
+      calls.push(["issuer-access", id, capability, active]);
+      const owner = { id, organizationId: templateOrg, displayName: "Fintech Academy", active: true };
+      if (!require("../../../lib/permissions.ts").canAccessIssuer(user, owner, capability)) throw new Error("Issuer access denied.");
+      return owner;
     } },
     "../../../services/OrganizationService": { OrganizationService: {
       getById: async () => ({ id: "org-id", displayName: "Example Organization", status: "active" }),
@@ -265,14 +267,15 @@ test("organization active store overrides profile/global configuration, is persi
   assert.equal(failed.calls.some(c=>c[0]==="sign"||c[0]==="register-store"),false);
 });
 
-test("template owner controls issuance and sibling issuer access requires an assignment or platform permission", async () => {
-  for (const roles of [["issuer-operator"], ["platform-admin"]]) {
+test("template owner controls issuance and sibling access includes organization admins", async () => {
+  for (const roles of [["issuer-operator"], ["platform-admin"], ["organization_admin"]]) {
     const { post, calls } = createRoute({ templateOwner: "other-issuer", roles });
-    assert.equal((await post()).status, roles.includes("platform-admin") ? 200 : 500);
+    assert.equal((await post()).status, roles.includes("issuer-operator") ? 500 : 200);
+    assert.deepEqual(calls.find(([name]) => name === "issuer-access"), ["issuer-access", "other-issuer", "issue", true]);
     assert.deepEqual(calls.find(([name]) => name === "load-template")[2], {
       organizationId: "org-id", platformAdmin: roles.includes("platform-admin"),
     });
-    if (!roles.includes("platform-admin")) {
+    if (roles.includes("issuer-operator")) {
       assert.equal(calls.some(([name]) => name === "sign" || name === "persist"), false);
       continue;
     }
@@ -286,6 +289,10 @@ test("template owner controls issuance and sibling issuer access requires an ass
     assert.equal(saved.templateId, "template-row-id");
     assert.equal(saved.issuerProfileId, "profile-id");
   }
+  const foreign = createRoute({ templateOwner: "foreign", templateOrg: "other-org", roles: ["organization_admin"] });
+  assert.equal((await foreign.get()).status, 500);
+  assert.equal((await foreign.post()).status, 500);
+  assert.equal(foreign.calls.some(([name]) => name === "sign" || name === "persist"), false);
 });
 
 test("inaccessible IDs and legacy slugs cannot bypass saved-template authorization", async () => {
