@@ -1,0 +1,43 @@
+export const SAMPLE_CREDENTIAL: Record<string, unknown> = {
+  "@context": [
+    "https://www.w3.org/ns/credentials/v2",
+    "https://w3id.org/security/data-integrity/v2",
+    {
+      "@version": 1.1,
+      "@vocab": "https://schema.org/",
+      certificateId: "https://schemas.tradetrust.io/credentials#certificateId",
+      certificateType: "https://schemas.tradetrust.io/credentials#certificateType",
+      templateId: "https://schemas.tradetrust.io/credentials#templateId",
+      issuerDisplayName: "https://verifiable.sg/credentials#issuerDisplayName",
+      organizationDisplayName: "https://verifiable.sg/credentials#organizationDisplayName",
+      signedDate: "https://verifiable.sg/credentials#signedDate",
+    },
+  ],
+  type: ["VerifiableCredential"],
+  id: "urn:uuid:7dc930d5-be7e-4584-a8da-08bc6733a124",
+  issuer: "did:web:verifiable.sg",
+  validFrom: "2026-11-13T00:00:00Z",
+  validUntil: "2036-11-13T23:59:59Z",
+  credentialSubject: {
+    id: "urn:uuid:0198e4a3-b601-7117-9d02-8c9a9a54ab5d",
+    type: "Person",
+    certificateId: "DEMO-2026-001",
+    name: "Sample Recipient",
+    email: "sample@example.com",
+    certificateType: "Demonstration Certificate",
+    templateId: "classic",
+    description: "Public sample credential for testing verification.",
+    issuerDisplayName: "Verifiable.sg",
+    organizationDisplayName: "Verifiable.sg",
+    signedDate: "2026-11-13",
+  },
+  proof: {
+    type: "DataIntegrityProof",
+    created: "2026-11-13T01:35:50Z",
+    verificationMethod: "did:web:verifiable.sg#ecdsa-2026-02",
+    cryptosuite: "ecdsa-sd-2023",
+    proofPurpose: "assertionMethod",
+    proofValue:
+      "u2V0AhVhAkGnuKQiaXBVrfCEzacl_6IwpFOTh8Xovs1udFV8kaGT4xEu8u65KmBDuGXJkfQMAVlXC7tvqMlIyAbBk5wK8HFgjgCQDCJpEJyXqWn1C-qnBP9RMYkLn73FZADKynHeZpURw1ZpYIBUFZTz5ywar3M3OxGWUULnnsVUvhQQ2S3I_7M9tVWamg1hAu0tWqQ2U_a99IUruEsfYtzrp_vHgl6qDLzfqMBRVNGkV7Xe6pk3qyXgQyZceVyz41yz8tZH5oEG-VkHR0SWWs1hAGJOEsGD58EQ5mkW4XIBAkNkc-NAUSDKYSbtfDnZhoH7qrbTTKYEjBE1loCg1tUF9GPDjcX8nuLu80nrzPMN3DlhAhjVdToEO5j_VWJeOXyUUizQrsMtuAArG3E_zGeAaXg0uRFRVhR_NRHyEytNRry5uOVXafbjpv-NCAYG1HS0lW4pnL2lzc3VlcmovdmFsaWRGcm9tay92YWxpZFVudGlseCAvY3JlZGVudGlhbFN1YmplY3QvY2VydGlmaWNhdGVJZHcvY3JlZGVudGlhbFN1YmplY3QvbmFtZXUvY3JlZGVudGlhbFN1YmplY3QvaWR4GC9jcmVkZW50aWFsU3ViamVjdC9lbWFpbHgiL2NyZWRlbnRpYWxTdWJqZWN0L2NlcnRpZmljYXRlVHlwZXgkL2NyZWRlbnRpYWxTdWJqZWN0L2lzc3VlckRpc3BsYXlOYW1leCovY3JlZGVudGlhbFN1YmplY3Qvb3JnYW5pemF0aW9uRGlzcGxheU5hbWU",
+  },
+};

@@ -9,6 +9,7 @@ import { CertificateTemplateData } from "../templates/types";
 import { DOCUMENT_STORE_CONFIG, TRUSTVC_CONFIG } from "../../lib/constants";
 import { withBasePath } from "../../lib/site";
 import { issuerPresentation } from "../../lib/issuer-presentation";
+import { SAMPLE_CREDENTIAL } from "../../lib/sample-credential";
 import {
   VerificationResult,
 } from "../../lib/trustvc";
@@ -145,29 +146,7 @@ export default function VerifyPage() {
   };
 
   const handleSampleCredential = () => {
-    const sample = {
-      "@context": [
-        "https://www.w3.org/ns/credentials/v2",
-        "https://w3id.org/security/data-integrity/v2",
-      ],
-      "type": ["VerifiableCredential", "OpenCertsCertificate"],
-      "id": "urn:uuid:0198e4a3-b601-7117-9d02-8c9a9a54ab5d",
-      "credentialSubject": {
-        "certificateId": "urn:uuid:0198e4a3-b601-7117-9d02-8c9a9a54ab5d",
-        "type": ["Person"],
-        "name": "Sample Recipient",
-        "certificateType": "Professional Certificate",
-      },
-      "issuer": "did:web:example.com",
-      "validFrom": "2026-01-01T00:00:00Z",
-      "proof": {
-        "type": "DataIntegrityProof",
-        "proofValue": "sample-proof-value",
-        "verificationMethod": "did:web:example.com#multikey-1",
-        "cryptosuite": "ecdsa-sd-2023",
-      },
-    };
-    setCredentialJson(JSON.stringify(sample, null, 2));
+    setCredentialJson(JSON.stringify(SAMPLE_CREDENTIAL, null, 2));
   };
 
   return (
