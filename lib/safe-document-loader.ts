@@ -22,7 +22,7 @@ type SafeLoaderOptions = {
 };
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
-const REQUEST_TIMEOUT_MS = 5_000;
+const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_REDIRECTS = 3;
 
 export function createPinnedLookup(address: Address) {

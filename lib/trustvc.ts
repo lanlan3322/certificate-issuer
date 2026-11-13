@@ -1249,6 +1249,7 @@ async function verifyBitstringStatuses(
   const purposes = new Set<string>();
   const indices = new Set<string>();
   const pages = new Set<string>();
+  const validatedEntries: Array<{ entry: Record<string, unknown>; url: string }> = [];
   for (const entry of entries) {
     if (!isRecord(entry) || typeof entry.statusListCredential !== "string" ||
         typeof entry.statusListIndex !== "string" || !/^(0|[1-9][0-9]*)$/.test(entry.statusListIndex) ||
@@ -1279,30 +1280,37 @@ async function verifyBitstringStatuses(
       return {valid:false,message:"Managed status URL does not match the organization DID."};
     }
     pages.add(`${url.origin}${url.pathname.replace(/\/(revocation|suspension)$/,"")}`);
-    const response = await loader(url.href);
+    validatedEntries.push({ entry, url: url.href });
+  }
+  if (indices.size !== 1 || pages.size !== 1) {
+    return { valid: false, message: "Status list purposes must share a single allocation." };
+  }
+
+  const checks: Array<VerificationResult | null> = await Promise.all(validatedEntries.map(async ({ entry, url }) => {
+    const response = await loader(url);
     const listDocument: unknown = response.document;
-    if (!isRecord(listDocument) || listDocument.id !== url.href || listDocument.issuer !== issuer ||
+    if (!isRecord(listDocument) || listDocument.id !== url || listDocument.issuer !== issuer ||
         listDocument.credentialStatus !== undefined ||
         !Array.isArray(listDocument.type) || !listDocument.type.includes("VerifiableCredential") ||
         !listDocument.type.includes("BitstringStatusListCredential") ||
         !isRecord(listDocument.proof) || listDocument.proof.cryptosuite !== "ecdsa-sd-2023" ||
         listDocument.proof.type !== "DataIntegrityProof") {
-      return { valid: false, message: "Invalid signed status list credential." };
+      return { valid: false, message: "Invalid signed status list credential." } satisfies VerificationResult;
     }
     const start = Date.parse(String(listDocument.validFrom));
     const end = Date.parse(String(listDocument.validUntil));
     if (!Number.isFinite(start) || !Number.isFinite(end) || end <= Date.now() ||
         start > Date.now() || end - start > 60000 || end <= start) {
-      return { valid: false, message: "Status list is expired, future-dated or exceeds the freshness limit." };
+      return { valid: false, message: "Status list is expired, future-dated or exceeds the freshness limit." } satisfies VerificationResult;
     }
     const verification = await verifyEcdsaCredential(listDocument, listDocument.proof, loader);
-    if (!verification.valid) return { valid: false, message: `Status list proof failed: ${verification.message}` };
+    if (!verification.valid) return { valid: false, message: `Status list proof failed: ${verification.message}` } satisfies VerificationResult;
     const subject = listDocument.credentialSubject;
     if (!isRecord(subject) || subject.type !== "BitstringStatusList" ||
-        subject.id !== `${url.href}#list` || subject.ttl !== 60000 ||
+        subject.id !== `${url}#list` || subject.ttl !== 60000 ||
         subject.statusPurpose !== entry.statusPurpose || typeof subject.encodedList !== "string" ||
         subject.encodedList.length > 24000 || !/^u?[A-Za-z0-9_-]+$/.test(subject.encodedList)) {
-      return { valid: false, message: "Invalid encoded status list subject." };
+      return { valid: false, message: "Invalid encoded status list subject." } satisfies VerificationResult;
     }
     const { StatusList } = await loadCommonJSModule<typeof import("@trustvc/w3c-credential-status")>(
       "@trustvc/w3c-credential-status"
@@ -1317,18 +1325,18 @@ async function verifyBitstringStatuses(
     const buffer = Buffer.alloc(uncompressed.length);
     uncompressed.copy(buffer);
     const list = new StatusList({ buffer });
-    if (list.length !== 131072) return { valid: false, message: "Invalid status list length." };
+    if (list.length !== 131072) return { valid: false, message: "Invalid status list length." } satisfies VerificationResult;
     if (list.getStatus(Number(entry.statusListIndex))) {
       return {
         valid: false,
         message: entry.statusPurpose === "revocation" ? "Credential has been revoked." : "Credential is suspended.",
         details: { credentialStatus: entry.statusPurpose === "revocation" ? "revoked" : "suspended" },
-      };
+      } satisfies VerificationResult;
     }
-  }
-  if (indices.size !== 1 || pages.size !== 1) {
-    return { valid: false, message: "Status list purposes must share a single allocation." };
-  }
+    return null;
+  }));
+  const failed = checks.find((check) => check !== null);
+  if (failed) return failed;
   return { valid: true, message: "Signed status lists verified." };
 }
 

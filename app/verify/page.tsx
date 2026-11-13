@@ -276,10 +276,8 @@ export default function VerifyPage() {
                   {result.message}
                 </p>
                   <dl className="mt-4 text-sm">
-                    <dt className="font-medium">Issued By:</dt>
-                    <dd className="break-words">{idLookup?.issuerDisplayName ?? issuerLabels.issuerDisplayName}</dd>
-                    <dt className="mt-2 font-medium">Organization:</dt>
-                    <dd className="break-words">{idLookup?.organizationDisplayName ?? issuerLabels.organizationDisplayName}</dd>
+                    <dt className="font-medium">Organization:</dt>
+                    <dd className="break-words">{idLookup?.organizationDisplayName || issuerLabels.organizationDisplayName}</dd>
                   </dl>
                   <p className="mt-2 text-xs">Display labels do not add an independent identity or organization trust check.</p>
 

@@ -16,6 +16,7 @@ import { issuerPresentation } from "../../../lib/issuer-presentation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 const MAX_REQUEST_BYTES = 5 * 1024 * 1024;
 const VERIFICATION_LIMIT = 30;
