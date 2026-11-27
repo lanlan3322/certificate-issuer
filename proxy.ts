@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { getUserSafely, isSupabaseAuthCookie } from "./lib/supabase/session";
 
-const protectedPages = ["/platform/dashboard", "/identity-trust", "/credentials", "/billing", "/admin", "/organizations", "/organization-did", "/document-stores", "/audit", "/branding", "/dashboard", "/delivery", "/did", "/insurance", "/profile", "/revocation", "/wallet"];
+const protectedPages = ["/platform/dashboard", "/identity-trust", "/credentials", "/billing", "/admin", "/organizations", "/organization-did", "/document-stores", "/audit", "/branding", "/dashboard", "/delivery", "/did", "/insurance", "/profile", "/revocation"];
 const protectedApiPrefixes = [
   "/api/workspace-summary",
   "/api/issuers",
@@ -101,7 +101,7 @@ export async function proxy(request: NextRequest) {
 
   const isProtectedPage = protectedPages.some((route) => pathname === route || pathname.startsWith(`${route}/`));
   const isProtectedApi = protectedApiPrefixes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
-  if (isProtectedPage || isProtectedApi || pathname === "/issuer/") response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  if (isProtectedPage || isProtectedApi || pathname === "/issuer/" || pathname.startsWith("/wallet/dashboard") || pathname.startsWith("/wallet/access")) response.headers.set("X-Robots-Tag", "noindex, nofollow");
   if (!isProtectedPage && !isProtectedApi) return response;
   if (user) return response;
 

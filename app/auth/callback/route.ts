@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "../../../lib/supabase/server";
 import { safeInternalPath } from "../../../lib/safe-internal-path";
+import { withBasePath } from "../../../lib/site";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +24,8 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const flowId = url.searchParams.get("sb_flow_id");
   const next = safeInternalPath(url.searchParams.get("next"));
+  const errorPage = next === withBasePath("/wallet/dashboard/")
+    ? withBasePath("/wallet/access/") : withBasePath("/issuer/");
 
   authCallbackLog("arrival", {
     origin: url.origin,
@@ -36,7 +39,7 @@ export async function GET(request: Request) {
 
   if (!code) {
     authCallbackLog("missing auth code", { next });
-    return NextResponse.redirect(new URL("/issuer/?error=missing_code", url.origin));
+    return NextResponse.redirect(new URL(`${errorPage}?error=missing_code`, url.origin));
   }
 
   const supabase = await getSupabaseServerClient();
@@ -51,7 +54,7 @@ export async function GET(request: Request) {
   });
 
   if (error) {
-    return NextResponse.redirect(new URL("/issuer/?error=invalid_link", url.origin));
+    return NextResponse.redirect(new URL(`${errorPage}?error=invalid_link`, url.origin));
   }
 
   return NextResponse.redirect(new URL(next, url.origin));

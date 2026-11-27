@@ -11,6 +11,7 @@ export const publicNavigation: NavigationItem[] = [
   { href: "/", label: "Home", description: "Credential-as-a-Service for your organization" },
   { href: "/solutions", label: "Solutions", description: "Credential programmes for your industry" },
   { href: "/platform", label: "Platform", description: "Explore credential infrastructure capabilities" },
+  { href: "/wallet", label: "Wallet", description: "Discover the professional credential passport" },
   { href: "/pricing", label: "Pricing", description: "Plans for organizational growth" },
   { href: "/partners", label: "Partners", description: "Build a digital credential ecosystem" },
   { href: "/resources", label: "Resources", description: "Guides and answers for credential teams" },
@@ -67,7 +68,6 @@ const tools: NavigationItem[] = [
   { href: "/bulk", label: "Batch data preview", description: "Preview batch data without issuing credentials" },
   { href: "/organization-did", label: "DID Management", description: "Configure organization identity and issuer methods" },
   { href: "/templates/builder", label: "Template builder", description: "Maintain credential templates" },
-  { href: "/wallet", label: "Sharing & delivery", description: "Share signed credentials with recipients" },
   { href: "/revocation", label: "Credential status", description: "Review lifecycle changes" },
   { href: "/verification", label: "JSON inspector", description: "Inspect credential data without verification" },
   { href: "/issuer", label: "Workspace access", description: "Sign in to your organization's workspace" },
@@ -84,5 +84,5 @@ export function pageNavigation(pathname: string | null) {
 export function isWorkspacePage(pathname: string | null) {
   const path = normalizePagePath(pathname);
   return groups.flatMap((group) => group.items).some((item) => item.href === path && !["/verify", "/contact", "/docs/user-manual", "/docs/admin-manual"].includes(path))
-    || ["/organization-did", "/templates/builder", "/wallet", "/revocation", "/bulk", "/verification", "/issuer"].includes(path);
+    || ["/organization-did", "/templates/builder", "/revocation", "/bulk", "/verification", "/issuer"].includes(path);
 }

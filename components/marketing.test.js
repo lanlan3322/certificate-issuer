@@ -76,13 +76,24 @@ test("public navigation routes exist and private platform overview stays server-
 
 test("SEO includes public discovery pages only and canonical pricing preserves the old route", () => {
   const entries = load("app/sitemap.ts").default();
-  assert.equal(entries.length, 25);
+  assert.equal(entries.length, 26);
   for (const privatePath of ["/platform/dashboard/", "/identity-trust/", "/credentials/", "/billing/"]) {
     assert.equal(entries.some(entry => entry.url.endsWith(privatePath)), false);
     assert.ok(load("app/robots.ts").default().rules.disallow.includes(privatePath));
   }
   assert.equal(new Set(entries.map(entry => entry.url)).size, entries.length);
   assert.equal(load("app/enterprise/page.tsx").metadata.alternates.canonical, "https://verifiable.sg/pricing/");
+});
+
+test("wallet marketing is public and describes unavailable professional data", () => {
+  const nav = load("lib/navigation.ts");
+  assert.ok(nav.publicNavigation.some((item) => item.href === "/wallet"));
+  assert.equal(nav.isWorkspacePage("/wallet"), false);
+  assert.ok(load("app/sitemap.ts").default().some((entry) => entry.url.endsWith("/wallet/")));
+  assert.ok(!load("app/robots.ts").default().rules.disallow.includes("/wallet/"));
+  const html = renderToStaticMarkup(React.createElement(load("app/wallet/page.tsx").default));
+  assert.match(html, /verified email/);
+  assert.match(html, /professional standing data are not yet available/);
 });
 
 test("demo, consultation and sales links target explicit mailbox-backed flows", () => {

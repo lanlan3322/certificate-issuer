@@ -16,7 +16,7 @@ const extraPages: SearchPage[] = [
   { href: "/templates/builder", label: "Template builder", description: "Create and maintain credential templates", permission: "templates.manage" },
   { href: "/organization-did", label: "DID Management", description: "Configure organization identity and issuer methods", permission: "members.manage" },
   { href: "/did", label: "Issuer profiles", description: "Configure issuer profiles and DID identity", permission: "issuers.manage" },
-  { href: "/wallet", label: "Sharing and delivery", description: "Share credentials with recipients" },
+  { href: "/wallet", label: "Credential wallet", description: "Learn about the planned professional credential passport" },
   { href: "/revocation", label: "Revocation Management", description: "Revoke, suspend or reinstate a credential", permission: "credentials.revoke" },
   { href: "/verification", label: "JSON inspector", description: "Inspect credential data without verification" },
 ];

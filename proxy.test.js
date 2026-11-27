@@ -71,6 +71,7 @@ test("Overview stays public while Dashboard requires login", async () => {
 
     assert.equal((await proxy(request("/"))).kind, "next");
     assert.equal((await proxy(request("/platform/"))).kind, "next");
+    assert.equal((await proxy(request("/wallet/"))).kind, "next");
     for (const path of ["/platform/dashboard/", "/identity-trust/", "/credentials/"]) {
       assert.equal((await proxy(request(path))).kind, authenticated ? "next" : "redirect");
     }

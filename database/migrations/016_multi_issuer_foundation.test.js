@@ -81,6 +81,16 @@ test("Phase 2 RLS isolates sibling issuers and tenants while admins retain inten
   assert.equal((await as(26,"SELECT count(*) FROM issuers")).rows[0].count,2);
 });
 
+test("holder profile migration preserves issuer RLS and isolates profiles across existing accounts",async(t)=>{
+  const {db,as}=await setup(t);
+  const before=(await as(23,"SELECT id FROM credentials ORDER BY id")).rows;
+  await db.exec(readFileSync(`${__dirname}/025_credential_holder_profiles.sql`, "utf8"));
+  await as(23,"INSERT INTO credential_profiles (user_id,full_name) VALUES ($1,'Holder')",[id(23)]);
+  assert.deepEqual((await as(23,"SELECT id FROM credentials ORDER BY id")).rows,before);
+  assert.equal((await as(25,"SELECT count(*) FROM credential_profiles")).rows[0].count,0);
+  await assert.rejects(as(25,"SELECT * FROM wallet_audit_events"),/permission denied/);
+});
+
 test("Phase 2 issuer creation, editing, tenant-local codes and platform-only soft deletion",async(t)=>{
   const {as,db}=await setup(t);
   const sql="INSERT INTO issuers (organization_id,name,display_name,slug,contact_email) VALUES ($1,'New','New','new-code','n@example.com') RETURNING id";

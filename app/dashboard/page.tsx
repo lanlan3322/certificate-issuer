@@ -65,7 +65,7 @@ export default function DashboardPage() {
       <Link href="/verify" prefetch={false} className="btn-secondary">Verify a credential</Link>
       {hasPermission(user, "templates.manage") && <Link href="/branding" prefetch={false} className="btn-secondary">Manage templates</Link>}
       {hasPermission(user, "credentials.issue") && <Link href="/bulk" prefetch={false} className="btn-secondary">Preview batch data</Link>}
-      <Link href="/wallet" prefetch={false} className="btn-secondary">Sharing & delivery</Link>
+      <Link href="/wallet" prefetch={false} className="btn-secondary">Credential wallet</Link>
       <Link href="/verification" prefetch={false} className="btn-secondary">Inspect credential JSON</Link>
     </nav>}
     <section aria-label="Loaded credential summary" className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">

@@ -1,4 +1,4 @@
-export type Role = "platform_admin" | "organization_admin" | "issuer" | "viewer";
+export type Role = "platform_admin" | "organization_admin" | "issuer" | "viewer" | "credential_holder";
 export type IssuerMemberRole = "issuer_admin" | "issuer_operator" | "viewer";
 export interface IssuerMembership { issuerId: string; role: IssuerMemberRole }
 interface PermissionUser {
@@ -11,6 +11,7 @@ export type Permission =
   | "organizations.manage" | "organizations.read" | "members.manage" | "users.manage"
   | "issuers.manage" | "templates.manage" | "credentials.read"
   | "credentials.issue" | "credentials.revoke" | "credentials.send"
+  | "wallet.credentials.read" | "wallet.profile.manage"
   | "billing.read" | "billing.manage";
 
 const aliases: Record<string, Role> = {
@@ -18,6 +19,7 @@ const aliases: Record<string, Role> = {
   organization_admin: "organization_admin", "issuer-admin": "organization_admin",
   issuer: "issuer", "issuer-operator": "issuer",
   viewer: "viewer", verifier: "viewer",
+  credential_holder: "credential_holder",
 };
 
 const grants: Record<Role, readonly Permission[]> = {
@@ -26,6 +28,7 @@ const grants: Record<Role, readonly Permission[]> = {
   organization_admin: ["organizations.read", "members.manage", "issuers.manage", "templates.manage", "credentials.read", "credentials.issue", "credentials.revoke", "credentials.send", "billing.read"],
   issuer: ["organizations.read", "credentials.read", "credentials.issue", "credentials.revoke", "credentials.send"],
   viewer: ["organizations.read", "credentials.read"],
+  credential_holder: ["wallet.credentials.read", "wallet.profile.manage"],
 };
 
 export function normalizeRoles(roles: readonly string[]): Role[] {
@@ -42,6 +45,7 @@ export function hasPermission(user: PermissionUser | null | undefined, permissio
   if (!user) return false;
   const roles = normalizeRoles(user.roles);
   if (roles.some((role) => role !== "issuer" && grants[role].includes(permission))) return true;
+  if (roles.length === 1 && roles[0] === "credential_holder") return false;
   if (user.issuerMemberships !== undefined) {
     return user.issuerMemberships.some((membership) => issuerGrants[membership.role]?.includes(permission));
   }
@@ -55,7 +59,9 @@ export function isPlatformAdmin(user: { roles: readonly string[] } | null | unde
 export function canAccessOrganization(
   user: { roles: readonly string[]; organizationId: string }, organizationId: string
 ): boolean {
-  return isPlatformAdmin(user) || user.organizationId === organizationId;
+  const roles = normalizeRoles(user.roles);
+  return isPlatformAdmin(user) || (!(roles.length === 1 && roles[0] === "credential_holder") &&
+    user.organizationId === organizationId);
 }
 
 export function hasLegacyRole(user: { roles: readonly string[] }, role: string): boolean {
@@ -71,6 +77,7 @@ export function canAccessIssuer(
   if (isPlatformAdmin(user)) return true;
   if (issuer.organizationId !== user.organizationId) return false;
   const roles = normalizeRoles(user.roles);
+  if (roles.length === 1 && roles[0] === "credential_holder") return false;
   if (roles.includes("organization_admin")) return true;
   const membership = user.issuerMemberships?.find((entry) => entry.issuerId === issuer.id);
   if (membership) return capability === "read" ||
