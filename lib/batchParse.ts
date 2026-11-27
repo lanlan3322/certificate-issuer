@@ -20,6 +20,7 @@ export interface BatchRow {
   status: "pending" | "issuing" | "success" | "error";
   txHash?: string;
   issueError?: string;
+  emailDelivery?: { status: "accepted" | "failed"; message: string };
 }
 
 const VALID_CERTIFICATE_TYPES = Object.values(CERTIFICATE_TEMPLATES).map(

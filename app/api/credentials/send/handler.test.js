@@ -44,7 +44,7 @@ function setup(options = {}) {
     "node:crypto": require("node:crypto"),
     nodemailer: { createTransport: (config) => {
       calls.push(["transport", config]);
-      return { sendMail: async (email) => {
+      return { close: () => calls.push(["close"]), sendMail: async (email) => {
         calls.push(["email", email]);
         if (options.transportError) throw new Error("sensitive provider data");
         return { accepted: options.rejected ? [] : ["recipient@example.com"],
@@ -53,14 +53,27 @@ function setup(options = {}) {
       } };
     } },
   };
+  const serviceModule = { exports: {} };
+  const serviceCode = ts.transpileModule(readFileSync(`${__dirname}/../../../../services/CredentialEmailService.ts`, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const env = options.unconfigured ? {} : {
+    SMTP_HOST: "smtp.example.com", SMTP_PORT: "587", SMTP_USER: "smtp-user",
+    SMTP_PASS: "test-secret", EMAIL_FROM: "sender@example.com", ...options.env,
+  };
+  const logger = { error: (...args) => calls.push(["log", ...args]) };
+  new Function("require", "module", "exports", "process", "console", serviceCode)(
+    (name) => {
+      const key = name === "./AuditService" ? "../../../../services/AuditService" : name;
+      assert.ok(mocks[key], key);
+      return mocks[key];
+    }, serviceModule, serviceModule.exports, { env }, logger);
+  mocks["../../../../services/CredentialEmailService"] = serviceModule.exports;
   new Function("require", "module", "exports", "process", "fetch", "console", code)(
     (name) => { assert.ok(mocks[name], name); return mocks[name]; }, module, module.exports,
-    { env: options.unconfigured ? {} : {
-      SMTP_HOST: "smtp.example.com", SMTP_PORT: "587", SMTP_USER: "smtp-user",
-      SMTP_PASS: "test-secret", EMAIL_FROM: "sender@example.com", ...options.env,
-    } },
+    { env },
     () => { assert.fail("SMTP sender must not call the Resend HTTP API"); },
-    { error: (...args) => calls.push(["log", ...args]) });
+    logger);
   return {
     calls, record,
     post: (body = { credentialId: id, requestId }, origin = "https://verifiable.sg") => module.exports.POST(
@@ -95,6 +108,8 @@ test("sends stored signed JSON through shared SMTP settings only to the scoped r
   assert.match(email.text, /https:\/\/verifiable.sg\/privacy/);
   assert.match(email.text, /https:\/\/verifiable.sg\/terms/);
   assert.equal(email.messageId, `<certificate-${id}-${requestId}@verifiable.sg>`);
+  assert.match(email.text, /https:\/\/www\.verifiable\.sg\/wallet\/access\//);
+  assert.equal(app.calls.filter(([type]) => type === "close").length, 1);
   assert.equal(app.calls.find(([type]) => type === "audit")[1].action, "credential.email.accepted");
 });
 
@@ -144,6 +159,7 @@ test("provider failures never return success or expose provider content", async 
     const response = await app.post();
     assert.equal(response.status, 502);
     assert.ok(!app.calls.some(([type]) => type === "audit"));
+    assert.equal(app.calls.filter(([type]) => type === "close").length, 1);
     assert.doesNotMatch(JSON.stringify(app.calls.filter(([type]) => type === "log")), /sensitive provider data/);
   }
 });

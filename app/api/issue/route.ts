@@ -9,7 +9,8 @@ import {
 } from "../../../lib/trustvc";
 import { resolveTemplateId } from "../../templates/registry";
 import { AuditService } from "../../../services/AuditService";
-import { CredentialService, DuplicateCredentialError } from "../../../services/CredentialService";
+import { CredentialService, DuplicateCredentialError, type CredentialRecord } from "../../../services/CredentialService";
+import { CredentialEmailService, CredentialEmailError } from "../../../services/CredentialEmailService";
 import { getDefaultDocumentStoreConfig, registerHash, isRegistered } from "../../../lib/document-store";
 import type { CertificateData } from "../../../lib/trustvc";
 import { StatusListService } from "../../../services/StatusListService";
@@ -114,6 +115,9 @@ function validate(data: Record<string, unknown>): { ok: true; value: Certificate
 export async function POST(request: Request) {
   const { user, response } = await authorize("credentials.issue");
   if (response) return response;
+  if (request.headers.get("origin") && request.headers.get("origin") !== new URL(request.url).origin) {
+    return NextResponse.json({ error: "Cross-origin issuance requests are not allowed." }, { status: 403 });
+  }
 
   try {
     const body = (await request.json()) as {
@@ -260,6 +264,7 @@ export async function POST(request: Request) {
       ? computeDocumentStoreHash(result.credential)
       : extractTargetHash(result.credential);
     let stored: { id: string } | null = null;
+    let issuedCredential: CredentialRecord;
     try {
       const record = await CredentialService.create({
         issuerId: issuingIssuer.id,
@@ -280,6 +285,7 @@ export async function POST(request: Request) {
         validFrom: data.validFrom,
         validUntil: data.validUntil,
       });
+      issuedCredential = record;
       stored = { id: record.id };
       await AuditService.record({
         organizationId: issuingIssuer.organizationId,
@@ -362,7 +368,24 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({ signed: true, credential: result.credential, stored,
+    let emailDelivery: { status: "accepted" | "failed"; message: string };
+    try {
+      emailDelivery = await CredentialEmailService.send(issuedCredential, user.id, "issuance");
+    } catch (error) {
+      console.error("[issue/email] Certificate saved but email acceptance was not confirmed.", { credentialId: stored.id });
+      emailDelivery = {
+        status: "failed",
+        message: error instanceof CredentialEmailError ? error.message
+          : "Unable to confirm email acceptance. Check with your administrator before retrying to avoid duplicate emails.",
+      };
+      await AuditService.record({
+        organizationId: issuingIssuer.organizationId, issuerId: issuingIssuer.id, userId: user.id,
+        action: "credential.email.failed", entityType: "credential", entityId: stored.id,
+        metadata: { requestId: "issuance" },
+      });
+    }
+
+    return NextResponse.json({ signed: true, credential: result.credential, stored, emailDelivery,
       ...(serverRegistration
         ? { blockchainRegistration: "server", registration: {
           ...serverRegistration, alreadyRegistered: serverRegistration.hashExists && !serverRegistration.registered,

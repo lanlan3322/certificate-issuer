@@ -22,7 +22,7 @@ function load(mocks) {
   return instance.exports;
 }
 
-function createRoute({ statusProfile = "legacy", profileMapped = true, registrationError = false, registrationEnabled = true, templateOwner = "issuer-id", templateOrg = "org-id", roles = ["issuer-operator"], available = true, organizationStore=null, storeFailure=false } = {}) {
+function createRoute({ statusProfile = "legacy", profileMapped = true, registrationError = false, registrationEnabled = true, templateOwner = "issuer-id", templateOrg = "org-id", roles = ["issuer-operator"], available = true, organizationStore=null, storeFailure=false, emailError=false, signingError=false, persistenceError=false } = {}) {
   const calls = [];
   const pending = [];
   const defaultStore = {
@@ -48,6 +48,14 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
     secretKeyMultibase: "zSecret",
   };
   const mocks = {
+    "../../../services/CredentialEmailService": {
+      CredentialEmailError: class extends Error {},
+      CredentialEmailService: { send: async (...args) => {
+        calls.push(["email", ...args]);
+        if (emailError) throw new Error("sensitive SMTP provider data");
+        return { status: "accepted", message: "Email accepted for delivery. Inbox delivery is not yet confirmed." };
+      } },
+    },
     "../../../services/OrganizationDocumentStoreService":{
       OrganizationDocumentStoreError:class extends Error{},
       OrganizationDocumentStoreService:{active:async org=>{
@@ -104,6 +112,7 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
       },
       signDocumentWithDID: async (credential, secret, context) => {
         calls.push(["sign", credential, secret, context]);
+        if (signingError) return { signed: false, credential, error: "Signing failed." };
         return { signed: true, credential: { ...credential, proof: { verificationMethod: context?.verificationMethod } } };
       },
       withEmbeddedRenderMethod: (credential) => credential,
@@ -115,7 +124,8 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
       CredentialService: {
         create: async (input) => {
           calls.push(["persist", input]);
-          return { id: "credential-row-id" };
+          if (persistenceError) throw new Error("Persistence failed.");
+          return { ...input, id: "credential-row-id", organizationId: templateOrg, status: "issued" };
         },
       },
     },
@@ -181,9 +191,9 @@ function createRoute({ statusProfile = "legacy", profileMapped = true, registrat
     validFrom: "2026-10-20T00:00:00Z",
     issuingMethods: ["did"],
   };
-  const post = (overrides = {}) => route.POST(new Request("https://verifiable.sg/api/issue", {
+  const post = (overrides = {}, origin = "https://verifiable.sg") => route.POST(new Request("https://verifiable.sg/api/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin },
     body: JSON.stringify({
       data,
       templateId: "template-row-id",
@@ -233,6 +243,55 @@ test("issue route uses managed organization signing while retaining the template
   const registration = calls.find(([name]) => name === "register-store");
   assert.equal(registration[3].address, profile.documentStoreAddress);
   assert.equal(registration[3].network, profile.documentStoreNetwork);
+});
+
+test("issuance emails the persisted signed credential exactly once after saving and auditing", async () => {
+  const app = createRoute({ statusProfile: "trustvc" });
+  const response = await app.post();
+  const result = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(result.emailDelivery.status, "accepted");
+  await app.finish();
+  const emails = app.calls.filter(([name]) => name === "email");
+  assert.equal(emails.length, 1);
+  const [, record, actor, requestId] = emails[0];
+  assert.equal(record.id, result.stored.id);
+  assert.equal(record.recipientEmail, "recipient@example.com");
+  assert.deepEqual(record.credential, result.credential);
+  assert.equal(record.status, "issued");
+  assert.equal(actor, "user-id");
+  assert.equal(requestId, "issuance");
+  assert.ok(app.calls.findIndex(([name]) => name === "persist") < app.calls.indexOf(emails[0]));
+  assert.ok(app.calls.findIndex(([name, event]) => name === "audit" && event.action === "credential.issued") < app.calls.indexOf(emails[0]));
+  assert.deepEqual(result.stored, { id: "credential-row-id" });
+});
+
+test("email failure leaves the signed saved credential successful and explicitly reports and audits the warning", async () => {
+  const app = createRoute({ emailError: true });
+  const response = await app.post();
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.signed, true);
+  assert.ok(result.credential.proof);
+  assert.equal(result.stored.id, "credential-row-id");
+  assert.equal(result.emailDelivery.status, "failed");
+  assert.doesNotMatch(result.emailDelivery.message, /sensitive SMTP provider data/);
+  assert.ok(app.calls.some(([name, event]) => name === "audit" && event.action === "credential.email.failed"));
+});
+
+test("no email is attempted for rejected, unsigned or unsaved issuance", async () => {
+  for (const options of [{ available: false }, { signingError: true }, { persistenceError: true }]) {
+    const app = createRoute(options);
+    assert.ok((await app.post()).status >= 400);
+    await app.finish();
+    assert.equal(app.calls.some(([name]) => name === "email"), false);
+  }
+});
+
+test("cross-origin issuance cannot trigger signing, persistence or automatic email", async () => {
+  const app = createRoute();
+  assert.equal((await app.post({}, "https://untrusted.example")).status, 403);
+  assert.equal(app.calls.some(([name]) => ["sign", "persist", "email"].includes(name)), false);
 });
 
 test("template owner controls signed attribution and persisted key automatically; client signer metadata is ignored",async()=>{

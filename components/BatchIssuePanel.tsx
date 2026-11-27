@@ -345,6 +345,7 @@ export default function BatchIssuePanel({
             documentStore?: { address: string; network: string };
             blockchainRegistration?: "server" | "wallet";
             registration?: { txHash?: string; alreadyRegistered?: boolean; error?: string };
+            emailDelivery?: BatchRow["emailDelivery"];
           };
           if (!response.ok || !result.signed || !result.credential?.proof) {
             throw new Error(
@@ -355,6 +356,7 @@ export default function BatchIssuePanel({
             );
           }
           payload = result.credential as ReturnType<typeof buildVCPayload>;
+          updated[i] = { ...updated[i], emailDelivery: result.emailDelivery };
           selectedStore = result.documentStore;
           txHash = certData.id;
           if (result.blockchainRegistration === "server") {
@@ -620,6 +622,13 @@ export default function BatchIssuePanel({
                       )}
                       {row.status === "pending" && row.errors.length === 0 && (
                         <span className="text-green-600">Ready</span>
+                      )}
+                      {row.emailDelivery && (
+                        <span role={row.emailDelivery.status === "failed" ? "alert" : "status"}
+                          className={`mt-1 block ${row.emailDelivery.status === "failed" ? "text-amber-800" : "text-green-800"}`}>
+                          {row.emailDelivery.message}
+                          {row.emailDelivery.status === "failed" && " Do not reissue. Check delivery before retrying with Send in Issued certificates."}
+                        </span>
                       )}
                     </td>
                   </tr>

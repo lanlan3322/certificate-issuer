@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import { authorize, errorResponse } from "../../../../lib/apiAuth";
 import { enforceRateLimit, ForbiddenError, RateLimitError } from "../../../../lib/auth";
 import { CredentialService } from "../../../../services/CredentialService";
-import { AuditService } from "../../../../services/AuditService";
+import { CredentialEmailService, CredentialEmailError } from "../../../../services/CredentialEmailService";
 import { randomUUID } from "node:crypto";
-import { createTransport } from "nodemailer";
 import { hasPermission } from "../../../../lib/permissions";
 import { requireIssuerAccess } from "../../../../lib/issuer-access";
 
@@ -35,60 +34,12 @@ export async function POST(request: Request) {
     const credential = await CredentialService.get(body.credentialId);
     if (!credential) return NextResponse.json({ error: "Certificate not found." }, { status: 404 });
     await requireIssuerAccess(user, credential.issuerId, "operate", true);
-    if (credential.status !== "issued" ||
-        (credential.validUntil && Date.parse(credential.validUntil) <= Date.now())) {
-      return NextResponse.json({ error: "Only issued, unexpired certificates can be sent." }, { status: 409 });
-    }
-    if (!/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(credential.recipientEmail)) {
-      return NextResponse.json({ error: "The stored recipient email is invalid. Contact your administrator." }, { status: 422 });
-    }
-    const host = process.env.SMTP_HOST;
-    const portText = process.env.SMTP_PORT;
-    const port = Number(portText);
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPassword = process.env.SMTP_PASS;
-    const from = process.env.EMAIL_FROM;
-    if (!host || !portText || !/^\d+$/.test(portText) || !Number.isInteger(port) ||
-        port < 1 || port > 65535 || !smtpUser || !smtpPassword || !from) {
-      return NextResponse.json({ error: "Certificate email delivery is not configured. Contact your administrator." }, { status: 503 });
-    }
-    const content = Buffer.from(JSON.stringify(credential.credential, null, 2));
-    if (content.length > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: "The certificate exceeds the email attachment size limit." }, { status: 413 });
-    }
-    const filename = `${(credential.externalId || credential.id).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 100)}.json`;
-    const transport = createTransport({
-      host, port,
-      secure: port === 465,
-      requireTLS: port !== 465,
-      auth: { user: smtpUser, pass: smtpPassword },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 30000,
-      disableFileAccess: true,
-      disableUrlAccess: true,
-      logger: false,
-      debug: false,
-    });
-    const delivery = await transport.sendMail({
-        from,
-        to: [credential.recipientEmail],
-        messageId: `<certificate-${credential.id}-${body.requestId}@verifiable.sg>`,
-        subject: "Your digital certificate from Verifiable.sg",
-        text: `Your issued digital certificate is attached as a JSON file. Keep this file unchanged to preserve its signature and use it with a compatible credential verifier.\n\nFor assistance, contact support@verifiable.sg.\n\n----------------------------------------\nThis email was sent by Verifiable.sg\nPrivacy Policy: https://verifiable.sg/privacy\nTerms of Service: https://verifiable.sg/terms\n----------------------------------------`,
-        attachments: [{ filename, content, contentType: "application/json" }],
-    });
-    if (delivery.rejected.length || !delivery.accepted.length || !delivery.messageId) {
-      console.error("Certificate SMTP server did not confirm recipient acceptance.");
-      return NextResponse.json({ error: "The email provider did not accept the request. Please try again later." }, { status: 502 });
-    }
-    await AuditService.record({
-      organizationId: credential.organizationId, issuerId: credential.issuerId, userId: user.id,
-      action: "credential.email.accepted", entityType: "credential", entityId: credential.id,
-      metadata: { messageId: delivery.messageId, requestId: body.requestId },
-    });
-    return NextResponse.json({ message: "Email accepted for delivery. Inbox delivery is not yet confirmed." });
+    const delivery = await CredentialEmailService.send(credential, user.id, body.requestId);
+    return NextResponse.json({ message: delivery.message });
   } catch (error) {
+    if (error instanceof CredentialEmailError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     if (error instanceof ForbiddenError) return errorResponse(error, "Issuer access denied.", 403);
     if (error instanceof RateLimitError) return errorResponse(error, "Email rate limit reached.", 429);
     // Keep unexpected transport/provider details out of application logs.

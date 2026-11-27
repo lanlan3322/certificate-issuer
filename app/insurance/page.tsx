@@ -165,6 +165,7 @@ export default function InsurancePage() {
   const [issuedCert, setIssuedCert] = useState<CertificateData | null>(null);
   const [copied, setCopied] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [emailDelivery, setEmailDelivery] = useState<{ status: "accepted" | "failed"; message: string } | null>(null);
   const [issuing, setIssuing] = useState(false);
   const [issuedTxHash, setIssuedTxHash] = useState<string | null>(null);
   const [didResult, setDIDResult] = useState<DIDIssuanceResult | null>(null);
@@ -303,6 +304,7 @@ export default function InsurancePage() {
     }
 
     setErrors([]);
+    setEmailDelivery(null);
 
     if (issuingMethods.includes("ethereum") && !issuingMethods.includes("did") && !connected) {
       setErrors(["Please connect MetaMask to sign the selected certificate."]);
@@ -383,6 +385,7 @@ export default function InsurancePage() {
           documentStore?: { address: string; network: string };
           blockchainRegistration?: "server" | "wallet";
           registration?: { txHash?: string; alreadyRegistered?: boolean; error?: string };
+          emailDelivery?: { status: "accepted" | "failed"; message: string };
         };
 
         if (!response.ok || resultPayload.error || !resultPayload.signed || !resultPayload.credential?.proof) {
@@ -398,6 +401,7 @@ export default function InsurancePage() {
           return;
         }
 
+        setEmailDelivery(resultPayload.emailDelivery ?? null);
         setDIDResult({
           credential: resultPayload.credential,
           signed: true,
@@ -863,6 +867,15 @@ export default function InsurancePage() {
                     <span>{issuing ? "Issuing..." : "Issue credential"}</span>
                   </button>
 
+                  {emailDelivery && (
+                    <p role={emailDelivery.status === "failed" ? "alert" : "status"}
+                      className={`mt-3 rounded-lg border p-3 text-sm ${emailDelivery.status === "failed"
+                        ? "border-amber-300 bg-amber-50 text-amber-900"
+                        : "border-green-200 bg-green-50 text-green-800"}`}>
+                      Certificate issued. {emailDelivery.message}
+                      {emailDelivery.status === "failed" && " Do not reissue it. Check delivery before using Send in Issued certificates to retry."}
+                    </p>
+                  )}
                   {errors.length > 0 && (
                     <div className="mt-3 p-3 md:p-4 bg-red-50 border border-red-200 rounded-lg">
                       <div className="flex items-start space-x-2">

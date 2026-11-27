@@ -83,6 +83,25 @@ test("batch issuance sends the saved template ID for authorization and its slug 
   assert.strictEqual(state.certificates[0].certificate, credential);
 });
 
+test("batch rows retain separate email results without retrying issuance or losing downloads", async () => {
+  let attempts = 0;
+  const results = [
+    { status: "failed", message: "Email acceptance could not be confirmed." },
+    { status: "accepted", message: "Email accepted for delivery." },
+  ];
+  const { run, state } = setup({
+    fetch: async () => ({ ok: true, json: async () => ({
+      signed: true, credential: { proof: { proofValue: "saved" } },
+      emailDelivery: results[attempts++],
+    }) }),
+  });
+  await run();
+  assert.equal(attempts, 2);
+  assert.ok(state.rows.every(row => row.status === "success"));
+  assert.deepEqual(state.rows.map(row => row.emailDelivery), results);
+  assert.equal(state.certificates.length, 2);
+});
+
 test("batch issuance rejects an invalid supplied issue date before processing certificates", async () => {
   const { run, state, requests } = setup({
     rows: [{ recipientName: "Alice", errors: [], issueDate: "not-a-date" }],

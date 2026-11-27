@@ -189,6 +189,7 @@ export default function AdminManualPage() {
             ["Check eligibility", "Session issuer's issued, unexpired credentials only. Limit: 20 attempts per user per 15 minutes."],
             ["Review acceptance", "Audit records provider acceptance, not delivery. Confirm recipient/provider status before another send."],
           ]} />
+          <aside className={noteStyle}><strong>Automatic certificate email.</strong> Single and batch server-side issuance attempt email delivery after signing and saving each certificate. The email attaches the unchanged signed JSON and includes the wallet sign-in link. Issuance shows SMTP acceptance or a separate email warning; failure does not undo the certificate. Browser-only Ethereum issuance does not send email. There are no automatic retries. Do not reissue to retry delivery: check the recipient/provider first, then use Send in Issued certificates if needed.</aside>
           <aside className={noteStyle}><strong>Retry carefully.</strong> SMTP does not guarantee deduplication. The same confirmation reuses its Message-ID for tracing, but retries can send duplicates. Confirm recipient/provider status before retrying an ambiguous request. Port 465 uses implicit TLS; other ports require STARTTLS. Password reset continues through Supabase Auth unchanged.</aside>
           <details className={detailStyle}>
             <summary className="cursor-pointer font-semibold">Deploy provider email notices</summary>

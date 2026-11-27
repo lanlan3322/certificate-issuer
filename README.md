@@ -69,7 +69,16 @@ See [Vercel's storage guidance](https://vercel.com/docs/deployment-storage/optim
 
 ### Certificate email: reuse password-reset SMTP settings
 
-The Issued certificates **Send** action uses SMTP, not Supabase Auth's email API.
+After successful server-side signing and persistence, single and batch issuance
+automatically attempt to email the recorded recipient the unchanged signed JSON
+attachment and a wallet sign-in link. The issuance response includes
+`emailDelivery.status` (`accepted` or `failed`) and a message, shown in the UI.
+SMTP failure does not undo issuance: do not reissue a certificate to retry email.
+There is no automatic delivery retry or inbox-delivery guarantee. Browser-only
+Ethereum issuance is not persisted by this endpoint and does not send email.
+
+Automatic delivery and the Issued certificates **Send** action share the existing
+SMTP integration, not Supabase Auth's email API.
 In Vercel, set server-only `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and
 `EMAIL_FROM` to match **Supabase Auth → Email → SMTP settings**, including its
 sender address. Supabase does not expose these settings to the app automatically.

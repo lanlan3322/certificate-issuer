@@ -61,7 +61,7 @@ function setup({
   const state = {};
   const calls = { requests: [], walletSignatures: 0, signers: 0, anchors: 0 };
   const setters = Object.fromEntries(
-    ["Errors", "Issuing", "IssuedCert", "IssuedTxHash", "DIDResult", "EthereumResult"].map(
+    ["Errors", "EmailDelivery", "Issuing", "IssuedCert", "IssuedTxHash", "DIDResult", "EthereumResult"].map(
       (name) => [`set${name}`, (value) => { state[name] = value; }]
     )
   );
@@ -151,6 +151,19 @@ test("DID-only issuance preserves server proof without connecting or invoking a 
   });
 
   assert.deepEqual(JSON.parse(JSON.stringify(current)).proof, original.proof);
+});
+
+test("single issuance surfaces email acceptance and failure separately without losing the issued certificate", async () => {
+  for (const status of ["accepted", "failed"]) {
+    const emailDelivery = { status, message: status === "accepted" ? "Email accepted for delivery." : "SMTP is not configured." };
+    const { run, state, calls } = setup({ body: { signed: true, credential, emailDelivery } });
+    await run();
+    assert.deepEqual(state.EmailDelivery, emailDelivery);
+    assert.deepEqual(state.Errors, []);
+    assert.ok(state.IssuedCert);
+    assert.equal(state.DIDResult.signed, true);
+    assert.equal(calls.requests.length, 1);
+  }
 });
 
 test("issuance rejects a missing issue date before contacting the signing service", async () => {
